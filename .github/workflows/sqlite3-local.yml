@@ -1,0 +1,19 @@
+name: sqlite3-local
+
+on:
+  workflow_dispatch:
+
+jobs:
+  sqlite3-local:
+    uses: nurturenature/jepsen-powersync/.github/workflows/run-jepsen-tests.yml@main
+    with:
+      workloads: >
+        [ 'sqlite3-local' ]
+      nemeses: >
+        [ 'none' ]
+      rates: >
+        [ '150' ]
+      time-limits: >
+        ['100' ]
+      cli-opts: >
+        '--nodes n1'

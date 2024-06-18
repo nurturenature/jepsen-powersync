@@ -12,3 +12,9 @@ pom.xml.asc
 .lein-failures
 .nrepl-port
 .cpcache/
+.vscode
+.clj-kondo
+.lsp
+sqlite3_endpoint/bin/sqlite3_endpoint.exe
+jepsen/target
+.calva

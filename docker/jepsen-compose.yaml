@@ -1,0 +1,84 @@
+name: jepsen
+
+x-defaults: &defaults
+  privileged: true
+  cap_add:
+    - ALL
+  cgroup: host
+  tty: true
+  stop_signal: SIGRTMIN+3
+  tmpfs:
+    - /run:size=100M
+    - /run/lock:size=100M
+  volumes:
+    - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    - jepsen-shared:/var/jepsen/shared
+  networks:
+    - jepsen
+  healthcheck:
+    test: ["CMD-SHELL", "systemctl", "is-system-running"]
+    interval: 1s
+    timeout: 1s
+    retries: 3
+    start_period: 3s
+
+x-node: &default-node
+  <<: *defaults
+  image: ${JEPSEN_REGISTRY:-}jepsen-node
+  depends_on:
+    setup:
+      condition: service_completed_successfully
+
+volumes:
+  jepsen-shared:
+
+networks:
+  jepsen:
+
+services:
+  setup:
+    <<: *defaults
+    image: ${JEPSEN_REGISTRY:-}jepsen-setup
+    container_name: jepsen-setup
+    hostname: setup
+    entrypoint: ["/usr/local/bin/jepsen-setup.sh"]
+
+  control:
+    <<: *defaults
+    image: ${JEPSEN_REGISTRY:-}jepsen-control
+    container_name: jepsen-control
+    hostname: control
+    ports:
+      - 8080:8080
+    depends_on:
+      n1:
+        condition: service_healthy
+      n2:
+        condition: service_healthy
+      n3:
+        condition: service_healthy
+      n4:
+        condition: service_healthy
+      n5:
+        condition: service_healthy
+
+  n1:
+    <<: *default-node
+    container_name: jepsen-n1
+    hostname: n1
+  n2:
+    <<: *default-node
+    container_name: jepsen-n2
+    hostname: n2
+  n3:
+    <<: *default-node
+    container_name: jepsen-n3
+    hostname: n3
+  n4:
+    <<: *default-node
+    container_name: jepsen-n4
+    hostname: n4
+  n5:
+    <<: *default-node
+    container_name: jepsen-n5
+    hostname: n5

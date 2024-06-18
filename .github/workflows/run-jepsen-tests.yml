@@ -1,0 +1,113 @@
+name: Run Jepsen Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      workloads:
+        description: Workloads (as JSON)
+        type: string
+        required: true
+        default: "[ 'sqlite3-local' ]"
+      nemeses:
+        description: 'Nemeses (as JSON)'
+        type: string
+        required: true
+        default: "[ 'none' ]"
+      rates:
+        description: 'Rates (as JSON)'
+        type: string
+        required: true
+        default: "[ '100' ]"
+      time-limits:
+        description: 'Timelimits (as JSON)'
+        type: string
+        required: true
+        default: "[ '100' ]"
+      cli-opts:
+        description: 'CLI opts string'
+        type: string
+        required: false
+       
+  workflow_call:
+    inputs:
+      workloads:
+        description: 'Workloads (as JSON)'
+        type: string
+        required: true
+        default: "[ 'sqlite3-local' ]"
+      nemeses:
+        description: 'Nemeses (as JSON)'
+        type: string
+        required: true
+        default: "[ 'none' ]"
+      rates:
+        description: 'Rates (as JSON)'
+        type: string
+        required: true
+        default: "[ '100' ]"
+      time-limits:
+        description: 'Timelimits (as JSON)'
+        type: string
+        required: true
+        default: "[ '100' ]"
+      cli-opts:
+        description: 'CLI opts string'
+        type: string
+        required: false
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        workload:   ${{ fromJSON(inputs.workloads) }}
+        nemesis:    ${{ fromJSON(inputs.nemeses) }}
+        rate:       ${{ fromJSON(inputs.rates) }}
+        time-limit: ${{ fromJSON(inputs.time-limits) }}
+
+    env:
+      test-title: ${{ matrix.workload }}-${{ matrix.nemesis }}-${{ matrix.rate }}tps-${{ matrix.time-limit }}s
+
+    steps:  
+      - name: Checkout jepsen-powersync
+        uses: actions/checkout@v4
+        
+      - name: Bring Up Docker Environment
+        run: |
+          cd $GITHUB_WORKSPACE/docker
+          ./docker-build.sh
+          ./docker-compose-up.sh
+          
+      - name: ${{ env.test-title }}
+        run: |
+          cd $GITHUB_WORKSPACE/docker
+          ./docker-run.sh lein run test --workload   ${{ matrix.workload }} \
+                                        --nemesis    ${{ matrix.nemesis }}  \
+                                        --rate       ${{ matrix.rate }}     \
+                                        --time-limit ${{ matrix.time-limit }} \
+                                        ${{ inputs.cli-opts }}
+
+      - name: Jepsen, PowerSync, and PostgreSQL Logs
+        if: ${{ always() }}
+        run: |
+          docker cp jepsen-control:/jepsen/jepsen-powersync/store $GITHUB_WORKSPACE
+          tail -n 100 $GITHUB_WORKSPACE/store/current/jepsen.log > $GITHUB_WORKSPACE/store/current/tail-jepsen.log
+
+      - name: 'Jepsen Test Artifacts: summary'
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: '${{ env.test-title }}-summary'
+          path: |
+            ${{ github.workspace }}/store/current/results.edn
+            ${{ github.workspace }}/store/current/tail-jepsen.log
+            
+      - name: 'Jepsen Test Artifacts: failure-full'
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: '${{ env.test-title }}-failure-full'
+          path: |
+            ${{ github.workspace }}/store/current
