@@ -1,0 +1,27 @@
+services:
+  # setup:
+  #   depends_on:
+  #     powersync:
+  #       condition: service_healthy
+
+  # postgres:
+  #   networks:
+  #     - jepsen
+
+  # powersync:
+  #   networks:
+  #     - jepsen
+
+  control:
+    image: powersync-control
+
+  n1:
+    image: powersync-node
+  n2:
+    image: powersync-node
+  n3:
+    image: powersync-node
+  n4:
+    image: powersync-node
+  n5:
+    image: powersync-node

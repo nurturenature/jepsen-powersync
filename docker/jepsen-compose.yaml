@@ -38,7 +38,7 @@ networks:
 services:
   setup:
     <<: *defaults
-    image: ghcr.io/nurturenature/jepsen-docker/jepsen-setup
+    image: ${JEPSEN_REGISTRY:-}jepsen-setup
     container_name: jepsen-setup
     hostname: setup
     entrypoint: ["/usr/local/bin/jepsen-setup.sh"]
