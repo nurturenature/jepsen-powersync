@@ -15,6 +15,8 @@ docker build \
        -f jepsen-control.Dockerfile \
        ../jepsen
 
+docker pull ghcr.io/nurturenature/jepsen-docker/jepsen-setup:latest
+
 echo
 echo "Jepsen control + PowerSync node Docker images have been built."
 echo "Bring up a Jepsen + PowerSync cluster with ./docker-compose-up.sh"
