@@ -15,6 +15,7 @@ docker build \
        -f jepsen-control.Dockerfile \
        ../jepsen
 
+# jepsen-setup not built locally so pull it as part of build
 docker pull ghcr.io/nurturenature/jepsen-docker/jepsen-setup:latest
 
 echo
