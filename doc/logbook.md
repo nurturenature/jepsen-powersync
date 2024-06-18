@@ -1,5 +1,31 @@
 ## Logbook
 
+### Next Step
+
+Add PowerSync to local SQLite3 implementation.
+
+Endpoint
+- `PowerSyncDatabase` driver and ffi db
+- `PromiscuousAuth` for development
+- initial no-op/passthrough backend for local only 
+- config
+  - sync service
+  - local only
+
+Docker
+- sync service
+
+Test
+- workload
+
+Expectations
+- total availability
+- strict serializability
+
+----
+
+## History
+
 ### Initial Endpoint Test
 
 Implementation
@@ -33,6 +59,9 @@ Test results:
 
 ![sqlite3-local latency](./sqlite3-local-latency-raw.png)
 
+GitHub [Action](https://github.com/nurturenature/jepsen-powersync/actions/workflows/sqlite3-local.yml).
+
+Test command:
 ```shell
 lein run test --workload sqlite3-local --nodes n1
 ```
