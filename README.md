@@ -5,7 +5,7 @@ Testing [PowerSync](https://github.com/powersync-ja) with [Jepsen](https://githu
 PowerSync is a full featured active/active sync service for PostgreSQL and local SQLite3 clients.
 It offers a rich API for developers to configure and define the sync behavior.
 
-Our primary goal is to test the sync algorithm, its core implementation, and develope best practices for
+Our primary goal is to test the sync algorithm, its core implementation, and develop best practices for
 - Causal Consistency
   - read your writes
   - monotonic reads and writes
