@@ -19,11 +19,11 @@ RUN dart pub get
 
 # Copy app source code (except anything in .dockerignore) and AOT compile app.
 COPY . .
-COPY .env .env
 RUN dart compile exe --target-os linux bin/sqlite3_endpoint.dart
 
 # Build minimal serving image from AOT-compiled `/server`
 # and the pre-built AOT-runtime in the `/runtime/` directory of the base image.
 FROM jepsen-setup AS jepsen-final
 WORKDIR /jepsen/jepsen-powersync/sqlite3_endpoint
+COPY --from=dart-build /app/.env .env
 COPY --from=dart-build /app/bin/sqlite3_endpoint.exe ./bin/

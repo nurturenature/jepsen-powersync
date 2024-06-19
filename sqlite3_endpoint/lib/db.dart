@@ -1,8 +1,10 @@
+import 'dart:io';
+
 import 'package:sqlite_async/sqlite_async.dart';
 
 late SqliteDatabase db;
 
-const path = '/tmp/sqlite3.db';
+final path = '${Directory.current.path}/sqlite3_endpoint.sqlite3';
 
 final migrations = SqliteMigrations()
   ..add(SqliteMigration(1, (tx) async {
@@ -16,22 +18,29 @@ final migrations = SqliteMigrations()
 
 Future<void> initDb() async {
   print("Creating db");
+  // always start test with a new db in a known state
+  if (await File(path).exists()) {
+    await File(path).delete();
+    await File('$path-shm').delete();
+    await File('$path-wal').delete();
+  }
   db = SqliteDatabase(path: path);
+  print('db: $path, closed: ${db.closed}');
 
   print("Creating lww table");
   await migrations.migrate(db);
-  await db.execute('''
-    DELETE FROM lww''');
-
   final tables = await db.execute('''
     SELECT name FROM sqlite_schema 
     WHERE type IN ('table','view') 
     AND name NOT LIKE 'sqlite_%'
     ORDER BY 1
   ''');
+  print("tables: $tables");
+
+  await db.execute('''
+    DELETE FROM lww''');
   final lww = await db.execute('''
     SELECT * FROM lww
   ''');
-  print("tables: $tables");
   print("lww: $lww");
 }
