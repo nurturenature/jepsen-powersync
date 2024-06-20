@@ -1,0 +1,119 @@
+-- change this if changing the DB connection name
+\connect postgres;
+
+-- conditionally create lww table
+CREATE TABLE IF NOT EXISTS public.lww (
+    id uuid NOT NULL DEFAULT gen_random_uuid (),
+    k INTEGER NOT NULL UNIQUE,
+    v TEXT,
+    CONSTRAINT lww_pkey PRIMARY KEY (id)
+);
+
+-- tests start from a known state
+DELETE FROM lww;
+
+INSERT INTO lww (k) VALUES (0);
+INSERT INTO lww (k) VALUES (1);
+INSERT INTO lww (k) VALUES (2);
+INSERT INTO lww (k) VALUES (3);
+INSERT INTO lww (k) VALUES (4);
+INSERT INTO lww (k) VALUES (5);
+INSERT INTO lww (k) VALUES (6);
+INSERT INTO lww (k) VALUES (7);
+INSERT INTO lww (k) VALUES (8);
+INSERT INTO lww (k) VALUES (9);
+INSERT INTO lww (k) VALUES (10);
+INSERT INTO lww (k) VALUES (11);
+INSERT INTO lww (k) VALUES (12);
+INSERT INTO lww (k) VALUES (13);
+INSERT INTO lww (k) VALUES (14);
+INSERT INTO lww (k) VALUES (15);
+INSERT INTO lww (k) VALUES (16);
+INSERT INTO lww (k) VALUES (17);
+INSERT INTO lww (k) VALUES (18);
+INSERT INTO lww (k) VALUES (19);
+INSERT INTO lww (k) VALUES (20);
+INSERT INTO lww (k) VALUES (21);
+INSERT INTO lww (k) VALUES (22);
+INSERT INTO lww (k) VALUES (23);
+INSERT INTO lww (k) VALUES (24);
+INSERT INTO lww (k) VALUES (25);
+INSERT INTO lww (k) VALUES (26);
+INSERT INTO lww (k) VALUES (27);
+INSERT INTO lww (k) VALUES (28);
+INSERT INTO lww (k) VALUES (29);
+INSERT INTO lww (k) VALUES (30);
+INSERT INTO lww (k) VALUES (31);
+INSERT INTO lww (k) VALUES (32);
+INSERT INTO lww (k) VALUES (33);
+INSERT INTO lww (k) VALUES (34);
+INSERT INTO lww (k) VALUES (35);
+INSERT INTO lww (k) VALUES (36);
+INSERT INTO lww (k) VALUES (37);
+INSERT INTO lww (k) VALUES (38);
+INSERT INTO lww (k) VALUES (39);
+INSERT INTO lww (k) VALUES (40);
+INSERT INTO lww (k) VALUES (41);
+INSERT INTO lww (k) VALUES (42);
+INSERT INTO lww (k) VALUES (43);
+INSERT INTO lww (k) VALUES (44);
+INSERT INTO lww (k) VALUES (45);
+INSERT INTO lww (k) VALUES (46);
+INSERT INTO lww (k) VALUES (47);
+INSERT INTO lww (k) VALUES (48);
+INSERT INTO lww (k) VALUES (49);
+INSERT INTO lww (k) VALUES (50);
+INSERT INTO lww (k) VALUES (51);
+INSERT INTO lww (k) VALUES (52);
+INSERT INTO lww (k) VALUES (53);
+INSERT INTO lww (k) VALUES (54);
+INSERT INTO lww (k) VALUES (55);
+INSERT INTO lww (k) VALUES (56);
+INSERT INTO lww (k) VALUES (57);
+INSERT INTO lww (k) VALUES (58);
+INSERT INTO lww (k) VALUES (59);
+INSERT INTO lww (k) VALUES (60);
+INSERT INTO lww (k) VALUES (61);
+INSERT INTO lww (k) VALUES (62);
+INSERT INTO lww (k) VALUES (63);
+INSERT INTO lww (k) VALUES (64);
+INSERT INTO lww (k) VALUES (65);
+INSERT INTO lww (k) VALUES (66);
+INSERT INTO lww (k) VALUES (67);
+INSERT INTO lww (k) VALUES (68);
+INSERT INTO lww (k) VALUES (69);
+INSERT INTO lww (k) VALUES (70);
+INSERT INTO lww (k) VALUES (71);
+INSERT INTO lww (k) VALUES (72);
+INSERT INTO lww (k) VALUES (73);
+INSERT INTO lww (k) VALUES (74);
+INSERT INTO lww (k) VALUES (75);
+INSERT INTO lww (k) VALUES (76);
+INSERT INTO lww (k) VALUES (77);
+INSERT INTO lww (k) VALUES (78);
+INSERT INTO lww (k) VALUES (79);
+INSERT INTO lww (k) VALUES (80);
+INSERT INTO lww (k) VALUES (81);
+INSERT INTO lww (k) VALUES (82);
+INSERT INTO lww (k) VALUES (83);
+INSERT INTO lww (k) VALUES (84);
+INSERT INTO lww (k) VALUES (85);
+INSERT INTO lww (k) VALUES (86);
+INSERT INTO lww (k) VALUES (87);
+INSERT INTO lww (k) VALUES (88);
+INSERT INTO lww (k) VALUES (89);
+INSERT INTO lww (k) VALUES (90);
+INSERT INTO lww (k) VALUES (91);
+INSERT INTO lww (k) VALUES (92);
+INSERT INTO lww (k) VALUES (93);
+INSERT INTO lww (k) VALUES (94);
+INSERT INTO lww (k) VALUES (95);
+INSERT INTO lww (k) VALUES (96);
+INSERT INTO lww (k) VALUES (97);
+INSERT INTO lww (k) VALUES (98);
+INSERT INTO lww (k) VALUES (99);
+
+SELECT * FROM lww;
+
+-- create publication for PowerSync
+CREATE publication powersync FOR TABLE lww;

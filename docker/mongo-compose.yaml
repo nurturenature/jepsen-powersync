@@ -1,6 +1,8 @@
 services:
   # MongoDB Service used internally
   mongo:
+    container_name: mongo
+    hostname: mongo
     image: mongo:7.0
     command: --replSet rs0 --bind_ip_all --quiet
     restart: unless-stopped
@@ -11,6 +13,8 @@ services:
 
   # Initializes the MongoDB replica set. This service will not usually be actively running
   mongo-rs-init:
+    container_name: mongo-rs-init
+    hostname: mongo-rs-init
     image: mongo:7.0
     depends_on:
       - mongo

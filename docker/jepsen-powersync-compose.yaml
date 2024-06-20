@@ -11,6 +11,9 @@ services:
   mongo:
     networks:
       - jepsen
+  mongo-rs-init:
+    networks:
+      - jepsen
 
   powersync:
     networks:

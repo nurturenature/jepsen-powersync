@@ -96,9 +96,10 @@ jobs:
         if: ${{ always() }}
         run: |
           mkdir $GITHUB_WORKSPACE/store
-          docker logs jepsen-powersync-1 &> $GITHUB_WORKSPACE/store/current/powersync.log 
-          docker logs jepsen-pg-db-1     &> $GITHUB_WORKSPACE/store/current/pg-db.log 
-          docker logs jepsen-mongo-1     &> $GITHUB_WORKSPACE/store/current/mongo.log 
+          docker logs powersync     &> $GITHUB_WORKSPACE/store/current/powersync.log     || echo "no docker logs" > $GITHUB_WORKSPACE/store/current/powersync.log
+          docker logs pg-db         &> $GITHUB_WORKSPACE/store/current/pg-db.log         || echo "no docker logs" > $GITHUB_WORKSPACE/store/current/pg-db.log
+          docker logs mongo         &> $GITHUB_WORKSPACE/store/current/mongo.log         || echo "no docker logs" > $GITHUB_WORKSPACE/store/current/mongo.log
+          docker logs mongo-rs-init &> $GITHUB_WORKSPACE/store/current/mongo-rs-init.log || echo "no docker logs" > $GITHUB_WORKSPACE/store/current/mongo-rs-init.log
           docker cp jepsen-control:/jepsen/jepsen-powersync/store $GITHUB_WORKSPACE
           tail -n 100 $GITHUB_WORKSPACE/store/current/jepsen.log > $GITHUB_WORKSPACE/store/current/tail-jepsen.log
 

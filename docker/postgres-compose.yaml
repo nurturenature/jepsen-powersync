@@ -1,5 +1,7 @@
 services:
   pg-db:
+    container_name: pg-db
+    hostname: pg-db
     image: postgres:latest
     restart: always
     environment:

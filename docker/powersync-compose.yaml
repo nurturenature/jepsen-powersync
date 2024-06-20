@@ -10,6 +10,8 @@ include:
 services:
   # Main PowerSync service
   powersync:
+    container_name: powersync
+    hostname: powersync
     depends_on:
       - mongo
       - pg-db
