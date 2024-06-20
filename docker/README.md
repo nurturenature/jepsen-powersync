@@ -13,7 +13,7 @@ cd docker
 # bring up a web server for test results
 ./jepsen-web.sh
 
-# visit http://localhost:8080
+# visit http://localhost:8088
 
 # bring cluster down and cleanup containers, networks, and volumes
 ./docker-compose-down.sh

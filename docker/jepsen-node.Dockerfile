@@ -18,7 +18,7 @@ COPY pubspec.* ./
 RUN dart pub get
 
 # Copy app source code (except anything in .dockerignore) and AOT compile app.
-COPY . .
+COPY ./ ./
 RUN dart compile exe --target-os linux bin/sqlite3_endpoint.dart
 
 # Build minimal serving image from AOT-compiled `/server`

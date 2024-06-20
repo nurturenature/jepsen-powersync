@@ -165,3 +165,5 @@ Development [Logbook](./doc/logbook.md).
 GitHub [Actions](https://github.com/nurturenature/jepsen-powersync/actions).
 
 [Docker](./docker/README.md) environment to run tests.
+
+Miscellaneous notes on [usage](./doc/usage.md).

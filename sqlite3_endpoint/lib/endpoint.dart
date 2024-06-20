@@ -11,7 +11,7 @@ import 'package:sqlite3_endpoint/db.dart';
 late HttpServer endpoint;
 
 final ip = InternetAddress.anyIPv4;
-final port = int.parse(env['PORT'] ?? "8089");
+final port = int.parse(env['ENDPOINT_PORT'] ?? "8089");
 
 // Request is a Jepsen op value as a JSON string
 // transaction maps are in value: [{f: r | append, k: key, v: value}...]

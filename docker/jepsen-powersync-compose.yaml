@@ -1,16 +1,20 @@
 services:
-  # setup:
-  #   depends_on:
-  #     powersync:
-  #       condition: service_healthy
+  setup:
+    depends_on:
+      powersync:
+        condition: service_started
 
-  # postgres:
-  #   networks:
-  #     - jepsen
+  pg-db:
+    networks:
+      - jepsen
 
-  # powersync:
-  #   networks:
-  #     - jepsen
+  mongo:
+    networks:
+      - jepsen
+
+  powersync:
+    networks:
+      - jepsen
 
   control:
     image: powersync-control
