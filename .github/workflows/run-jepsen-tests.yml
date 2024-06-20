@@ -73,12 +73,15 @@ jobs:
     steps:  
       - name: Checkout jepsen-powersync
         uses: actions/checkout@v4
-        
+      
+      # note that we mask any errors in docker compose
+      #   - the sync service may not be needed, OK to fail
+      #   - next step will fail if sync service was needed but failed
       - name: Bring Up Docker Environment
         run: |
           cd $GITHUB_WORKSPACE/docker
           ./docker-build.sh
-          ./docker-compose-up.sh
+          ./docker-compose-up.sh || echo "Continuing after docker compose error..."
           
       - name: ${{ env.test-title }}
         run: |
@@ -92,6 +95,10 @@ jobs:
       - name: Jepsen, PowerSync, and PostgreSQL Logs
         if: ${{ always() }}
         run: |
+          mkdir $GITHUB_WORKSPACE/store
+          docker logs jepsen-powersync-1 &> $GITHUB_WORKSPACE/store/current/powersync.log 
+          docker logs jepsen-pg-db-1     &> $GITHUB_WORKSPACE/store/current/pg-db.log 
+          docker logs jepsen-mongo-1     &> $GITHUB_WORKSPACE/store/current/mongo.log 
           docker cp jepsen-control:/jepsen/jepsen-powersync/store $GITHUB_WORKSPACE
           tail -n 100 $GITHUB_WORKSPACE/store/current/jepsen.log > $GITHUB_WORKSPACE/store/current/tail-jepsen.log
 
