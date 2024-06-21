@@ -49,7 +49,7 @@ services:
     container_name: jepsen-control
     hostname: control
     ports:
-      - 8088:8088
+      - 8088:8080
     depends_on:
       n1:
         condition: service_healthy
