@@ -100,7 +100,7 @@ jobs:
           docker logs pg-db         &> $GITHUB_WORKSPACE/store/current/pg-db.log         || echo "no docker logs" > $GITHUB_WORKSPACE/store/current/pg-db.log
           docker logs mongo         &> $GITHUB_WORKSPACE/store/current/mongo.log         || echo "no docker logs" > $GITHUB_WORKSPACE/store/current/mongo.log
           docker logs mongo-rs-init &> $GITHUB_WORKSPACE/store/current/mongo-rs-init.log || echo "no docker logs" > $GITHUB_WORKSPACE/store/current/mongo-rs-init.log
-          docker cp jepsen-control:/jepsen/jepsen-powersync/store/current/* $GITHUB_WORKSPACE/store/current/
+          docker cp jepsen-control:/jepsen/jepsen-powersync/store/current/. $GITHUB_WORKSPACE/store/current
           tail -n 100 $GITHUB_WORKSPACE/store/current/jepsen.log > $GITHUB_WORKSPACE/store/current/tail-jepsen.log
 
       - name: 'Jepsen Test Artifacts: summary'
