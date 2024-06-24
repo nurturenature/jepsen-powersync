@@ -5,6 +5,7 @@
              [generator :as gen]]
             [powersync
              [client :as client]
+             [powersync :as ps]
              [sqlite3 :as sqlite3]]))
 
 (def total-key-count
@@ -59,6 +60,17 @@
       (let [opts (merge defaults opts)]
         (list-append/check opts history)))))
 
+(defn powersync-local
+  "A PowerSync workload."
+  [opts]
+  {:db              (ps/db)
+   :client          (client/->PowerSyncClient nil)
+   :generator       (txn-generator opts)
+   :final-generator (txn-final-generator opts)
+   :checker         (checker/compose
+                     {:list-append    (list-append-checker (assoc opts :consistency-models [:strict-serializable]))
+                      :logs-ps-client (checker/log-file-pattern #"ERROR" ps/log-file-short)})})
+
 (defn sqlite3-local
   "A PowerSync workload."
   [opts]
@@ -67,7 +79,8 @@
    :generator       (txn-generator opts)
    :final-generator (txn-final-generator opts)
    :checker         (checker/compose
-                     {:list-append (list-append-checker (assoc opts :consistency-models [:strict-serializable]))})})
+                     {:list-append    (list-append-checker (assoc opts :consistency-models [:strict-serializable]))
+                      :logs-ps-client (checker/log-file-pattern #"(?i)ERROR" sqlite3/log-file-short)})})
 
 (defn sqlite3-local-noop
   "A PowerSync workload."

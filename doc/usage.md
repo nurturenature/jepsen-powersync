@@ -1,12 +1,36 @@
 ## Usage
 
-Use of symlinks can be problematic with GitHub and Docker's context and COPY.
-So `.env` in the project root is duplicated. Update:
-- `/project/.env`
-- `/project/docker/.env`
-- `/project/endpoint/.env`
+### Configuration
 
-synchronously.
+`./config/config.yaml`
+- `client_auth.jwks` must match `./lib/auth.dart`
+
+`./.env` PowerSync only
+- `JWKS_PUBLIC_KEY` must match `./lib/auth.dart`
+ 
+`./app/.env` app only
+- `POWERSYNC_URL` should be provided
+
+----
+
+### Docker
 
 The Docker environment is the easiest way to run tests.
-The tests are designed to be re-runnable without having to recreate the containers and volumes.
+Use provided `docker-build.sh`, `docker-compose-up/down.sh` scripts.
+
+See Docker [README](../docker/README.md).
+
+----
+
+### Local
+
+Dart + Flutter SDK required:
+- https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.22.2-stable.tar.xz
+
+Native lib needs to be manually provided to Dart:
+- https://github.com/powersync-ja/powersync-sqlite-core/releases/download/v0.1.7/libpowersync_x64.so
+- as libpowersync.so in same directory as compiled app
+
+Bring up PowerSync service Docker:
+- compile and run local app
+  - `.env` `powersync_url=http:localhost:6060`

@@ -3,10 +3,11 @@
             [powersync
              [cli :as cli]
              [client :as client]
+             [powersync :as powersync]
              [sqlite3 :as sqlite3]
              [workload :as workload]]))
 
-(def sqlite3_endpoint
+(def powersync_endpoint
   "http://localhost:8989/sql-txn")
 
 (def sample-op

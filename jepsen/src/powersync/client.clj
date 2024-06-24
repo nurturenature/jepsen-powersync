@@ -43,8 +43,10 @@
         result (:body result)]
 
     (merge op
-           {:type :ok}          ; always :ok, i.e. no Exception
-           (json->op result)))) ; :value
+           {:type  :ok ; always :ok, i.e. no Exception
+            :value (->> result
+                        json->op
+                        :value)})))
 
 (defrecord PowerSyncClient [conn]
   client/Client

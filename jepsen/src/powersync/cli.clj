@@ -11,14 +11,14 @@
             [jepsen.nemesis.combined :as nemesis]
             [jepsen.os.debian :as debian]
             [powersync
-             [sqlite3 :as sqlite3]
-             [workload :as powersync]]))
+             [workload :as workload]]))
 
 (def workloads
   "A map of workload names to functions that take CLI options and return
   workload maps."
-  {:sqlite3-local      powersync/sqlite3-local
-   :sqlite3-local-noop powersync/sqlite3-local-noop
+  {:powersync-local    workload/powersync-local
+   :sqlite3-local      workload/sqlite3-local
+   :sqlite3-local-noop workload/sqlite3-local-noop
    :none               (fn [_] tests/noop-test)})
 
 (def all-workloads
@@ -99,7 +99,6 @@
                          :stats              (checker/stats)
                          :exceptions         (checker/unhandled-exceptions)
                          :clock              (checker/clock-plot)
-                         :logs-ps-client     (checker/log-file-pattern #"(?i)ERROR" sqlite3/log-file-short)
                          :workload           (:checker workload)})
             :client    (:client workload)
             :nemesis   (:nemesis nemesis)
