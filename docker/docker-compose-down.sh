@@ -7,5 +7,6 @@ docker compose \
        -f powersync-compose.yaml \
        -f jepsen-compose.yaml \
        -f jepsen-powersync-compose.yaml \
+       --env-file ../.env \
        down \
        -v

@@ -7,7 +7,7 @@ docker build \
        -t powersync-node \
        --build-arg JEPSEN_REGISTRY="ghcr.io/nurturenature/jepsen-docker/" \
        -f jepsen-node.Dockerfile \
-       ../sqlite3_endpoint
+       ../powersync_endpoint
 
 docker build \
        -t powersync-control \

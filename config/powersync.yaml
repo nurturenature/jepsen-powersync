@@ -65,7 +65,7 @@ replication:
 storage:
   type: mongodb
   uri: !env PS_MONGO_URI
-  # Use these if authentication is required. The user should have `readWrite` and `dbAdmin` roles 
+  # Use these if authentication is required. The user should have `readWrite` and `dbAdmin` roles
   # username: my-mongo-user
   # password: my-password
 
@@ -85,13 +85,13 @@ client_auth:
   jwks_uri: !env PS_JWKS_URL
 
   # Optional static collection of public keys for JWT verification
-  # jwks:
-  #   keys:
-  #     - kty: 'RSA'
-  #       n: '${PS_JWK_N}'
-  #       e: '${PS_JWK_E}'
-  #       alg: 'RS256'
-  #       kid: '${PS_JWK_KID}'
+  jwks:
+    keys:
+      - kty: RSA
+        n: wp63FeUhjsJfg2aR0P4SMZ4tUWCkQaDUZQ66BHbRLfQ4F0VVsRyRs5TBmntVVCCEvcbrfpfUhNfSR634ZxvK-1URrZOJM920TqoC28vrDLn-2i7RsKU94hQoYoDOiEtUY2UveScc3n8WId08L1eEbwWIioEYXjn3HwGdk2cz_CnageAXLKTYTKiTjLOgxMBpQ_CuRBPcuxnoepmrt9KzbajOq3ooPmlhja0_0N9SK7qE8GdEMVTMPTMCj7KXow2pjwkvLQT7O2-sATshGU3NA5ONZOI5lW5qIgSbjw_gT8PqTHZvgGrCZlm7UZ7Gz4kB6QAsKio3NMVp96QqNUSWxQ
+        e: AQAB
+        alg: RS256
+        kid: powersync-e928374396
 
   # JWKS audience
   audience: ["powersync-dev", "powersync"]

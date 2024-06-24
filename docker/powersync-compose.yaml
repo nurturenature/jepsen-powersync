@@ -61,7 +61,7 @@ services:
       PS_MONGO_URI: mongodb://mongo:27017/powersync_demo
 
       # Note that powersync.yaml->client_auth->allow_local_jwks must be true for local URLs to work
-      PS_JWKS_URL: http://demo-backend:${DEMO_BACKEND_PORT}/api/auth/keys
+      PS_JWKS_URL: http://localhost:8089/api/auth/keys
 
       # The port which the PowerSync API server should run on
       PS_PORT: ${PS_PORT}

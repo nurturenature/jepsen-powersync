@@ -18,5 +18,6 @@ pom.xml.asc
 sqlite3_endpoint/bin/sqlite3_endpoint.exe
 jepsen/target
 .calva
+powersync_endpoint/libpowersync.so
 powersync_endpoint/powersync.sqlite3*
-powersync_endpoint/bin/powersync_endpoint.exe
+powersync_endpoint/powersync_endpoint

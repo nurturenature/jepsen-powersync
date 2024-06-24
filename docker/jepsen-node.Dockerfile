@@ -5,25 +5,44 @@ ARG JEPSEN_REGISTRY
 
 FROM ${JEPSEN_REGISTRY:-}jepsen-node AS jepsen-setup
 
-# deps
+# PowerSync deps
 RUN apt-get -qy update && \
     apt-get -qy install \
     libsqlite3-dev sqlite3 sqlite3-tools
 
-FROM dart:stable AS dart-build
+# build on a working image
+FROM debian AS dart-build
+
+# install flutter
+# deps
+RUN apt-get -qy update && \
+    apt-get -qy install \
+    git wget xz-utils
+
+RUN wget https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.22.2-stable.tar.xz
+RUN tar -xf ./flutter_linux_3.22.2-stable.tar.xz -C /usr/bin/
+ENV PATH=/usr/bin/flutter/bin:$PATH
+
+# required by how flutter uses git
+RUN git config --global --add safe.directory /usr/bin/flutter
+
+# build into /app
+WORKDIR /app
+
+# app is responsible for getting native lib
+RUN wget -O libpowersync.so https://github.com/powersync-ja/powersync-sqlite-core/releases/download/v0.1.7/libpowersync_x64.so
 
 # Resolve app dependencies.
-WORKDIR /app
 COPY pubspec.* ./
 RUN dart pub get
 
-# Copy app source code (except anything in .dockerignore) and AOT compile app.
+# Copy app source code and compile app to standalone binary.
 COPY ./ ./
-RUN dart compile exe --target-os linux bin/sqlite3_endpoint.dart
+RUN dart compile exe --target-os linux --output powersync_endpoint bin/main.dart
 
-# Build minimal serving image from AOT-compiled `/server`
-# and the pre-built AOT-runtime in the `/runtime/` directory of the base image.
+# copy executable, library, and env to final image
 FROM jepsen-setup AS jepsen-final
-WORKDIR /jepsen/jepsen-powersync/sqlite3_endpoint
+WORKDIR /jepsen/jepsen-powersync/powersync_endpoint
 COPY --from=dart-build /app/.env .env
-COPY --from=dart-build /app/bin/sqlite3_endpoint.exe ./bin/
+COPY --from=dart-build /app/powersync_endpoint powersync_endpoint
+COPY --from=dart-build /app/libpowersync.so libpowersync.so

@@ -1,0 +1,19 @@
+name: ps-local
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ps-local:
+    uses: nurturenature/jepsen-powersync/.github/workflows/run-jepsen-tests.yml@main
+    with:
+      workloads: >
+        [ 'powersync-local' ]
+      nemeses: >
+        [ 'none' ]
+      rates: >
+        [ '150' ]
+      time-limits: >
+        ['100' ]
+      cli-opts: >
+        '--nodes n1'
