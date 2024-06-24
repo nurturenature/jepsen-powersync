@@ -19,7 +19,7 @@ RUN apt-get -qy update && \
     apt-get -qy install \
     git wget xz-utils
 
-RUN wget https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.22.2-stable.tar.xz
+RUN wget --no-verbose https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.22.2-stable.tar.xz
 RUN tar -xf ./flutter_linux_3.22.2-stable.tar.xz -C /usr/bin/
 ENV PATH=/usr/bin/flutter/bin:$PATH
 
@@ -30,7 +30,7 @@ RUN git config --global --add safe.directory /usr/bin/flutter
 WORKDIR /app
 
 # app is responsible for getting native lib
-RUN wget -O libpowersync.so https://github.com/powersync-ja/powersync-sqlite-core/releases/download/v0.1.7/libpowersync_x64.so
+RUN wget --no-verbose -O libpowersync.so https://github.com/powersync-ja/powersync-sqlite-core/releases/download/v0.1.7/libpowersync_x64.so
 
 # Resolve app dependencies.
 COPY pubspec.* ./
