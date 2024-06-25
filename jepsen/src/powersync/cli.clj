@@ -16,14 +16,14 @@
 (def workloads
   "A map of workload names to functions that take CLI options and return
   workload maps."
-  {:powersync-local    workload/powersync-local
+  {:powersync-single   workload/powersync-single
    :sqlite3-local      workload/sqlite3-local
    :sqlite3-local-noop workload/sqlite3-local-noop
    :none               (fn [_] tests/noop-test)})
 
 (def all-workloads
   "A collection of workloads we run by default."
-  [:powersync])
+  [:powersync-single])
 
 (def all-nemeses
   "Combinations of nemeses for tests"

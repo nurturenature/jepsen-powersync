@@ -7,7 +7,7 @@ on:
         description: Workloads (as JSON)
         type: string
         required: true
-        default: "[ 'sqlite3-local' ]"
+        default: "[ 'powersync-single' ]"
       nemeses:
         description: 'Nemeses (as JSON)'
         type: string
@@ -17,7 +17,7 @@ on:
         description: 'Rates (as JSON)'
         type: string
         required: true
-        default: "[ '100' ]"
+        default: "[ '150' ]"
       time-limits:
         description: 'Timelimits (as JSON)'
         type: string
@@ -27,6 +27,7 @@ on:
         description: 'CLI opts string'
         type: string
         required: false
+        default: --nodes n1
        
   workflow_call:
     inputs:
@@ -34,7 +35,7 @@ on:
         description: 'Workloads (as JSON)'
         type: string
         required: true
-        default: "[ 'sqlite3-local' ]"
+        default: "[ 'powersync-single' ]"
       nemeses:
         description: 'Nemeses (as JSON)'
         type: string
@@ -44,7 +45,7 @@ on:
         description: 'Rates (as JSON)'
         type: string
         required: true
-        default: "[ '100' ]"
+        default: "[ '150' ]"
       time-limits:
         description: 'Timelimits (as JSON)'
         type: string
@@ -54,7 +55,7 @@ on:
         description: 'CLI opts string'
         type: string
         required: false
-
+        default: --nodes n1
 jobs:
   tests:
     runs-on: ubuntu-latest

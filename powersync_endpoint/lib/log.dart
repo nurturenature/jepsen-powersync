@@ -9,6 +9,10 @@ void initLogging() {
   switch (config['ENDPOINT_LOG_LEVEL'] as String) {
     case 'OFF':
       level = Level.OFF;
+    case 'FINEST':
+      level = Level.FINEST;
+    case 'FINER':
+      level = Level.FINER;
     case 'FINE':
       level = Level.FINE;
     case 'CONFIG':

@@ -60,8 +60,8 @@
       (let [opts (merge defaults opts)]
         (list-append/check opts history)))))
 
-(defn powersync-local
-  "A PowerSync workload."
+(defn powersync-single
+  "A single client PowerSync workload."
   [opts]
   {:db              (ps/db)
    :client          (client/->PowerSyncClient nil)
@@ -72,7 +72,7 @@
                       :logs-ps-client (checker/log-file-pattern #"ERROR" ps/log-file-short)})})
 
 (defn sqlite3-local
-  "A PowerSync workload."
+  "A local SQLite3, single user, workload."
   [opts]
   {:db              (sqlite3/db)
    :client          (client/->PowerSyncClient nil)
@@ -83,7 +83,7 @@
                       :logs-ps-client (checker/log-file-pattern #"(?i)ERROR" sqlite3/log-file-short)})})
 
 (defn sqlite3-local-noop
-  "A PowerSync workload."
+  "A no-op workload."
   [opts]
   {:db              (sqlite3/db)
    :client          (client/->PowerSyncClientNOOP nil)

@@ -1,14 +1,14 @@
-name: ps-local
+name: ps-single
 
 on:
   workflow_dispatch:
 
 jobs:
-  ps-local:
+  ps-single:
     uses: nurturenature/jepsen-powersync/.github/workflows/run-jepsen-tests.yml@main
     with:
       workloads: >
-        [ 'powersync-local' ]
+        [ 'powersync-single' ]
       nemeses: >
         [ 'none' ]
       rates: >

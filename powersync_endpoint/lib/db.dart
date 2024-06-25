@@ -11,33 +11,31 @@ final uuid = Uuid();
 late PowerSyncDatabase db;
 
 Future<void> initDb() async {
-  final tables = schema.tables.map((table) => {table.toJson()});
-  log.info("Creating db, schema: $tables, path: ${config['SQLITE3_PATH']}");
   db =
       PowerSyncDatabase(schema: schema, path: config['SQLITE3_PATH'] as String);
+  log.info("Created db, schema: ${schema.tables.map((table) => {
+        table.toJson()
+      })}, path: ${config['SQLITE3_PATH']}");
 
   await db.initialize();
   log.info(
       'db initialized, runtimeType: ${db.runtimeType}, status: ${db.currentStatus}');
 
-  await db.connect(connector: NoOpConnector(db));
+  await db.connect(connector: CrudBatchConnector(db));
   log.info('db connected, status: ${db.currentStatus}');
 
+  // log PowerSync status changes
+  db.statusStream
+      .listen((syncStatus) => log.finest('statusStream: $syncStatus'));
+
+  // log current db contents
   final dbTables = await db.execute('''
     SELECT name FROM sqlite_schema 
     WHERE type IN ('table','view') 
     AND name NOT LIKE 'sqlite_%'
     ORDER BY 1
   ''');
-  log.info("tables: $dbTables");
-
-  // init db to known state
-  await db.execute('DELETE FROM lww');
-  for (var i = 0; i < 100; i++) {
-    await db
-        .execute('INSERT INTO lww (id,k,v) VALUES (?,?,?)', [uuid.v7(), i, '']);
-  }
-
   final lww = await db.execute('SELECT k,v FROM lww');
+  log.info("tables: $dbTables");
   log.info("lww: $lww");
 }

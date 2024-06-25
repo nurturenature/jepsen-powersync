@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:powersync/sqlite3.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart';
 import 'package:shelf_router/shelf_router.dart';
@@ -61,20 +62,41 @@ Future<Response> _sqlTxn(Request req) async {
   return Response.ok(resStr);
 }
 
-/// /powersync endpoint for status information
+/// `/powersync` endpoint for status information
 Future<Response> _powersync(Request req) async {
   final status = db.currentStatus;
   final response = jsonEncode({
-    'connected': status.connected,
-    'lastSyncedAt': status.lastSyncedAt?.toIso8601String()
+    'env.LOCAL_ONLY': config['LOCAL_ONLY'],
+    'db.closed': db.closed,
+    'db.connected': db.connected,
+    'db.runtimeType': db.runtimeType.toString(),
+    'status.connected': status.connected,
+    'status.lastSyncedAt': status.lastSyncedAt?.toIso8601String()
   });
 
   return Response.ok(response);
 }
 
+/// `/db` endpoint to query db
+Future<Response> _db(Request req, String action) async {
+  late ResultSet response;
+
+  switch (action) {
+    case 'list':
+      response = await db.getAll('SELECT * FROM lww ORDER BY k');
+      break;
+    default:
+      log.severe('Unknown /db request: $req');
+      exit(127);
+  }
+  final resStr = jsonEncode(response);
+  return Response.ok(resStr);
+}
+
 final _router = Router()
   ..post('/sql-txn', _sqlTxn)
-  ..get('/powersync', _powersync);
+  ..get('/powersync', _powersync)
+  ..get('/db/<action>', _db);
 
 // configure a pipeline that logs requests
 final handler =

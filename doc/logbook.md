@@ -1,30 +1,75 @@
 ## Logbook
 
-### Next Step
+### In Progress
 
-Add PowerSync to local SQLite3 implementation.
+Start syncing.
+
+PowerSync
+- setup.sql
+- sync rules
 
 Endpoint
-- `PowerSyncDatabase` driver and ffi db
-- `PromiscuousAuth` for development
-- initial no-op/passthrough backend for local only 
-- config
-  - sync service
-  - local only
+- `sql-txn` handler
+  - just interact with k/v columns
+  - let PowerSync manage id
+- `CrudBatch/Entry` backend 
 
-Docker
-- sync service
-
-Test
-- workload
+Workload
+- final read from Postgres
+  - test strong convergence
 
 Expectations
 - total availability
 - strict serializability
+  - local writes/reads
+- strong convergence
+  - Postgres final read
+
+Test command:
+```shell
+lein run test --workload powersync-single --rate 150 --time-limit 100 --nodes n1
+```
 
 ----
 
 ## History
+
+### PowerSync, localOnly: true, Single User
+
+Demonstrates
+- PowerSync's `PowerSyncDatabase` driver, `libpowersync.so` native ffi lib
+- initial `NoOpConnector` for local only 
+  - permissive auth JWT/JWS for development
+  - no `uploadDate()` as `localOnly: true`
+- Docker
+  - full PowerSync service
+  - config, env
+- longer test runs
+  - 10k's of transactions
+
+Test results:
+- total availability
+- strict serializability
+
+```clj
+{:stats {:count 35802,
+         :ok-count 35802,
+         :fail-count 0,
+         :info-count 0},
+ :workload {:list-append {:valid? true},
+            :logs-ps-client {:valid? true, :count 0, :matches ()}},
+ :valid? true}
+ ```
+Action and workload were a stepping stone and have been retired.
+
+~~GitHub [Action](https://github.com/nurturenature/jepsen-powersync/actions/workflows/powersync-local.yml).~~
+
+~~Test command:~~
+```shell
+lein run test --workload powersync-local --rate 150 --time-limit 1000 --nodes n1
+```
+
+----
 
 ### Initial Endpoint Test
 
@@ -59,9 +104,11 @@ Test results:
 
 ![sqlite3-local latency](./sqlite3-local-latency-raw.png)
 
-GitHub [Action](https://github.com/nurturenature/jepsen-powersync/actions/workflows/sqlite3-local.yml).
+Action and workload were a stepping stone and have been retired.
 
-Test command:
+~~GitHub [Action](https://github.com/nurturenature/jepsen-powersync/actions/workflows/sqlite3-local.yml).~~
+
+~~Test command:~~
 ```shell
 lein run test --workload sqlite3-local --nodes n1
 ```
