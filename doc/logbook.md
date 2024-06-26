@@ -2,11 +2,12 @@
 
 ### In Progress
 
-Start syncing.
+Started syncing.
 
 PowerSync
 - setup.sql
 - sync rules
+- config.yaml and .env
 
 Endpoint
 - `sql-txn` handler

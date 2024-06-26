@@ -1,5 +1,6 @@
 (ns powersync.workload
-  (:require [elle.list-append :as list-append]
+  (:require [clojure.set :as set]
+            [elle.list-append :as list-append]
             [jepsen
              [checker :as checker]
              [generator :as gen]]
@@ -39,6 +40,37 @@
 
      (list-append/gen opts))))
 
+(defn append-generator
+  "Given optional opts, return a lazy sequence of
+   transactions consisting only of :append's."
+  ([] (append-generator nil))
+  ([{:keys [key-count] :as _opts}]
+   (let [key-count (or key-count default-key-count)]
+     (->> (range)
+          (map (fn [v]
+                 (let [append-keys (->> all-keys
+                                        shuffle
+                                        (take key-count))
+                       value (->> append-keys
+                                  (mapv (fn [k]
+                                          [:append k v])))]
+                   (op+ :append-only value))))))))
+
+(defn read-generator
+  "Given optional opts, return a lazy sequence of
+   transactions consisting only of :r's."
+  ([] (read-generator nil))
+  ([{:keys [key-count] :as _opts}]
+   (let [key-count (or key-count default-key-count)]
+     (repeatedly
+      (fn [] (let [read-keys (->> all-keys
+                                  shuffle
+                                  (take key-count))
+                   value (->> read-keys
+                              (mapv (fn [k]
+                                      [:r k nil])))]
+               (op+ :read-only value)))))))
+
 (defn txn-final-generator
   "final-generator for txn-generator."
   [_opts]
@@ -60,6 +92,14 @@
       (let [opts (merge defaults opts)]
         (list-append/check opts history)))))
 
+(defn nodes->processes
+  [nodes]
+  (->> nodes
+       (map #(subs % 1))
+       (map parse-long)
+       (map #(- % 1))
+       (into #{})))
+
 (defn powersync-single
   "A single client PowerSync workload."
   [opts]
@@ -70,6 +110,29 @@
    :checker         (checker/compose
                      {:list-append    (list-append-checker (assoc opts :consistency-models [:strict-serializable]))
                       :logs-ps-client (checker/log-file-pattern #"ERROR" ps/log-file-short)})})
+
+(defn ps-ro-pg-wo
+  "A PowerSync doing reads only, PostgreSQL doing writes only, workload."
+  [{:keys [nodes postgres-clients] :as opts}]
+  (let [_            (assert (seq postgres-clients))
+        nodes        (into #{} nodes)
+        ps-clients   (set/difference nodes postgres-clients)
+        ps-processes (nodes->processes ps-clients)
+        pg-processes (nodes->processes postgres-clients)]
+
+    {:db              (ps/db)
+     :client          (client/->PowerSyncClient nil)
+     :generator       (gen/mix
+                       [; jdbc PostgreSQL
+                        (gen/on-threads pg-processes
+                                        (append-generator opts))
+                        ; PowerSync
+                        (gen/on-threads ps-processes
+                                        (read-generator opts))])
+     :final-generator (txn-final-generator opts)
+     :checker         (checker/compose
+                       {:list-append    (list-append-checker (assoc opts :consistency-models [:repeatable-read]))
+                        :logs-ps-client (checker/log-file-pattern #"ERROR" ps/log-file-short)})}))
 
 (defn sqlite3-local
   "A local SQLite3, single user, workload."

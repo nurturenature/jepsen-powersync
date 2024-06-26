@@ -17,6 +17,7 @@
   "A map of workload names to functions that take CLI options and return
   workload maps."
   {:powersync-single   workload/powersync-single
+   :ps-ro-pg-wo        workload/ps-ro-pg-wo
    :sqlite3-local      workload/sqlite3-local
    :sqlite3-local-noop workload/sqlite3-local-noop
    :none               (fn [_] tests/noop-test)})
@@ -156,6 +157,13 @@
     :default 5
     :parse-fn read-string
     :validate [pos? "Must be a positive number."]]
+
+   [nil "--postgres-host HOST" "Host name of the PostgreSQL service"
+    :default "pg-db"
+    :parse-fn read-string]
+
+   [nil "--postgres-clients NODES" "List of nodes that should be PostgreSQL clients"
+    :parse-fn parse-nodes-spec]
 
    ["-r" "--rate HZ" "Approximate request rate, in hz"
     :default 100

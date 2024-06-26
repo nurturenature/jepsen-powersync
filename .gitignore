@@ -21,3 +21,4 @@ jepsen/target
 powersync_endpoint/libpowersync.so
 powersync_endpoint/powersync.sqlite3*
 powersync_endpoint/powersync_endpoint
+jepsen/store

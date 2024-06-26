@@ -70,7 +70,7 @@ class NoOpConnector extends PowerSyncBackendConnector {
 /// - one `CrudEntry` at a time
 /// - reuses single Postgres `Connection`
 ///
-/// Consistency level Read Committed, allows:
+/// Consistency quite casual, not at all causal, will allow:
 /// - non-Atomic transactions
 /// - Intermediate Reads
 /// - Monotonic Read cycling
