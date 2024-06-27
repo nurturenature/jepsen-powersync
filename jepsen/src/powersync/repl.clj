@@ -1,5 +1,9 @@
 (ns powersync.repl
-  (:require [cheshire.core :as json]
+  (:require [causal.checker
+             [adya :as adya]
+             [opts :as causal-opts]
+             [strong-convergence :as strong-convergence]]
+            [cheshire.core :as json]
             [powersync
              [cli :as cli]
              [client :as client]

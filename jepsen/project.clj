@@ -5,6 +5,7 @@
             :url "http://www.apache.org/licenses/"}
   :dependencies [[org.clojure/clojure "1.11.1"]
                  [jepsen "0.3.6-SNAPSHOT"]
+                 [causal "0.1.0-SNAPSHOT"]
                  [cheshire "5.13.0"]
                  [clj-http "3.12.3"]
                  [com.github.seancorfield/next.jdbc "1.3.909"]

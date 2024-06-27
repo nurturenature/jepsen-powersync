@@ -149,9 +149,9 @@
 (defrecord PowerSyncClient [conn]
   client/Client
   (open!
-    [this {:keys [postgres-clients] :as _test} node]
+    [this {:keys [postgres-nodes] :as _test} node]
     ; PostgreSQL client or PowerSync client
-    (if (contains? postgres-clients node)
+    (if (contains? postgres-nodes node)
       (client/open! (PostgreSQLJDBCClient. (db-spec test) "lww") test node)
       (assoc this
              :node node

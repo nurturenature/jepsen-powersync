@@ -11,13 +11,16 @@
             [jepsen.nemesis.combined :as nemesis]
             [jepsen.os.debian :as debian]
             [powersync
+             [powersync :as ps]
              [workload :as workload]]))
 
 (def workloads
   "A map of workload names to functions that take CLI options and return
   workload maps."
-  {:powersync-single   workload/powersync-single
+  {:powersync          workload/powersync
+   :powersync-single   workload/powersync-single
    :ps-ro-pg-wo        workload/ps-ro-pg-wo
+   :ps-wo-pg-ro        workload/ps-wo-pg-ro
    :sqlite3-local      workload/sqlite3-local
    :sqlite3-local-noop workload/sqlite3-local-noop
    :none               (fn [_] tests/noop-test)})
@@ -100,6 +103,7 @@
                          :stats              (checker/stats)
                          :exceptions         (checker/unhandled-exceptions)
                          :clock              (checker/clock-plot)
+                         :logs-ps-client     (checker/log-file-pattern #"ERROR" ps/log-file-short)
                          :workload           (:checker workload)})
             :client    (:client workload)
             :nemesis   (:nemesis nemesis)
@@ -162,7 +166,7 @@
     :default "pg-db"
     :parse-fn read-string]
 
-   [nil "--postgres-clients NODES" "List of nodes that should be PostgreSQL clients"
+   [nil "--postgres-nodes NODES" "List of nodes that should be PostgreSQL clients"
     :parse-fn parse-nodes-spec]
 
    ["-r" "--rate HZ" "Approximate request rate, in hz"

@@ -1,5 +1,9 @@
 (ns powersync.workload
-  (:require [clojure.set :as set]
+  (:require [causal.checker
+             [adya :as adya]
+             [opts :as causal-opts]
+             [strong-convergence :as strong-convergence]]
+            [clojure.set :as set]
             [elle.list-append :as list-append]
             [jepsen
              [checker :as checker]
@@ -100,39 +104,73 @@
        (map #(- % 1))
        (into #{})))
 
+(defn powersync
+  "A PowerSync workload."
+  [opts]
+  (let [opts (merge causal-opts/causal-opts opts)]
+    {:db              (ps/db)
+     :client          (client/->PowerSyncClient nil)
+     :generator       (txn-generator opts)
+     :final-generator (txn-final-generator opts)
+     :checker         (checker/compose
+                       {:monotonic-atomic-view (list-append-checker
+                                                (assoc opts :consistency-models [:monotonic-atomic-view]))
+                        :causal-consistency    (adya/checker opts)
+                        :strong-convergence    (strong-convergence/final-reads)})}))
+
 (defn powersync-single
   "A single client PowerSync workload."
   [opts]
-  {:db              (ps/db)
-   :client          (client/->PowerSyncClient nil)
-   :generator       (txn-generator opts)
-   :final-generator (txn-final-generator opts)
-   :checker         (checker/compose
-                     {:list-append    (list-append-checker (assoc opts :consistency-models [:strict-serializable]))
-                      :logs-ps-client (checker/log-file-pattern #"ERROR" ps/log-file-short)})})
+  (merge
+   (powersync opts)
+   {:checker (checker/compose
+              {:strict-serializable (list-append-checker (assoc opts :consistency-models [:strict-serializable]))
+               :strong-convergence  (strong-convergence/final-reads)})}))
 
 (defn ps-ro-pg-wo
   "A PowerSync doing reads only, PostgreSQL doing writes only, workload."
-  [{:keys [nodes postgres-clients] :as opts}]
-  (let [_            (assert (seq postgres-clients))
+  [{:keys [nodes postgres-nodes] :as opts}]
+  (let [_            (assert (seq postgres-nodes))
         nodes        (into #{} nodes)
-        ps-clients   (set/difference nodes postgres-clients)
-        ps-processes (nodes->processes ps-clients)
-        pg-processes (nodes->processes postgres-clients)]
+        ps-nodes     (set/difference nodes postgres-nodes)
+        ps-processes (nodes->processes ps-nodes)
+        pg-processes (nodes->processes postgres-nodes)]
 
-    {:db              (ps/db)
-     :client          (client/->PowerSyncClient nil)
-     :generator       (gen/mix
-                       [; jdbc PostgreSQL
-                        (gen/on-threads pg-processes
-                                        (append-generator opts))
-                        ; PowerSync
-                        (gen/on-threads ps-processes
-                                        (read-generator opts))])
-     :final-generator (txn-final-generator opts)
-     :checker         (checker/compose
-                       {:list-append    (list-append-checker (assoc opts :consistency-models [:repeatable-read]))
-                        :logs-ps-client (checker/log-file-pattern #"ERROR" ps/log-file-short)})}))
+    (merge
+     (powersync opts)
+     {:generator (gen/mix
+                  [; PostgreSQL
+                   (gen/on-threads pg-processes
+                                   (append-generator opts))
+                   ; PowerSync
+                   (gen/on-threads ps-processes
+                                   (read-generator opts))])
+      :checker     (checker/compose
+                    {:repeatable-read    (list-append-checker (assoc opts :consistency-models [:repeatable-read]))
+                     :causal-consistency (adya/checker opts)
+                     :strong-convergence (strong-convergence/final-reads)})})))
+
+(defn ps-wo-pg-ro
+  "A PowerSync doing writes only, PostgreSQL doing reads only, workload."
+  [{:keys [nodes postgres-nodes] :as opts}]
+  (let [_            (assert (seq postgres-nodes))
+        nodes        (into #{} nodes)
+        ps-nodes     (set/difference nodes postgres-nodes)
+        ps-processes (nodes->processes ps-nodes)
+        pg-processes (nodes->processes postgres-nodes)
+        opts         (merge
+                      causal-opts/causal-opts
+                      opts)]
+
+    (merge
+     (powersync opts)
+     {:generator (gen/mix
+                  [; PostgreSQL
+                   (gen/on-threads pg-processes
+                                   (read-generator opts))
+                   ; PowerSync
+                   (gen/on-threads ps-processes
+                                   (append-generator opts))])})))
 
 (defn sqlite3-local
   "A local SQLite3, single user, workload."
