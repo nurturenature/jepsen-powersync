@@ -1,0 +1,19 @@
+name: ps-wo-pg-ro
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ps-wo-pg-ro:
+    uses: nurturenature/jepsen-powersync/.github/workflows/run-jepsen-tests.yml@main
+    with:
+      workloads: >
+        [ 'ps-wo-pg-ro' ]
+      nemeses: >
+        [ 'none' ]
+      rates: >
+        [ '10' ]
+      time-limits: >
+        ['60' ]
+      cli-opts: >
+        '--nodes n1,n2 --postgres-nodes n1'

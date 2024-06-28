@@ -2,38 +2,60 @@
 
 ### In Progress
 
-Started syncing.
-
-PowerSync
-- setup.sql
-- sync rules
-- config.yaml and .env
-
-Endpoint
-- `sql-txn` handler
-  - just interact with k/v columns
-  - let PowerSync manage id
-- `CrudBatch/Entry` backend 
-
-Workload
-- final read from Postgres
-  - test strong convergence
-
-Expectations
-- total availability
-- strict serializability
-  - local writes/reads
-- strong convergence
-  - Postgres final read
-
-Test command:
-```shell
-lein run test --workload powersync-single --rate 150 --time-limit 100 --nodes n1
-```
+Now that we have a reproducible test case showing non-atomic transactions,
+let's build a `CrudTransactionConnector` whose `uploadData` is transaction, vs batch, orientated.
 
 ----
 
 ## History
+
+### PowerSync, w/sync, Single User
+
+`CrudBatchConnector`
+- `fetchCredentials`
+  - generate permissive JWT
+- `uploadData`
+  - `CrudBatch` oriented
+  - one `CrudBatch` per call, not eager
+  - one `CrudEntry` at a time
+  - reuses single Postgres `Connection`
+  - consistency quite casual, not at all causal, will allow:
+    - non-Atomic transactions
+    - Intermediate Reads
+    - Monotonic Read cycling
+- `Exception` handling:
+  - recoverable
+    - `throw` to signal PowerSync to retry
+  - unrecoverable
+    - indicates architectural/implementation flaws
+    - not safe to proceed
+    - `exit` to force app restart and resync
+  
+The `CrudBatchConnector` was design to be the minimum needed to go end-to-end.
+
+Test results:
+- PowerSync writing, PostgreSQL reading:
+  - total availability
+  - non-atomic transactions
+  - Strong Convergence
+
+- PowerSync reading, PostgreSQL writing:
+  - total availability
+  - Repeatable Read
+  - Strong Convergence
+
+Notes:
+- TODO: check on performance of replication with direct writes to PostgreSQL
+  - tests can cause long periods of replication
+  - but always strongly converges
+  
+Test command:
+```shell
+lein run test --workload ps-ro-pg-wo --rate 10 --time-limit 60 --nodes n1,n2 --postgres-nodes n1
+lein run test --workload ps-wo-pg-ro --rate 10 --time-limit 60 --nodes n1,n2 --postgres-nodes n1
+```
+
+----
 
 ### PowerSync, localOnly: true, Single User
 
