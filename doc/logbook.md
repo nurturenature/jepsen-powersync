@@ -5,6 +5,14 @@
 Now that we have a reproducible test case showing non-atomic transactions,
 let's build a `CrudTransactionConnector` whose `uploadData` is transaction, vs batch, orientated.
 
+Example of a non-atomic transaction replication from a PowerSync write to a PostgreSQL read:
+- PowerSync, top transaction, writes '47' to random keys
+- PostgreSQL, bottom transaction, reads some but not all of the PowerSync writes in its transaction
+
+Note that all writes are synced, Strong Convergence, but not on transaction boundaries. 
+
+![G-single-item](./G-single-item.svg)
+
 ----
 
 ## History
