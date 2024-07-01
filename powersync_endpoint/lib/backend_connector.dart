@@ -1,5 +1,6 @@
 // lib/backend_connector.dart
 import 'dart:io';
+import 'dart:math';
 import 'package:postgres/postgres.dart';
 import 'package:powersync/powersync.dart';
 import 'auth.dart';
@@ -7,7 +8,6 @@ import 'config.dart';
 import 'log.dart';
 
 // Assuming single use of `uploadData`, i.e. single Postgres connection appropriate
-// TODO: find out if PowerSync will call `uploadData` concurrently?
 
 /// Global Postgres connection.
 late Connection postgres;
@@ -26,7 +26,7 @@ Future<void> initPostgres() async {
 }
 
 /// Postgres Response codes that we cannot recover from by retrying.
-final unrecoverableResponseCodes = [
+final _unrecoverableResponseCodes = [
   // Class 22 — Data Exception
   // Examples include data type mismatch.
   RegExp('^22...\$'),
@@ -148,7 +148,8 @@ class CrudBatchConnector extends PowerSyncBackendConnector {
       }
 
       // unrecoverable?
-      if (unrecoverableResponseCodes.any((regex) => regex.hasMatch(se.code!))) {
+      if (_unrecoverableResponseCodes
+          .any((regex) => regex.hasMatch(se.code!))) {
         log.severe("Unrecoverable error from Postgres: $se");
         exit(127);
       }
@@ -160,6 +161,163 @@ class CrudBatchConnector extends PowerSyncBackendConnector {
     } catch (ex) {
       log.severe("Unexpected Exception: $ex");
       exit(127);
+    }
+  }
+}
+
+/// As PostgreSQL transactions are executed with an isolation level of repeatable read,
+/// it is normal, and the client's responsibility, to retry serialization errors.
+const _retryablePgErrors = {
+  '40001', // serialization_failure
+  '40P01' // deadlock_detected
+};
+
+const _maxRetries = 10;
+const _minRetryDelay = 5; // in ms, each retry delay is min <= random <= max
+const _maxRetryDelay = 10;
+final _rng = Random();
+
+dynamic _txWithRetries(List<CrudEntry> crud) async {
+  for (var i = 0; i < _maxRetries; i++) {
+    try {
+      // execute the PowerSync transaction in a PostgreSQL transaction
+      // throwing in the PostgreSQL transaction reverts it
+      await postgres.runTx((tx) async {
+        for (final crudEntry in crud) {
+          switch (crudEntry.op) {
+            case UpdateType.put:
+              final put = await tx.execute(
+                  'INSERT INTO lww (id,k,v) VALUES (\$1,\$2,\$3) RETURNING *',
+                  parameters: [
+                    crudEntry.id,
+                    crudEntry.opData!['k'],
+                    crudEntry.opData!['v']
+                  ]);
+              final row =
+                  put.single; // gets and enforces 1 and only 1 affected row
+
+              log.finer('uploadData: put result: $row');
+              break;
+
+            case UpdateType.patch:
+              final patch = await tx.execute(
+                  'UPDATE lww SET v = \$1 WHERE id = \$2 RETURNING *',
+                  parameters: [crudEntry.opData!['v'], crudEntry.id]);
+              final row =
+                  patch.single; // gets and enforces 1 and only 1 affected row
+
+              log.finer('uploadData: patch result: $row');
+              break;
+
+            case UpdateType.delete:
+              final delete = await tx.execute(
+                  'DELETE FROM lww WHERE id = \$1 RETURNING *',
+                  parameters: [crudEntry.id]);
+              final row =
+                  delete.single; // gets and enforces 1 and only 1 affected row
+
+              log.finer('uploadData: delete result: $row');
+              break;
+
+            default:
+              log.severe("Unknown UpdateType: ${crudEntry.op}");
+              exit(127);
+          }
+        }
+      },
+          settings: TransactionSettings(
+              isolationLevel: IsolationLevel.repeatableRead));
+    } on ServerException catch (se) {
+      // truly fatal
+      if (se.severity == Severity.panic || se.severity == Severity.fatal) {
+        return ['error', 'Fatal error from Postgres: ${se.message}'];
+      }
+
+      // retryable?
+      if (_retryablePgErrors.contains(se.code)) {
+        log.fine("Retrying transaction $crud, due to PostgreSQL ${se.message}");
+
+        // TODO: confirm appropriate to sleep in this Isolate as it blocks
+        sleep(Duration(
+            milliseconds: _rng.nextInt(_maxRetryDelay - _minRetryDelay) +
+                _minRetryDelay));
+
+        continue;
+      }
+
+      // not retryable, recoverable
+      return [
+        'error',
+        'Unrecoverable ServerException, severity: ${se.severity}, code: ${se.code}, ServerException: $se'
+      ];
+    } catch (ex) {
+      // TODO: some exceptions, such as connection failures should be thrown for PowerSync to catch and then retry
+      //       experimentally expose these through fault injection in the tests first, then implement catch/recover
+      return ['error', 'Unexpected Exception: $ex'];
+    }
+
+    // transaction completed and committed successfully
+    return 'ok';
+  }
+
+  // retried and failed
+  return ['error', 'Max retries, $_maxRetries, exceeded'];
+}
+
+/// A `PowerSyncBackendConnector` with:
+/// - permissive auth
+/// - `CrudTransaction` oriented `uploadData()`
+///
+/// Eagerly consumes `CrudTransaction`s
+/// - clears upload queue so local db can receive updates
+/// - uploads data until `getNextCrudTransaction` is `null`
+///
+/// Tightly coupled to a PostgreSQL transaction
+/// - transactions retried as appropriate
+///
+/// Consistency:
+/// - Atomic transactions
+///
+/// Exception handling:
+/// - recoverable
+///   - `throw` to signal PowerSync to retry
+/// - unrecoverable
+///   - indicates architectural/implementation flaws
+///   - not safe to proceed
+///     - `exit` to force app restart and resync
+class CrudTransactionConnector extends PowerSyncBackendConnector {
+  PowerSyncDatabase db;
+
+  CrudTransactionConnector(this.db);
+
+  @override
+  Future<PowerSyncCredentials?> fetchCredentials() async {
+    final token = await generateToken();
+
+    return PowerSyncCredentials(
+        endpoint: '${config['POWERSYNC_URL']}', token: token);
+  }
+
+  @override
+  Future<void> uploadData(PowerSyncDatabase database) async {
+    // eagerly process all available PowerSync transactions
+    for (CrudTransaction? crudTransaction = await db.getNextCrudTransaction();
+        crudTransaction != null;
+        crudTransaction = await db.getNextCrudTransaction()) {
+      switch (await _txWithRetries(crudTransaction.crud)) {
+        case 'ok':
+          await crudTransaction.complete();
+          break;
+
+        case ['error', final String cause]:
+          log.severe(
+              'Unable to process transaction: $crudTransaction, cause: $cause');
+          exit(127);
+
+        case final unknown:
+          log.severe('Invalid transaction result: $unknown');
+          exit(127);
+      }
     }
   }
 }

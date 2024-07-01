@@ -2,7 +2,8 @@ import 'dart:core';
 import 'dart:io';
 import 'package:dotenv/dotenv.dart';
 
-final defaults = {
+final _defaults = {
+  'BACKEND_CONNECTOR': 'CrudTransactionConnector',
   'ENDPOINT_LOG_LEVEL': 'ALL',
   'ENDPOINT_PORT': '8089',
   'LOCAL_ONLY': 'false',
@@ -15,7 +16,7 @@ final defaults = {
 final config = DotEnv(includePlatformEnvironment: true)..load();
 
 void initConfig() {
-  defaults.forEach((k, v) {
+  _defaults.forEach((k, v) {
     if (!config.isDefined(k)) {
       config.addAll({k: v});
     }

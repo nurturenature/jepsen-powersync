@@ -132,19 +132,29 @@
   [op endpoint]
   (let [body   (->> (select-keys op [:value]) ; only sending :value
                     op->json)                 ; don't expose rest of op map
-        result (http/post endpoint
-                          {:body               body
-                           :content-type       :json
-                           :socket-timeout     1000
-                           :connection-timeout 1000
-                           :accept             :json})
-        result (:body result)]
+        ]
+    (try
+      (let [result (http/post endpoint
+                              {:body               body
+                               :content-type       :json
+                               :socket-timeout     1000
+                               :connection-timeout 1000
+                               :accept             :json})
+            result (:body result)]
+        (merge op
+               {:type  :ok ; always :ok, i.e. no Exception
+                :value (->> result
+                            json->op
+                            :value)}))
 
-    (merge op
-           {:type  :ok ; always :ok, i.e. no Exception
-            :value (->> result
-                        json->op
-                        :value)})))
+      (catch java.net.ConnectException ex
+        (if (= (.getMessage ex) "Connection refused")
+          (assoc op
+                 :type  :fail
+                 :error (.toString ex))
+          (assoc op
+                 :type  :info
+                 :error (.toString ex)))))))
 
 (defrecord PowerSyncClient [conn]
   client/Client

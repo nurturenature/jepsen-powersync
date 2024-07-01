@@ -110,13 +110,29 @@
   (let [opts (merge causal-opts/causal-opts opts)]
     {:db              (ps/db)
      :client          (client/->PowerSyncClient nil)
-     :generator       (txn-generator opts)
+     :generator       (list-append/gen opts)
      :final-generator (txn-final-generator opts)
      :checker         (checker/compose
-                       {:monotonic-atomic-view (list-append-checker
-                                                (assoc opts :consistency-models [:monotonic-atomic-view]))
+                       {:intermediate-reads (list-append-checker
+                                             (assoc opts
+                                                    :consistency-models []
+                                                    :anomalies          [:G1b]
+                                                    :directory          "intermediate-reads"))
                         :causal-consistency    (adya/checker opts)
                         :strong-convergence    (strong-convergence/final-reads)})}))
+
+(defn powersync+
+  "A PowerSync workload with PostgreSQL included in final reads."
+  [{:keys [nodes postgres-nodes] :as opts}]
+  (let [_            (assert (seq postgres-nodes))
+        nodes        (into #{} nodes)
+        ps-nodes     (set/difference nodes postgres-nodes)
+        ps-processes (nodes->processes ps-nodes)]
+
+    (merge
+     (powersync opts)
+     {:generator (gen/on-threads ps-processes ; PowerSync only for main workload
+                                 (list-append/gen opts))})))
 
 (defn powersync-single
   "A single client PowerSync workload."
@@ -177,7 +193,7 @@
   [opts]
   {:db              (sqlite3/db)
    :client          (client/->PowerSyncClient nil)
-   :generator       (txn-generator opts)
+   :generator       (list-append/gen opts)
    :final-generator (txn-final-generator opts)
    :checker         (checker/compose
                      {:list-append    (list-append-checker (assoc opts :consistency-models [:strict-serializable]))
@@ -188,7 +204,7 @@
   [opts]
   {:db              (sqlite3/db)
    :client          (client/->PowerSyncClientNOOP nil)
-   :generator       (txn-generator opts)
+   :generator       (list-append/gen opts)
    :final-generator (txn-final-generator opts)
    :checker         (checker/compose
                      {:unbridled-optimism (checker/unbridled-optimism)})})

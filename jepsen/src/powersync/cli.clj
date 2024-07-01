@@ -1,6 +1,7 @@
 (ns powersync.cli
   "Command-line entry point for PowerSync tests."
-  (:require [clojure.string :as str]
+  (:require [clojure.set :as set]
+            [clojure.string :as str]
             [elle.consistency-model :as cm]
             [jepsen
              [checker :as checker]
@@ -18,6 +19,7 @@
   "A map of workload names to functions that take CLI options and return
   workload maps."
   {:powersync          workload/powersync
+   :powersync+         workload/powersync+
    :powersync-single   workload/powersync-single
    :ps-ro-pg-wo        workload/ps-ro-pg-wo
    :ps-wo-pg-ro        workload/ps-wo-pg-ro
@@ -65,10 +67,11 @@
   "Given opts, returns a meaningful test name."
   [opts]
   (str (name (:workload opts))
+       " " (get {"CrudTransactionConnector" "CrudTxBackend" "CrudBatchConnector" "CrudBatchBackend"} (:backend-connector opts))
        " " (str/join "," (->> (:consistency-models opts)
                               (map #(short-consistency-name % (name %)))))
        " " (str/join "," (map name (:nemesis opts)))
-       " " (:rate opts) "tps-" (:time-limit opts) "s"))
+       " " (count (set/difference (:nodes opts) (:postgres-nodes opts))) "n-" (:rate opts) "tps-" (:time-limit opts) "s"))
 
 (defn powersync-test
   "Given options from the CLI, constructs a test map."
@@ -122,7 +125,13 @@
 
 (def cli-opts
   "Command line options"
-  [[nil "--consistency-models MODELS" "What consistency models to check for."
+  [[nil "--backend-connector CLASSNAME" "What backend connector the PowerSync endpoint should use."
+    :parse-fn str
+    :default  "CrudTransactionConnector"
+    :validate [(partial contains? #{"CrudTransactionConnector" "CrudBatchConnector"})
+               (str "Must be one of " #{"CrudTransactionConnector" "CrudBatchConnector"})]]
+
+   [nil "--consistency-models MODELS" "What consistency models to check for."
     :parse-fn parse-nemesis-spec
     :validate [(partial every? cm/all-models)
                (str "Must be one or more of " cm/all-models)]]

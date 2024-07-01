@@ -11,8 +11,8 @@ import 'log.dart';
 /// Global Jepsen endpoint.
 late HttpServer endpoint;
 
-final ip = InternetAddress.anyIPv4;
-final port = int.parse(config['ENDPOINT_PORT'] ?? '8089');
+final _ip = InternetAddress.anyIPv4;
+final _port = int.parse(config['ENDPOINT_PORT'] ?? '8089');
 
 /// Execute an sql transaction and return the results:
 /// - request is a Jepsen op value as a JSON string
@@ -103,5 +103,5 @@ final handler =
     Pipeline().addMiddleware(logRequests()).addHandler(_router.call);
 
 Future<void> initEndpoint() async {
-  endpoint = await serve(handler, ip, port);
+  endpoint = await serve(handler, _ip, _port);
 }

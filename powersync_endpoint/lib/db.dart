@@ -1,11 +1,9 @@
+import 'dart:io';
 import 'package:powersync/powersync.dart';
-import 'package:uuid/uuid.dart';
 import 'backend_connector.dart';
 import 'config.dart';
 import 'log.dart';
 import 'schema.dart';
-
-final uuid = Uuid();
 
 /// Global PowerSync db.
 late PowerSyncDatabase db;
@@ -21,12 +19,33 @@ Future<void> initDb() async {
   log.info(
       'db initialized, runtimeType: ${db.runtimeType}, status: ${db.currentStatus}');
 
-  await db.connect(connector: CrudBatchConnector(db));
-  log.info('db connected, status: ${db.currentStatus}');
+  PowerSyncBackendConnector connector;
+  switch (config['BACKEND_CONNECTOR']) {
+    case 'CrudTransactionConnector':
+      connector = CrudTransactionConnector(db);
+      break;
+    case 'CrudBatchConnector':
+      connector = CrudBatchConnector(db);
+      break;
+    default:
+      log.severe('Invalid BACKEND_CONNECTOR: ${config['BACKEND_CONNECTOR']}');
+      exit(127);
+  }
+
+  await db.connect(connector: connector);
+  log.info('db connected, connector: $connector, status: ${db.currentStatus}');
 
   // log PowerSync status changes
-  db.statusStream
-      .listen((syncStatus) => log.finest('statusStream: $syncStatus'));
+  // monitor for upload error messages, there should be none
+  db.statusStream.listen((syncStatus) {
+    if (syncStatus.uploadError != null) {
+      log.severe(
+          'Upload error detected in statusStream: ${syncStatus.uploadError}');
+      exit(127);
+    }
+
+    log.finest('statusStream: $syncStatus');
+  });
 
   // log current db contents
   final dbTables = await db.execute('''

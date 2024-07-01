@@ -27,6 +27,10 @@ void initLogging() {
 
   Logger.root.level = level;
   Logger.root.onRecord.listen((record) {
-    print('[${record.loggerName}] ${record.level.name}: ${record.message}');
+    final timeStr =
+        '${record.time.hour}:${record.time.minute}:${record.time.second}.${record.time.millisecond}';
+
+    print(
+        '[$timeStr] [${record.loggerName}] ${record.level.name}: ${record.message}');
   });
 }
