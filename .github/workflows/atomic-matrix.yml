@@ -1,21 +1,21 @@
-name: ps-wo-pg-ro
+name: atomic-matrix
 
 on:
   workflow_dispatch:
 
 jobs:
-  ps-wo-pg-ro:
+  atomic-matrix:
     uses: nurturenature/jepsen-powersync/.github/workflows/run-jepsen-tests.yml@main
     with:
       workloads: >
-        [ 'ps-wo-pg-ro' ]
+        [ 'ps-ro-pg-wo', 'ps-wo-pg-ro' ]
       backend-connectors: >
         [ 'CrudTransactionConnector', 'CrudBatchConnector']
       nemeses: >
         [ 'none' ]
       rates: >
-        [ '20' ]
+        [ '10', '20', '30' ]
       time-limits: >
-        ['100' ]
+        ['30', '60', '100' ]
       cli-opts: >
         '--nodes n1,n2 --postgres-nodes n1'

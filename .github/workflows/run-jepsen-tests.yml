@@ -7,7 +7,12 @@ on:
         description: Workloads (as JSON)
         type: string
         required: true
-        default: "[ 'powersync-single' ]"
+        default: "[ 'powersync' ]"
+      backend-connectors:
+        description: Backend connector classes (as JSON)
+        type: string
+        required: true
+        default: "[ 'CrudTransactionConnector' ]"
       nemeses:
         description: 'Nemeses (as JSON)'
         type: string
@@ -27,7 +32,7 @@ on:
         description: 'CLI opts string'
         type: string
         required: false
-        default: --nodes n1
+        default: --nodes n1,n2,n3,n4,n5 --postgres-nodes n1
        
   workflow_call:
     inputs:
@@ -35,7 +40,12 @@ on:
         description: 'Workloads (as JSON)'
         type: string
         required: true
-        default: "[ 'powersync-single' ]"
+        default: "[ 'powersync' ]"
+      backend-connectors:
+        description: Backend connector classes (as JSON)
+        type: string
+        required: true
+        default: "[ 'CrudTransactionConnector' ]"
       nemeses:
         description: 'Nemeses (as JSON)'
         type: string
@@ -55,7 +65,7 @@ on:
         description: 'CLI opts string'
         type: string
         required: false
-        default: --nodes n1
+        default: --nodes n1,n2,n3,n4,n5 --postgres-nodes n1
 jobs:
   tests:
     runs-on: ubuntu-latest
@@ -63,13 +73,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        workload:   ${{ fromJSON(inputs.workloads) }}
-        nemesis:    ${{ fromJSON(inputs.nemeses) }}
-        rate:       ${{ fromJSON(inputs.rates) }}
-        time-limit: ${{ fromJSON(inputs.time-limits) }}
+        workload:          ${{ fromJSON(inputs.workloads) }}
+        backend-connector: ${{ fromJson(inputs.backend-connectors)}}
+        nemesis:           ${{ fromJSON(inputs.nemeses) }}
+        rate:              ${{ fromJSON(inputs.rates) }}
+        time-limit:        ${{ fromJSON(inputs.time-limits) }}
 
     env:
-      test-title: ${{ matrix.workload }}-${{ matrix.nemesis }}-${{ matrix.rate }}tps-${{ matrix.time-limit }}s
+      test-title: ${{ matrix.workload }}-${{ matrix.backend-connector }}-${{ matrix.nemesis }}-${{ matrix.rate }}tps-${{ matrix.time-limit }}s
 
     steps:  
       - name: Checkout jepsen-powersync
@@ -84,10 +95,11 @@ jobs:
       - name: ${{ env.test-title }}
         run: |
           cd $GITHUB_WORKSPACE/docker
-          ./docker-run.sh lein run test --workload   ${{ matrix.workload }} \
-                                        --nemesis    ${{ matrix.nemesis }}  \
-                                        --rate       ${{ matrix.rate }}     \
-                                        --time-limit ${{ matrix.time-limit }} \
+          ./docker-run.sh lein run test --workload          ${{ matrix.workload }} \
+                                        --backend-connector ${{ matrix.backend-connector }} \
+                                        --nemesis           ${{ matrix.nemesis }}  \
+                                        --rate              ${{ matrix.rate }}     \
+                                        --time-limit        ${{ matrix.time-limit }} \
                                         ${{ inputs.cli-opts }}
 
       - name: Jepsen, PowerSync, and PostgreSQL Logs
