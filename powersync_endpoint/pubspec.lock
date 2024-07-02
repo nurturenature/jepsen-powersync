@@ -322,10 +322,10 @@ packages:
     dependency: "direct main"
     description:
       name: powersync
-      sha256: "648e15f27534b9365a455af59d0ab3831717ef11838ee0d1313257626897e4ad"
+      sha256: c8cf8c24309a12f6df9e437a6c7c1f90006b3334c5226bb7969a61a8102d3204
       url: "https://pub.dev"
     source: hosted
-    version: "1.5.0"
+    version: "1.5.1"
   powersync_flutter_libs:
     dependency: transitive
     description:
