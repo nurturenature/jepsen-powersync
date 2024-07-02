@@ -65,13 +65,14 @@
 
 (defn test-name
   "Given opts, returns a meaningful test name."
-  [opts]
-  (str (name (:workload opts))
-       " " (get {"CrudTransactionConnector" "CrudTxBackend" "CrudBatchConnector" "CrudBatchBackend"} (:backend-connector opts))
-       " " (str/join "," (->> (:consistency-models opts)
-                              (map #(short-consistency-name % (name %)))))
-       " " (str/join "," (map name (:nemesis opts)))
-       " " (count (set/difference (:nodes opts) (:postgres-nodes opts))) "n-" (:rate opts) "tps-" (:time-limit opts) "s"))
+  [{:keys [backend-connector consistency-models nemesis nodes postgres-nodes rate time-limit workload] :as _opts}]
+  (let [nodes (into #{} nodes)]
+    (str (name workload)
+         " " (get {"CrudTransactionConnector" "CrudTxBackend" "CrudBatchConnector" "CrudBatchBackend"} backend-connector)
+         " " (str/join "," (->> consistency-models
+                                (map #(short-consistency-name % (name %)))))
+         " " (str/join "," (map name nemesis))
+         " " (count (set/difference nodes postgres-nodes)) "n-" rate "tps-" time-limit "s")))
 
 (defn powersync-test
   "Given options from the CLI, constructs a test map."
