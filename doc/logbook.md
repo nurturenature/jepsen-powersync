@@ -2,8 +2,40 @@
 
 ### In Progress
 
-Now that we have a reproducible test case showing non-atomic transactions,
-let's build a `CrudTransactionConnector` whose `uploadData` is transaction, vs batch, orientated.
+As the range of testing has increased, a couple of potential issues that stop PostgreSQL -> client db replication have surfaced:
+
+```clj
+; can crash client
+; from client logs:
+:logs-ps-client {:valid? false,
+                  :count 160,
+                  :matches ({:node "n2",
+                             :line "ERROR - 2024-07-02 18:42:24.432226"}
+                            ...)}
+```
+
+```clj
+; can break replication and convergence
+; example of all clients doing a different final read of key 0
+:divergent-reads {0 {nil #{"n3"},
+                     [2 5] #{"n4"},
+                     [3 4 7] #{"n1"},
+                     [6] #{"n2"},
+                     [1] #{"n5"}}}
+                 ...
+```
+
+Let's:
+- shrink the tests to the smallest reproducible
+- trace a few transactions end-to-end
+- insure that it's not a test artifact, incorrect usage
+- maybe explore a Dart CLI app that reproduces?
+
+----
+
+## History
+
+### Initial Atomic Transaction Orientated Backend Connector
 
 Example of a non-atomic transaction replication from a PowerSync write to a PostgreSQL read:
 - PowerSync, top transaction, writes '47' to random keys
@@ -13,9 +45,53 @@ Note that all writes are synced, Strong Convergence, but not on transaction boun
 
 ![G-single-item](./G-single-item.svg)
 
-----
+#### CrudTransactionConnector (PostgreSQL transaction orientated)
 
-## History
+New `CrudTransactionConnector`:
+- `uploadData` tightly coupled to a PostgreSQL transaction
+- eager
+  - processes all available transactions
+  - wants local db to be available for sync updates
+- PostgreSQL transactions are executed with an isolation level of repeatable-read
+  - so app retries on concurrent access Exceptions
+
+Can clearly see the effects of different connectors and atomic transactions:
+
+![atomic-matix GitHub action results](atomic-matix.png)
+
+#### Implementation
+
+Specify backend connector at runtime:
+- cli: `--backend-connector CLASSNAME`
+- .env: `BACKEND_CONNECTOR=CrudTransactionConnector`
+
+Expect no Exceptions, and mean it:
+```dart
+// log PowerSync status changes
+// monitor for upload error messages, there should be none
+db.statusStream.listen((syncStatus) {
+  if (syncStatus.uploadError != null) {
+    log.severe(
+        'Upload error detected in statusStream: ${syncStatus.uploadError}');
+    exit(127);
+  }
+```
+
+New workloads that isolate, emphasize PowerSync -> PostgreSQL and PostgreSQL -> PowerSync replication.
+Simple way to show atomic/non-atomic replication with different backend connectors:
+
+- `ps-wo-pg-ro` PowerSync write only, PostgreSQL read only 
+- `ps-ro-pg-wo` PowerSync read only, PostgreSQL write only
+
+Sample test commands:
+```bash
+lein run test --workload ps-wo-pg-ro --rate 20 --time-limit 60 --nodes n1,n2 --postgres-nodes n1 --backend-connector CrudBatchConnector
+lein run test --workload ps-ro-pg-wo --rate 20 --time-limit 60 --nodes n1,n2 --postgres-nodes n1 --backend-connector CrudTransactionConnector
+```
+
+[GitHub action](https://github.com/nurturenature/jepsen-powersync/actions/workflows/atomic-matrix.yml).
+
+----
 
 ### PowerSync, w/sync, Single User
 
