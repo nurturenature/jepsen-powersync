@@ -53,7 +53,7 @@
 
       ; configure PowerSync backend connector
       (c/cd app-dir
-            (c/exec :sed :-i (str "s/^BACKEND_CONNECTOR=.+$/BACKEND_CONNECTOR=" backend-connector "/g") ".env"))
+            (c/exec :sed :-i :-E (str "s/^BACKEND_CONNECTOR=[A-Za-z]+/BACKEND_CONNECTOR=" backend-connector "/gm") ".env"))
 
       ; one client sets up PowerSync
       (locking powersync-setup?

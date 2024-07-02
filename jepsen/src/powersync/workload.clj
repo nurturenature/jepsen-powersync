@@ -107,7 +107,7 @@
 (defn powersync
   "A PowerSync workload."
   [opts]
-  (let [opts (merge causal-opts/causal-opts opts)]
+  (let [opts (merge opts causal-opts/causal-opts)] ; TODO: confirm consistent overriding by causal-opts
     {:db              (ps/db)
      :client          (client/->PowerSyncClient nil)
      :generator       (list-append/gen opts)
@@ -163,7 +163,7 @@
                                    (read-generator opts))])
       :checker     (checker/compose
                     {:repeatable-read    (list-append-checker (assoc opts :consistency-models [:repeatable-read]))
-                     :causal-consistency (adya/checker opts)
+                     :causal-consistency (adya/checker (merge opts causal-opts/causal-opts)) ; TODO: confirm consistent overriding by causal-opts
                      :strong-convergence (strong-convergence/final-reads)})})))
 
 (defn ps-wo-pg-ro
@@ -179,7 +179,7 @@
                       opts)]
 
     (merge
-     (powersync opts)
+     (ps-ro-pg-wo opts)
      {:generator (gen/mix
                   [; PostgreSQL
                    (gen/on-threads pg-processes
