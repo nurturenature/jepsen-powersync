@@ -31,6 +31,24 @@ Let's:
 - insure that it's not a test artifact, incorrect usage
 - maybe explore a Dart CLI app that reproduces?
 
+#### Notes
+
+Turn on PostgreSQL statement logging to see replication from `CrudTransactionConnector`:
+
+- see correct transaction isolation
+  ```log
+  LOG:  execute <unnamed>: SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL READ COMMITTED
+  LOG:  execute <unnamed>: SHOW TRANSACTION ISOLATION LEVEL
+  LOG:  execute <unnamed>: SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL REPEATABLE READ
+  ```
+- see correct handling of concurrent conflict retries
+  ```log
+  LOG:  statement: COMMIT;
+  ERROR:  could not serialize access due to concurrent update
+  STATEMENT:  UPDATE lww SET v = $1 WHERE id = $2 RETURNING *
+  LOG:  statement: ROLLBACK;
+  ```
+
 ----
 
 ## History

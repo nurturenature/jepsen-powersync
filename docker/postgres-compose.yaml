@@ -14,7 +14,14 @@ services:
       - ../init-scripts:/docker-entrypoint-initdb.d
     ports:
       - ${PG_DATABASE_PORT}:${PG_DATABASE_PORT}
-    command: ["postgres", "-c", "wal_level=logical"]
+    command:
+      [
+        "postgres",
+        "-c",
+        "wal_level=logical",
+        "-c",
+        "log_statement=${PG_LOG_STATEMENT}",
+      ]
 
 volumes:
   db_data:
