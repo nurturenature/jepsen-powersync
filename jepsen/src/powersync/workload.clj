@@ -188,6 +188,13 @@
                    (gen/on-threads ps-processes
                                    (append-generator opts))])})))
 
+(defn convergence
+  "A PowerSync workload that only checks for strong convergence."
+  [opts]
+  (merge (powersync opts)
+         {:checker (checker/compose
+                    {:strong-convergence (strong-convergence/final-reads)})}))
+
 (defn sqlite3-local
   "A local SQLite3, single user, workload."
   [opts]

@@ -1,0 +1,19 @@
+name: convergence-matrix
+
+on:
+  workflow_dispatch:
+
+jobs:
+  convergence-matrix:
+    uses: nurturenature/jepsen-powersync/.github/workflows/run-jepsen-tests.yml@main
+    with:
+      workloads: >
+        [ 'convergence' ]
+      backend-connectors: >
+        [ 'CrudTransactionConnector']
+      nemeses: >
+        [ 'none' ]
+      rates: >
+        [ '10', '20', '30' ]
+      time-limits: >
+        ['30', '60', '100' ]
