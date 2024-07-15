@@ -35,6 +35,9 @@ Future<void> initDb() async {
   await db.connect(connector: connector);
   log.info('db connected, connector: $connector, status: ${db.currentStatus}');
 
+  await db.waitForFirstSync();
+  log.info('db first sync completed, status: ${db.currentStatus}');
+
   // log PowerSync status changes
   // monitor for upload error messages, there should be none
   db.statusStream.listen((syncStatus) {
