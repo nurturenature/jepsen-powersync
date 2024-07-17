@@ -4,6 +4,9 @@
              [opts :as causal-opts]
              [strong-convergence :as strong-convergence]]
             [cheshire.core :as json]
+            [jepsen
+             [history :as h]
+             [store :as store]]
             [powersync
              [cli :as cli]
              [client :as client]

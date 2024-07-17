@@ -173,8 +173,8 @@ const _retryablePgErrors = {
 };
 
 const _maxRetries = 10;
-const _minRetryDelay = 5; // in ms, each retry delay is min <= random <= max
-const _maxRetryDelay = 10;
+const _minRetryDelay = 10; // in ms, each retry delay is min <= random <= max
+const _maxRetryDelay = 25;
 final _rng = Random();
 
 dynamic _txWithRetries(List<CrudEntry> crud) async {

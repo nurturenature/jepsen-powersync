@@ -9,9 +9,9 @@
              [generator :as gen]
              [tests :as tests]]
             [jepsen.checker.timeline :as timeline]
-            [jepsen.nemesis.combined :as nemesis]
             [jepsen.os.debian :as debian]
             [powersync
+             [nemesis :as nemesis]
              [powersync :as ps]
              [workload :as workload]]))
 
@@ -93,8 +93,7 @@
                                                      :jitter       :10ms
                                                      :correlation  :25%
                                                      :distribution :normal}}]}
-                   :clock      {:targets [:minority-third]}
-                   :offline-online {:targets [:minority]}
+                   :disconnect-connect {:targets [:majority]}
                    :interval   (:nemesis-interval opts)})]
     (merge tests/noop-test
            opts
@@ -165,8 +164,8 @@
 
    [nil "--nemesis FAULTS" "A comma-separated list of nemesis faults to enable"
     :parse-fn parse-nemesis-spec
-    :validate [(partial every? #{:pause :partition :packet :kill :clock :offline-online})
-               "Faults must be partition, pause, packet, kill, clock, offline-online, or the special faults all or none."]]
+    :validate [(partial every? #{:pause :partition :packet :kill :clock :disconnect-connect})
+               "Faults must be partition, pause, packet, kill, clock, disconnect-connect, or the special faults all or none."]]
 
    [nil "--nemesis-interval SECS" "Roughly how long between nemesis operations."
     :default 5

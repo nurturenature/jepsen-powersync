@@ -63,18 +63,47 @@ Future<Response> _sqlTxn(Request req) async {
 }
 
 /// `/powersync` endpoint for status information
-Future<Response> _powersync(Request req) async {
-  final status = db.currentStatus;
-  final response = jsonEncode({
-    'env.LOCAL_ONLY': config['LOCAL_ONLY'],
-    'db.closed': db.closed,
-    'db.connected': db.connected,
-    'db.runtimeType': db.runtimeType.toString(),
-    'status.connected': status.connected,
-    'status.lastSyncedAt': status.lastSyncedAt?.toIso8601String()
-  });
+Future<Response> _powersync(Request req, String action) async {
+  Map response;
 
-  return Response.ok(response);
+  switch (action) {
+    case 'status':
+      final status = db.currentStatus;
+      response = {
+        'env.LOCAL_ONLY': config['LOCAL_ONLY'],
+        'db.closed': db.closed,
+        'db.connected': db.connected,
+        'db.runtimeType': db.runtimeType.toString(),
+        'status.connected': status.connected,
+        'status.lastSyncedAt': status.lastSyncedAt?.toIso8601String()
+      };
+      break;
+
+    case 'connect':
+      await db.connect(connector: connector);
+      final status = db.currentStatus;
+      response = {
+        'db.connected': db.connected,
+        'status.connected': status.connected
+      };
+      break;
+
+    case 'disconnect':
+      await db.disconnect();
+      final status = db.currentStatus;
+      response = {
+        'db.connected': db.connected,
+        'status.connected': status.connected
+      };
+      break;
+
+    default:
+      log.severe('Unknown /powersync request: $req');
+      exit(127);
+  }
+
+  final resStr = jsonEncode(response);
+  return Response.ok(resStr);
 }
 
 /// `/db` endpoint to query db
@@ -89,13 +118,14 @@ Future<Response> _db(Request req, String action) async {
       log.severe('Unknown /db request: $req');
       exit(127);
   }
+
   final resStr = jsonEncode(response);
   return Response.ok(resStr);
 }
 
 final _router = Router()
   ..post('/sql-txn', _sqlTxn)
-  ..get('/powersync', _powersync)
+  ..get('/powersync/<action>', _powersync)
   ..get('/db/<action>', _db);
 
 // configure a pipeline that logs requests

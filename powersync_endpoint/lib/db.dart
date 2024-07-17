@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:http/http.dart' as http;
 import 'package:powersync/powersync.dart';
 import 'backend_connector.dart';
 import 'config.dart';
@@ -7,6 +8,20 @@ import 'schema.dart';
 
 /// Global PowerSync db.
 late PowerSyncDatabase db;
+
+/// Connector to PowerSync db.
+late PowerSyncBackendConnector connector;
+
+// can this upload error be ignored?
+bool _ignorableUploadError(Object ex) {
+  if (ex is http.ClientException &&
+      ex.message
+          .startsWith('Connection closed before full header was received')) {
+    return true;
+  } else {
+    return false;
+  }
+}
 
 Future<void> initDb() async {
   db =
@@ -19,18 +34,12 @@ Future<void> initDb() async {
   log.info(
       'db initialized, runtimeType: ${db.runtimeType}, status: ${db.currentStatus}');
 
-  PowerSyncBackendConnector connector;
-  switch (config['BACKEND_CONNECTOR']) {
-    case 'CrudTransactionConnector':
-      connector = CrudTransactionConnector(db);
-      break;
-    case 'CrudBatchConnector':
-      connector = CrudBatchConnector(db);
-      break;
-    default:
-      log.severe('Invalid BACKEND_CONNECTOR: ${config['BACKEND_CONNECTOR']}');
-      exit(127);
-  }
+  connector = switch (config['BACKEND_CONNECTOR']) {
+    'CrudTransactionConnector' => CrudTransactionConnector(db),
+    'CrudBatchConnector' => CrudBatchConnector(db),
+    _ => throw ArgumentError.value(
+        config['BACKEND_CONNECTOR'], 'BACKEND_CONNECTOR', 'Unknown value')
+  };
 
   await db.connect(connector: connector);
   log.info('db connected, connector: $connector, status: ${db.currentStatus}');
@@ -39,9 +48,10 @@ Future<void> initDb() async {
   log.info('db first sync completed, status: ${db.currentStatus}');
 
   // log PowerSync status changes
-  // monitor for upload error messages, there should be none
+  // monitor for upload error messages, check if they're ignorable
   db.statusStream.listen((syncStatus) {
-    if (syncStatus.uploadError != null) {
+    if (syncStatus.uploadError != null &&
+        !_ignorableUploadError(syncStatus.uploadError!)) {
       log.severe(
           'Upload error detected in statusStream: ${syncStatus.uploadError}');
       exit(127);
