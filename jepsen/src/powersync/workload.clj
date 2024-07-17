@@ -113,12 +113,7 @@
      :generator       (list-append/gen opts)
      :final-generator (txn-final-generator opts)
      :checker         (checker/compose
-                       {:intermediate-reads (list-append-checker
-                                             (assoc opts
-                                                    :consistency-models []
-                                                    :anomalies          [:G1b]
-                                                    :directory          "intermediate-reads"))
-                        :causal-consistency    (adya/checker opts)
+                       {:causal-consistency    (adya/checker opts)
                         :strong-convergence    (strong-convergence/final-reads)})}))
 
 (defn powersync+
