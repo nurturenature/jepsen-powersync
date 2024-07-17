@@ -1,0 +1,19 @@
+name: disconnect-connect-matrix
+
+on:
+  workflow_dispatch:
+
+jobs:
+  disconnect-connect-matrix:
+    uses: nurturenature/jepsen-powersync/.github/workflows/run-jepsen-tests.yml@main
+    with:
+      workloads: >
+        [ 'powersync' ]
+      backend-connectors: >
+        [ 'CrudTransactionConnector']
+      nemeses: >
+        [ 'disconnect-connect' ]
+      rates: >
+        [ '10', '25', '50' ]
+      time-limits: >
+        ['30', '60', '100' ]
