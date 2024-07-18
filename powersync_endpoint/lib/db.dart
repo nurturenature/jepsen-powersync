@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:powersync/powersync.dart';
+import 'package:powersync/sqlite_async.dart' as sqlite;
 import 'backend_connector.dart';
 import 'config.dart';
 import 'log.dart';
@@ -14,13 +15,20 @@ late PowerSyncBackendConnector connector;
 
 // can this upload error be ignored?
 bool _ignorableUploadError(Object ex) {
+  // exposed by disconnect-connect nemesis
   if (ex is http.ClientException &&
       ex.message
           .startsWith('Connection closed before full header was received')) {
     return true;
-  } else {
-    return false;
   }
+
+  // exposed by disconnect-connect nemesis
+  if (ex is sqlite.ClosedException) {
+    return true;
+  }
+
+  // don't ignore unexpected
+  return false;
 }
 
 Future<void> initDb() async {
