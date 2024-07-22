@@ -154,6 +154,14 @@
                  :error (.toString ex))
           (assoc op
                  :type  :info
+                 :error (.toString ex))))
+      (catch java.net.SocketException ex
+        (if (= (.getMessage ex) "Connection reset")
+          (assoc op
+                 :type  :info
+                 :error (.toString ex))
+          (assoc op
+                 :type  :info
                  :error (.toString ex)))))))
 
 (defrecord PowerSyncClient [conn]
