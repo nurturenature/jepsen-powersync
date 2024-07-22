@@ -1,6 +1,21 @@
 ## Logbook
 
-### In Progress
+### In Process
+
+Add partitioning and process kill nemeses to flush out more errors and observe behaviors.
+
+---
+
+### Known Errors In New CrudTransactionConnector 
+
+- PostgreSQL could not serialize access due to concurrent update
+  - Max retries, 10, exceeded
+
+TODO: Implement exponential backoff?
+
+----
+
+### Errors That Aren't Understood Yet
 
 As the range of testing has increased, a couple of potential issues that stop PostgreSQL -> client db replication have surfaced:
 
@@ -31,7 +46,18 @@ Let's:
 - insure that it's not a test artifact, incorrect usage
 - maybe explore a Dart CLI app that reproduces?
 
-#### Notes
+Test command:
+```bash
+lein run test --workload convergence --rate 100 --time-limit 30 --nodes n1,n2,n3,n4,n5 --postgres-nodes n1
+```
+
+Smallest example of divergence:
+```clj
+:divergent-reads {0 {nil #{"n3"
+                           "n4"
+                           "n5"},
+                     [3] #{"n1" "n2"}}}
+```
 
 Turn on PostgreSQL statement logging to see replication from `CrudTransactionConnector`:
 
@@ -52,6 +78,42 @@ Turn on PostgreSQL statement logging to see replication from `CrudTransactionCon
 ----
 
 ## History
+
+### Exercise Backend Connector By Disconnecting/Connecting
+
+```dart
+await db.connect(connector: connector);
+await db.disconnect();
+```
+
+Jepsen log:
+```log
+2024-07-18 20:03:19,792 :nemesis	:info	:disconnect	:majority
+2024-07-18 20:03:19,796 :nemesis	:info	:disconnect	{"n1" :disconnected, "n3" :disconnected, "n5" :disconnected}
+...
+2024-07-18 20:03:24,403 :nemesis	:info	:connect	nil
+2024-07-18 20:03:24,412 :nemesis	:info	:connect	{"n1" :connected, "n2" :connected, "n3" :connected, "n4" :connected, "n5" :connected}
+```
+
+PowerSync Endpoint log:
+```log
+[powersync_endpoint] FINEST: statusStream: SyncStatus<connected: true connecting: false ...>
+GET     [200] /powersync/connect
+[powersync_endpoint] FINEST: statusStream: SyncStatus<connected: false connecting: false ...>
+[powersync_endpoint] FINEST: statusStream: SyncStatus<connected: true connecting: false ...>
+```
+
+Observations:
+- disconnecting/connecting is reliable
+  - client seems more resilient, likely to strongly converge, than normal operations
+  - only error that's reproducible is PostgreSQL could not serialize access due to concurrent update, max retries exceeded
+- doing a connect on an already connected connection seems to trigger a disconnect then a connect
+
+TODO / Questions:
+- are `connect/disconnect` idempotent?
+  - check if connect causes an initial disconnect?
+
+----
 
 ### Initial Atomic Transaction Orientated Backend Connector
 
@@ -75,7 +137,7 @@ New `CrudTransactionConnector`:
 
 Can clearly see the effects of different connectors and atomic transactions:
 
-![atomic-matix GitHub action results](atomic-matix.png)
+![atomic-matrix GitHub action results](atomic-matix.png)
 
 #### Implementation
 
