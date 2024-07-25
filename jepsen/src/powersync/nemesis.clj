@@ -49,7 +49,8 @@
       (let [result (case f
                      :disconnect (let [targets (nc/db-nodes test db value)]
                                    (c/on-nodes test targets disconnect))
-                     :connect    (c/on-nodes test connect))]
+                     :connect    (c/on-nodes test connect))
+            result (into (sorted-map) result)]
         (assoc op :value result)))
 
     (teardown! [_this _test]
@@ -163,7 +164,7 @@
                            :fs    #{}
                            :start #{:partition-sync}
                            :stop  #{:heal-sync}
-                           :color "B7A0E8"}}})))
+                           :color "#B7A0E8"}}})))
 
 (defn nemesis-package
   "Constructs combined nemeses and generators into a nemesis package."
