@@ -36,14 +36,14 @@
   "Combinations of nemeses for tests"
   [[]
    [:pause]
-   [:partition]
-   [:pause :partition]
+   [:partition-sync]
+   [:pause :partition-sync]
    [:kill]])
 
 (def special-nemeses
   "A map of special nemesis names to collections of faults"
   {:none []
-   :all  [:pause :partition :kill]})
+   :all  [:pause :partition-sync :kill]})
 
 (defn parse-nemesis-spec
   "Takes a comma-separated nemesis string and returns a collection of keyword
@@ -85,7 +85,7 @@
                   {:db         db
                    :nodes      (:nodes opts)
                    :faults     (:nemesis opts)
-                   :partition  {:targets [:one :minority-third :majority :majorities-ring]}
+                   :partition-sync {:targets [:majority]}
                    :pause      {:targets [:one :minority :majority :all]}
                    :kill       {:targets [:minority-third]}
                    :packet     {:targets   [:one :minority :majority :all]
@@ -164,8 +164,8 @@
 
    [nil "--nemesis FAULTS" "A comma-separated list of nemesis faults to enable"
     :parse-fn parse-nemesis-spec
-    :validate [(partial every? #{:pause :partition :packet :kill :clock :disconnect-connect})
-               "Faults must be partition, pause, packet, kill, clock, disconnect-connect, or the special faults all or none."]]
+    :validate [(partial every? #{:pause :partition-sync :packet :kill :clock :disconnect-connect})
+               "Faults must be partition-sync, pause, packet, kill, clock, disconnect-connect, or the special faults all or none."]]
 
    [nil "--nemesis-interval SECS" "Roughly how long between nemesis operations."
     :default 5
