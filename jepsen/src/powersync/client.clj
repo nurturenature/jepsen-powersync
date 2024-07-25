@@ -162,7 +162,11 @@
                  :error (.toString ex))
           (assoc op
                  :type  :info
-                 :error (.toString ex)))))))
+                 :error (.toString ex))))
+      (catch java.net.SocketTimeoutException ex
+        (assoc op
+               :type  :info
+               :error (.toString ex))))))
 
 (defrecord PowerSyncClient [conn]
   client/Client

@@ -30,7 +30,12 @@
 
 (def all-workloads
   "A collection of workloads we run by default."
-  [:powersync-single])
+  [:powersync])
+
+(def nemeses
+  "A collection of valid nemeses."
+  #{:disconnect-connect :partition-sync
+    :pause :kill})
 
 (def all-nemeses
   "Combinations of nemeses for tests"
@@ -43,7 +48,7 @@
 (def special-nemeses
   "A map of special nemesis names to collections of faults"
   {:none []
-   :all  [:pause :partition-sync :kill]})
+   :all  nemeses})
 
 (defn parse-nemesis-spec
   "Takes a comma-separated nemesis string and returns a collection of keyword
@@ -85,15 +90,10 @@
                   {:db         db
                    :nodes      (:nodes opts)
                    :faults     (:nemesis opts)
-                   :partition-sync {:targets [:majority]}
-                   :pause      {:targets [:one :minority :majority :all]}
-                   :kill       {:targets [:minority-third]}
-                   :packet     {:targets   [:one :minority :majority :all]
-                                :behaviors [{:delay {:time         :50ms
-                                                     :jitter       :10ms
-                                                     :correlation  :25%
-                                                     :distribution :normal}}]}
                    :disconnect-connect {:targets [:majority]}
+                   :partition-sync     {:targets [:majority]}
+                   :pause      {:targets [:minority]}
+                   :kill       {:targets [:minority]}
                    :interval   (:nemesis-interval opts)})]
     (merge tests/noop-test
            opts
@@ -106,7 +106,6 @@
                          :timeline           (timeline/html)
                          :stats              (checker/stats)
                          :exceptions         (checker/unhandled-exceptions)
-                         :clock              (checker/clock-plot)
                          :logs-ps-client     (checker/log-file-pattern #"ERROR" ps/log-file-short)
                          :workload           (:checker workload)})
             :client    (:client workload)
@@ -164,8 +163,8 @@
 
    [nil "--nemesis FAULTS" "A comma-separated list of nemesis faults to enable"
     :parse-fn parse-nemesis-spec
-    :validate [(partial every? #{:pause :partition-sync :packet :kill :clock :disconnect-connect})
-               "Faults must be partition-sync, pause, packet, kill, clock, disconnect-connect, or the special faults all or none."]]
+    :validate [(partial every? nemeses)
+               (str "Faults must be " nemeses ", or the special faults all or none.")]]
 
    [nil "--nemesis-interval SECS" "Roughly how long between nemesis operations."
     :default 5
