@@ -79,6 +79,39 @@ Turn on PostgreSQL statement logging to see replication from `CrudTransactionCon
 
 ## History
 
+### Exercise Backend Connector By Partitioning
+
+```clj
+(c/su
+   (c/exec :iptables
+           :-A :INPUT
+           :-s :powersync
+           :-j :DROP
+           :-w)
+   (c/exec :iptables
+           :-A :INPUT
+           :-s :pg-db
+           :-j :DROP
+           :-w))
+```
+
+Jepsen log:
+```log
+:nemesis	:info	:partition-sync	:majority
+...
+:nemesis	:info	:partition-sync	{"n1" :partitioned, "n3" :partitioned, "n4" :partitioned}
+...
+:nemesis	:info	:heal-sync	nil
+...
+:nemesis	:info	:heal-sync	{"n1" :healed, "n2" :healed, "n3" :healed, "n4" :healed, "n5" :healed}
+```
+
+Observations:
+- client always reconnects when partition heals
+- more likely to end up in a divergent state
+
+----
+
 ### Exercise Backend Connector By Disconnecting/Connecting
 
 ```dart
