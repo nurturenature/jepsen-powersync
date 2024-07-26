@@ -166,6 +166,10 @@
       (catch java.net.SocketTimeoutException ex
         (assoc op
                :type  :info
+               :error (.toString ex)))
+      (catch org.apache.http.NoHttpResponseException ex
+        (assoc op
+               :type  :info
                :error (.toString ex))))))
 
 (defrecord PowerSyncClient [conn]
