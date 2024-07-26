@@ -79,6 +79,36 @@ Turn on PostgreSQL statement logging to see replication from `CrudTransactionCon
 
 ## History
 
+### Exercise Backend Connector With Process Pause/Kill
+
+```clj
+(c/su
+   (cu/grepkill! app-ps-name)
+   ...
+   (cu/grepkill! :stop app-ps-name)
+   ...
+   (cu/grepkill! :cont app-ps-name))
+```
+
+Jepsen log:
+```log
+:nemesis	:info	:kill	:minority
+...
+:nemesis	:info	:kill	{"n1" :killed, "n2" :killed}
+...
+:nemesis	:info	:start	:all
+...
+:nemesis	:info	:start	{"n1" :started, "n2" :started, "n3" :already-running, "n4" :already-running, "n5" :already-running}
+```
+
+Observations:
+- the usual, can end up in a divergent state
+  - pause more likely than kill to diverge
+- new Exception in client when paused
+  - org.apache.http.NoHttpResponseException
+
+----
+
 ### Exercise Backend Connector By Partitioning
 
 ```clj
@@ -107,6 +137,7 @@ Jepsen log:
 ```
 
 Observations:
+- exercises start-up under partition
 - client always reconnects when partition heals
 - more likely to end up in a divergent state
 
