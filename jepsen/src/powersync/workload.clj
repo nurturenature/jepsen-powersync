@@ -3,6 +3,7 @@
              [adya :as adya]
              [opts :as causal-opts]
              [strong-convergence :as strong-convergence]]
+            [clojure.math :as math]
             [clojure.set :as set]
             [elle.list-append :as list-append]
             [jepsen
@@ -13,18 +14,13 @@
              [powersync :as ps]
              [sqlite3 :as sqlite3]]))
 
-(def total-key-count
-  "The total number of keys."
+(def default-key-count
+  "The default total number of keys."
   100)
 
-(def default-key-count
+(def default-keys-txn
   "The default number of keys to act on in a transactions."
   10)
-
-(def all-keys
-  "A sorted set of all keys."
-  (->> (range total-key-count)
-       (into (sorted-set))))
 
 (defn op+
   "Given a :f and :value, creates an :invoke op."
@@ -34,10 +30,10 @@
 (defn txn-generator
   "Given optional opts, return a generator of multi-txn ops, e.g. random writes/reads over all-keys."
   ([] (txn-generator nil))
-  ([{:keys [min-txn-length max-txn-length] :as opts}]
+  ([{:keys [min-txn-length max-txn-length total-key-count] :as opts}]
    (let [opts (assoc opts
                      :key-dist           :uniform
-                     :key-count          total-key-count
+                     :key-count          (or total-key-count default-key-count)
                      :max-writes-per-key 1000
                      :min-txn-length     (or min-txn-length 4)
                      :max-txn-length     (or max-txn-length 4))]
@@ -48,11 +44,12 @@
   "Given optional opts, return a lazy sequence of
    transactions consisting only of :append's."
   ([] (append-generator nil))
-  ([{:keys [key-count] :as _opts}]
-   (let [key-count (or key-count default-key-count)]
+  ([{:keys [key-count total-key-count] :as _opts}]
+   (let [total-key-count (or total-key-count default-key-count)
+         key-count       (or key-count default-keys-txn)]
      (->> (range)
           (map (fn [v]
-                 (let [append-keys (->> all-keys
+                 (let [append-keys (->> (range 0 total-key-count)
                                         shuffle
                                         (take key-count))
                        value (->> append-keys
@@ -64,10 +61,11 @@
   "Given optional opts, return a lazy sequence of
    transactions consisting only of :r's."
   ([] (read-generator nil))
-  ([{:keys [key-count] :as _opts}]
-   (let [key-count (or key-count default-key-count)]
+  ([{:keys [key-count total-key-count] :as _opts}]
+   (let [total-key-count (or total-key-count default-key-count)
+         key-count       (or key-count default-keys-txn)]
      (repeatedly
-      (fn [] (let [read-keys (->> all-keys
+      (fn [] (let [read-keys (->> (range 0 total-key-count)
                                   shuffle
                                   (take key-count))
                    value (->> read-keys
@@ -77,16 +75,29 @@
 
 (defn txn-final-generator
   "final-generator for txn-generator."
-  [_opts]
-  (gen/phases
-   (gen/log "Quiesce...")
-   (gen/sleep 3)
-   (gen/log "Final reads...")
-   (->> all-keys
-        (map (fn [k]
-               {:type :invoke :f :r-final :value [[:r k nil]] :final-read? true}))
-        (gen/each-thread)
-        (gen/clients))))
+  [{:keys [total-key-count] :as _opts}]
+  (let [total-key-count (or total-key-count default-key-count)]
+    (gen/phases
+     (gen/log "Quiesce...")
+     (gen/sleep 3)
+     (gen/log "Final reads...")
+     (->> (range 0 total-key-count)
+          (map (fn [k]
+                 {:type :invoke :f :r-final :value [[:r k nil]] :final-read? true}))
+          (gen/each-thread)
+          (gen/clients)))))
+
+(defn list-append-gen
+  "A list-append/gen that stops at total-key-count."
+  [{:keys [total-key-count] :as opts}]
+  (let [total-key-count (or total-key-count default-key-count)]
+    (->> (list-append/gen opts)
+         (take-while (fn [{:keys [value] :as _op}]
+                       (if (some (fn [[_f k _v]]
+                                   (>= k total-key-count))
+                                 value)
+                         false
+                         true))))))
 
 (defn list-append-checker
   "Uses elle/list-append checker."
@@ -106,11 +117,23 @@
 
 (defn powersync
   "A PowerSync workload."
-  [opts]
-  (let [opts (merge opts causal-opts/causal-opts)] ; TODO: confirm consistent overriding by causal-opts
+  [{:keys [rate time-limit] :as opts}]
+  (let [opts (-> opts
+                 (merge causal-opts/causal-opts) ; TODO: confirm consistent overriding by causal-opts
+                 (update :min-txn-length     (fn [x] (or x 1)))
+                 (update :max-txn-length     (fn [x] (or x 4)))
+                 (update :max-writes-per-key (fn [x] (or x 256)))
+                 (update :total-key-count    (fn [x] (or x (-> (+ 1 4)
+                                                               (/ 2)               ; ~mops per op
+                                                               (/ 2)               ; ~appends per op
+                                                               (* rate time-limit) ; ~total ops
+                                                               (/ 256)             ; writes per key
+                                                               math/ceil           ; round up
+                                                               long
+                                                               (+ 10))))))]        ; account for active keys
     {:db              (ps/db)
      :client          (client/->PowerSyncClient nil)
-     :generator       (list-append/gen opts)
+     :generator       (list-append-gen opts)
      :final-generator (txn-final-generator opts)
      :checker         (checker/compose
                        {:causal-consistency    (adya/checker opts)
@@ -122,12 +145,19 @@
   (let [_            (assert (seq postgres-nodes))
         nodes        (into #{} nodes)
         ps-nodes     (set/difference nodes postgres-nodes)
-        ps-processes (nodes->processes ps-nodes)]
+        ps-processes (nodes->processes ps-nodes)
+        ps-workload  (powersync opts)]
 
     (merge
-     (powersync opts)
+     ps-workload
      {:generator (gen/on-threads ps-processes ; PowerSync only for main workload
-                                 (list-append/gen opts))})))
+                                 (:generator ps-workload))})))
+(defn convergence
+  "A PowerSync workload that only checks for strong convergence."
+  [opts]
+  (merge (powersync opts)
+         {:checker (checker/compose
+                    {:strong-convergence (strong-convergence/final-reads)})}))
 
 (defn powersync-single
   "A single client PowerSync workload."
@@ -182,13 +212,6 @@
                    ; PowerSync
                    (gen/on-threads ps-processes
                                    (append-generator opts))])})))
-
-(defn convergence
-  "A PowerSync workload that only checks for strong convergence."
-  [opts]
-  (merge (powersync opts)
-         {:checker (checker/compose
-                    {:strong-convergence (strong-convergence/final-reads)})}))
 
 (defn sqlite3-local
   "A local SQLite3, single user, workload."

@@ -4,8 +4,7 @@
              [db :as db]
              [control :as c]]
             [jepsen.control
-             [util :as cu]]
-            [jepsen.util :as util]))
+             [util :as cu]]))
 
 (def install-dir
   "Directory to install into."
@@ -93,9 +92,6 @@
              :logfile log-file
              :pidfile pid-file}
             bin-path))
-          ; TODO: not possible to waitForFirstSync() in powersync_endpoint, so sleep here
-          (info "Sleeping for 1 second to mimic waitForFirstSync()")
-          (util/sleep 1000)
           :started)))
 
     (kill!

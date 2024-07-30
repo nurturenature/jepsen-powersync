@@ -153,7 +153,6 @@
     :validate [pos? "Must be a positive integer"]]
 
    [nil "--max-writes-per-key NUM" "Maximum number of writes to any given key."
-    :default  256
     :parse-fn parse-long
     :validate [pos? "Must be a positive integer."]]
 
@@ -182,6 +181,10 @@
     :default 100
     :parse-fn read-string
     :validate [pos? "Must be a positive number."]]
+
+   [nil "--total-key-count NUM" "Total number of keys to use."
+    :parse-fn parse-long
+    :validate [pos? "Must be a positive integer"]]
 
    ["-w" "--workload NAME" "What workload should we run?"
     :parse-fn keyword

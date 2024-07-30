@@ -35,9 +35,14 @@ Future<Response> _sqlTxn(Request req) async {
         case 'r':
           final select = await tx
               .getOptional('SELECT k,v from lww where k = ?', [mop['k']]);
-          // expected to be a result row as db is pre-seeded, so !null check
+          // result row expected as db is pre-seeded
+          if (select == null) {
+            throw StateError(
+                "Unexpected database state, uninitialized read key ${mop['k']}");
+          }
+
           // v == '' is a  null read
-          if ((select!['v'] as String) == '') {
+          if ((select['v'] as String) == '') {
             return mop;
           } else {
             // trim leading space that was created on first UPDATE
@@ -48,8 +53,15 @@ Future<Response> _sqlTxn(Request req) async {
 
         case 'append':
           // note: creates leading space on first update, upsert isn't supported
-          await tx.execute('UPDATE lww SET v = lww.v || \' \' || ? WHERE k = ?',
+          final update = await tx.execute(
+              'UPDATE lww SET v = lww.v || \' \' || ? WHERE k = ? RETURNING *',
               [mop['v'], mop['k']]);
+          // result set expected as db is pre-seeded
+          if (update.isEmpty) {
+            throw StateError(
+                "Unexpected database state, uninitialized append key ${mop['k']}");
+          }
+
           return mop;
       }
     }).toList();
