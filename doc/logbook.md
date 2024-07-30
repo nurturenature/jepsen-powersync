@@ -5,13 +5,6 @@
 Add partitioning and process kill nemeses to flush out more errors and observe behaviors.
 
 
-Workaround `waitForFirstSync()` by sleeping for 1s
-- slightly changes behavior of kill nemesis
-  - minimum of 1s interval between kills vs a possibly, random, interval of 0
-- slightly changes startup behavior
-  - 1s delay avoids the sometimes, random, initial transactions before/during setup
-
-
 Possible Issues
 - frequent, extraneous?, duplicate `SyncStatus` stream messages
   ```log

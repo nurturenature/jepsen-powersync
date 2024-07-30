@@ -73,6 +73,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.3.1"
+  checked_yaml:
+    dependency: transitive
+    description:
+      name: checked_yaml
+      sha256: feb6bed21949061731a7a75fc5d2aa727cf160b91af9a3e464c5e3a32e28b5ff
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.3"
   collection:
     dependency: transitive
     description:
@@ -238,6 +246,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.1"
+  json_annotation:
+    dependency: transitive
+    description:
+      name: json_annotation
+      sha256: "1ce844379ca14835a50d2f019a3099f419082cfdd231cd86a142af94dd5c6bb1"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.9.0"
   lints:
     dependency: "direct dev"
     description:
@@ -346,10 +362,10 @@ packages:
     dependency: "direct main"
     description:
       name: powersync
-      sha256: "26d9cf469d5fb93797e55b2a4cb6000ef104e2bf9f61686b2ff3eb4d7fcf93ee"
+      sha256: "73d27eb0fdf8f295fd057db4e38c32eafef9fca0f11622b559405b57c4096798"
       url: "https://pub.dev"
     source: hosted
-    version: "1.6.0"
+    version: "1.6.2"
   powersync_flutter_libs:
     dependency: transitive
     description:
@@ -366,6 +382,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.4"
+  pubspec_parse:
+    dependency: transitive
+    description:
+      name: pubspec_parse
+      sha256: c799b721d79eb6ee6fa56f00c04b472dcd44a30d258fac2174a6ec57302678f8
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.3.0"
   quiver:
     dependency: transitive
     description:
