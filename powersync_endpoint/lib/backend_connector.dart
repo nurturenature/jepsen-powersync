@@ -172,9 +172,12 @@ const _retryablePgErrors = {
   '40P01' // deadlock_detected
 };
 
-const _maxRetries = 10;
-const _minRetryDelay = 10; // in ms, each retry delay is min <= random <= max
-const _maxRetryDelay = 25;
+// retry/delay strategy
+// - delay diversity, random uniform distribution
+// - persistent retries, relative large max
+const _minRetryDelay = 1; // in ms, each retry delay is min <= random <= max
+const _maxRetryDelay = 64;
+const _maxRetries = 32;
 final _rng = Random();
 
 dynamic _txWithRetries(List<CrudEntry> crud) async {
@@ -239,7 +242,7 @@ dynamic _txWithRetries(List<CrudEntry> crud) async {
 
         // TODO: confirm appropriate to sleep in this Isolate as it blocks
         sleep(Duration(
-            milliseconds: _rng.nextInt(_maxRetryDelay - _minRetryDelay) +
+            milliseconds: _rng.nextInt(_maxRetryDelay - _minRetryDelay + 1) +
                 _minRetryDelay));
 
         continue;

@@ -7,7 +7,16 @@
 
 TODO: Implement a try hard, try harder, 'reverse' exponential backoff?
 - fair and polite
-
+- currently testing a more patient strategy
+  ```dart
+  // retry/delay strategy
+  // - delay diversity, random uniform distribution
+  // - persistent retries, relative large max
+  const _minRetryDelay = 1; // in ms, each retry delay is min <= random <= max
+  const _maxRetryDelay = 64;
+  const _maxRetries = 32;
+  final _rng = Random();
+  ```
 ----
 
 ### Errors That Aren't Understood Yet
