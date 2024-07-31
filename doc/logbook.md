@@ -1,19 +1,5 @@
 ## Logbook
 
-### In Process
-
-Add partitioning and process kill nemeses to flush out more errors and observe behaviors.
-
-
-Possible Issues
-- frequent, extraneous?, duplicate `SyncStatus` stream messages
-  ```log
-  [2:13:41.301] [powersync_endpoint] FINEST: statusStream: SyncStatus<connected: true connecting: false downloading: true uploading: false lastSyncedAt: 2024-07-28 02:13:40.138093, hasSynced: true, error: null>
-  [2:13:41.301] [powersync_endpoint] FINEST: statusStream: SyncStatus<connected: true connecting: false downloading: true uploading: false lastSyncedAt: 2024-07-28 02:13:40.138093, hasSynced: true, error: null>
-  ```
-
----
-
 ### Known Errors In New CrudTransactionConnector 
 
 - PostgreSQL could not serialize access due to concurrent update
@@ -26,17 +12,11 @@ TODO: Implement a try hard, try harder, 'reverse' exponential backoff?
 
 ### Errors That Aren't Understood Yet
 
-As the range of testing has increased, a couple of potential issues that stop PostgreSQL -> client db replication have surfaced:
+Only consistency anomaly consistently found
+- triggered by sustained higher transaction rates, 100 tps
+- PostgreSQL -> client db replication stops
+- introducing disconnecting/connecting, killing/starting, etc actually makes the system a bit more resilient
 
-```clj
-; can crash client
-; from client logs:
-:logs-ps-client {:valid? false,
-                  :count 160,
-                  :matches ({:node "n2",
-                             :line "ERROR - 2024-07-02 18:42:24.432226"}
-                            ...)}
-```
 
 ```clj
 ; can break replication and convergence
@@ -83,6 +63,16 @@ Turn on PostgreSQL statement logging to see replication from `CrudTransactionCon
   STATEMENT:  UPDATE lww SET v = $1 WHERE id = $2 RETURNING *
   LOG:  statement: ROLLBACK;
   ```
+
+
+#### Misc Possible Issues
+- frequent, extraneous?, duplicate `SyncStatus` stream messages
+  ```log
+  [2:13:41.301] [powersync_endpoint] FINEST: statusStream: SyncStatus<connected: true connecting: false downloading: true uploading: false lastSyncedAt: 2024-07-28 02:13:40.138093, hasSynced: true, error: null>
+  [2:13:41.301] [powersync_endpoint] FINEST: statusStream: SyncStatus<connected: true connecting: false downloading: true uploading: false lastSyncedAt: 2024-07-28 02:13:40.138093, hasSynced: true, error: null>
+  ```
+- are `connect/disconnect` idempotent?
+  - check if connect causes an initial disconnect?
 
 ----
 
