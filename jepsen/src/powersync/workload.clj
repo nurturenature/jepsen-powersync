@@ -152,10 +152,19 @@
      ps-workload
      {:generator (gen/on-threads ps-processes ; PowerSync only for main workload
                                  (:generator ps-workload))})))
+
 (defn convergence
   "A PowerSync workload that only checks for strong convergence."
   [opts]
   (merge (powersync opts)
+         {:checker (checker/compose
+                    {:strong-convergence (strong-convergence/final-reads)})}))
+
+(defn convergence+
+  "A PowerSync workload that only checks for strong convergence,
+   with PostgreSQL included in final reads."
+  [opts]
+  (merge (powersync+ opts)
          {:checker (checker/compose
                     {:strong-convergence (strong-convergence/final-reads)})}))
 
