@@ -81,7 +81,24 @@ Turn on PostgreSQL statement logging to see replication from `CrudTransactionCon
   [2:13:41.301] [powersync_endpoint] FINEST: statusStream: SyncStatus<connected: true connecting: false downloading: true uploading: false lastSyncedAt: 2024-07-28 02:13:40.138093, hasSynced: true, error: null>
   [2:13:41.301] [powersync_endpoint] FINEST: statusStream: SyncStatus<connected: true connecting: false downloading: true uploading: false lastSyncedAt: 2024-07-28 02:13:40.138093, hasSynced: true, error: null>
   ```
+  ```dart
+  int distinctSyncStatus = 0;
+  int totalSyncStatus = 0;
+  db.statusStream.distinct().listen((syncStatus) {
+    distinctSyncStatus++;
+    log.finest('distinctSyncStatus: $distinctSyncStatus');
+  });
+  db.statusStream.listen((syncStatus) {
+    totalSyncStatus++;
+    log.finest('totalSyncStatus: $totalSyncStatus');
+  });
+  ```
+  ```log
+  [2:5:36.814] [powersync_endpoint] FINEST: distinctSyncStatus: 568
+  [2:5:36.814] [powersync_endpoint] FINEST: totalSyncStatus: 7235
+  ```
 
+  
 - `connect/disconnect`
 
 Mostly just an FYI on observing connecting/disconnecting and the statusStream.
