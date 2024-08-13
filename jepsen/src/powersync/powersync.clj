@@ -2,7 +2,8 @@
   (:require [clojure.tools.logging :refer [info]]
             [jepsen
              [db :as db]
-             [control :as c]]
+             [control :as c]
+             [util :as u]]
             [jepsen.control
              [util :as cu]]))
 
@@ -98,7 +99,9 @@
       [_this _test _node]
       (c/su
        (cu/stop-daemon! pid-file)
-       (cu/grepkill! app-ps-name))
+       ; TODO: understand why sporadic Exception with exit code of 137 when using Docker
+       ;       for now, retrying is effective and safe 
+       (u/retry 1 (cu/grepkill! app-ps-name)))
       :killed)
 
     db/Pause
