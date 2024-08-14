@@ -122,10 +122,10 @@ jobs:
             ${{ github.workspace }}/store/current/results.edn
             ${{ github.workspace }}/store/current/tail-jepsen.log
             
-      - name: 'Jepsen Test Artifacts: failure-full'
-        if: ${{ failure() }}
+      - name: 'Jepsen Test Artifacts: full'
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: '${{ env.test-title }}-failure-full'
+          name: '${{ env.test-title }}-${{ job.status }}'
           path: |
             ${{ github.workspace }}/store/current
