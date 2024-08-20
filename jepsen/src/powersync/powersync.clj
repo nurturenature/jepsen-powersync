@@ -63,7 +63,8 @@
 
           (swap! powersync-setup? (fn [_] true))))
 
-      (db/start! this test node))
+      (db/start! this test node)
+      (u/sleep 1000)) ; TODO: sleep for 1s to allow endpoint to come up, should be retry http connection
 
     (teardown!
       [this test node]
