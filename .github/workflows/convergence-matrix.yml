@@ -9,11 +9,3 @@ jobs:
     with:
       workloads: >
         [ 'convergence' ]
-      backend-connectors: >
-        [ 'CrudTransactionConnector']
-      nemeses: >
-        [ 'none' ]
-      rates: >
-        [ '25', '50', '75', '100' ]
-      time-limits: >
-        ['30', '60', '100' ]

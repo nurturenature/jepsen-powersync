@@ -6,28 +6,28 @@ on:
       workloads:
         description: Workloads (as JSON)
         type: string
-        required: true
+        required: false
         default: "[ 'powersync' ]"
       backend-connectors:
         description: Backend connector classes (as JSON)
         type: string
-        required: true
+        required: false
         default: "[ 'CrudTransactionConnector' ]"
       nemeses:
         description: 'Nemeses (as JSON)'
         type: string
-        required: true
+        required: false
         default: "[ 'none' ]"
       rates:
         description: 'Rates (as JSON)'
         type: string
-        required: true
-        default: "[ '150' ]"
+        required: false
+        default: "[ '10', '20', '30', '40', '50' ]"
       time-limits:
         description: 'Timelimits (as JSON)'
         type: string
-        required: true
-        default: "[ '100' ]"
+        required: false
+        default: "[ '100', '200', '300', '400', '500', '600']"
       cli-opts:
         description: 'CLI opts string'
         type: string
@@ -39,33 +39,34 @@ on:
       workloads:
         description: 'Workloads (as JSON)'
         type: string
-        required: true
+        required: false
         default: "[ 'powersync' ]"
       backend-connectors:
         description: Backend connector classes (as JSON)
         type: string
-        required: true
+        required: false
         default: "[ 'CrudTransactionConnector' ]"
       nemeses:
         description: 'Nemeses (as JSON)'
         type: string
-        required: true
+        required: false
         default: "[ 'none' ]"
       rates:
         description: 'Rates (as JSON)'
         type: string
-        required: true
-        default: "[ '150' ]"
+        required: false
+        default: "[ '10', '20', '30', '40', '50' ]"
       time-limits:
         description: 'Timelimits (as JSON)'
         type: string
-        required: true
-        default: "[ '100' ]"
+        required: false
+        default: "[ '100', '200', '300', '400', '500', '600']"
       cli-opts:
         description: 'CLI opts string'
         type: string
         required: false
         default: --nodes n1,n2,n3,n4,n5 --postgres-nodes n1
+
 jobs:
   tests:
     runs-on: ubuntu-latest

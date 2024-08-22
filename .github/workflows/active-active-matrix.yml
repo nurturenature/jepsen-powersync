@@ -6,16 +6,3 @@ on:
 jobs:
   active-active-matrix:
     uses: nurturenature/jepsen-powersync/.github/workflows/run-jepsen-tests.yml@main
-    with:
-      workloads: >
-        [ 'powersync' ]
-      backend-connectors: >
-        [ 'CrudTransactionConnector']
-      nemeses: >
-        [ 'none' ]
-      rates: >
-        [ '10', '20', '30', '40', '50' ]
-      time-limits: >
-        ['100', '200', '300', '400', '500' ]
-      cli-opts: >
-        '--nodes n1,n2,n3,n4,n5 --postgres-nodes n1'

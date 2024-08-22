@@ -93,8 +93,8 @@
                    :faults     (:nemesis opts)
                    :disconnect-connect {:targets [:majority]}
                    :partition-sync     {:targets [:majority]}
-                   :pause      {:targets [:minority]}
-                   :kill       {:targets [:minority]}
+                   :pause      {:targets [:majority]}
+                   :kill       {:targets [:majority]}
                    :interval   (:nemesis-interval opts)})]
     (merge tests/noop-test
            opts
