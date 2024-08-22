@@ -5,7 +5,7 @@ on:
 
 jobs:
   disconnect-connect-matrix:
-    uses: nurturenature/jepsen-powersync/.github/workflows/run-jepsen-tests.yml@main
+    uses: nurturenature/jepsen-powersync/.github/workflows/run-jepsen-tests.yml@refactor-actions
     with:
       nemeses: >
         [ 'disconnect-connect' ]
