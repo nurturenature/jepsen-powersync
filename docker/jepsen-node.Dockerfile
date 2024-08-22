@@ -30,7 +30,7 @@ RUN git config --global --add safe.directory /usr/bin/flutter
 WORKDIR /app
 
 # app is responsible for getting native lib
-RUN wget --no-verbose -O libpowersync.so https://github.com/powersync-ja/powersync-sqlite-core/releases/download/v0.1.8/libpowersync_x64.so
+RUN wget --no-verbose -O libpowersync_x64.so https://github.com/powersync-ja/powersync-sqlite-core/releases/download/v0.2.0/libpowersync_x64.so
 
 # Resolve app dependencies.
 COPY pubspec.* ./
@@ -45,4 +45,4 @@ FROM jepsen-setup AS jepsen-final
 WORKDIR /jepsen/jepsen-powersync/powersync_endpoint
 COPY --from=dart-build /app/.env .env
 COPY --from=dart-build /app/powersync_endpoint powersync_endpoint
-COPY --from=dart-build /app/libpowersync.so libpowersync.so
+COPY --from=dart-build /app/libpowersync_x64.so libpowersync_x64.so

@@ -28,8 +28,8 @@ Dart + Flutter SDK required:
 - https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.22.2-stable.tar.xz
 
 Native lib needs to be manually provided to Dart:
-- https://github.com/powersync-ja/powersync-sqlite-core/releases/download/v0.1.7/libpowersync_x64.so
-- as libpowersync.so in same directory as compiled app
+- https://github.com/powersync-ja/powersync-sqlite-core/releases/download/v0.2.0/libpowersync_x64.so
+- as libpowersync_x64.so in same directory as compiled app
 
 Bring up PowerSync service Docker:
 - compile and run local app
