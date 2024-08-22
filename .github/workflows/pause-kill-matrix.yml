@@ -7,13 +7,5 @@ jobs:
   pause-kill-matrix:
     uses: nurturenature/jepsen-powersync/.github/workflows/run-jepsen-tests.yml@main
     with:
-      workloads: >
-        [ 'powersync' ]
-      backend-connectors: >
-        [ 'CrudTransactionConnector']
       nemeses: >
         [ 'pause', 'kill' ]
-      rates: >
-        [ '25', '50', '75', '100' ]
-      time-limits: >
-        ['60', '120', '180' ]
