@@ -23,6 +23,7 @@
    :powersync-single   workload/powersync-single
    :ps-ro-pg-wo        workload/ps-ro-pg-wo
    :ps-wo-pg-ro        workload/ps-wo-pg-ro
+   :ps-rw-pg-ro        workload/ps-rw-pg-ro
    :convergence        workload/convergence
    :convergence+       workload/convergence+
    :sqlite3-local      workload/sqlite3-local

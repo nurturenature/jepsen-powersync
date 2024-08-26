@@ -207,18 +207,36 @@
         nodes        (into #{} nodes)
         ps-nodes     (set/difference nodes postgres-nodes)
         ps-processes (nodes->processes ps-nodes)
-        pg-processes (nodes->processes postgres-nodes)
-        opts         (merge
-                      causal-opts/causal-opts
-                      opts)]
+        pg-processes (nodes->processes postgres-nodes)]
 
     (merge
-     (ps-ro-pg-wo opts)
+     (powersync opts)
      {:generator (gen/mix
                   [; PostgreSQL
                    (gen/on-threads pg-processes
                                    (read-generator opts))
                    ; PowerSync
+                   (gen/on-threads ps-processes
+                                   (append-generator opts))])})))
+
+(defn ps-rw-pg-ro
+  "A PowerSync doing reads and writes, PostgreSQL doing reads only, workload."
+  [{:keys [nodes postgres-nodes] :as opts}]
+  (let [_            (assert (seq postgres-nodes))
+        nodes        (into #{} nodes)
+        ps-nodes     (set/difference nodes postgres-nodes)
+        ps-processes (nodes->processes ps-nodes)
+        pg-processes (nodes->processes postgres-nodes)]
+
+    (merge
+     (powersync opts)
+     {:generator (gen/mix
+                  [; PostgreSQL
+                   (gen/on-threads pg-processes
+                                   (read-generator opts))
+                   ; PowerSync
+                   (gen/on-threads ps-processes
+                                   (read-generator opts))
                    (gen/on-threads ps-processes
                                    (append-generator opts))])})))
 
