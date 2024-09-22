@@ -33,6 +33,11 @@ on:
         type: string
         required: false
         default: --nodes n1,n2,n3,n4,n5 --postgres-nodes n1
+      powersync-image-tag:
+        description: PowerSync Image Tag
+        type: string
+        required: false
+        default: latest
        
   workflow_call:
     inputs:
@@ -66,6 +71,11 @@ on:
         type: string
         required: false
         default: --nodes n1,n2,n3,n4,n5 --postgres-nodes n1
+      powersync-image-tag:
+        description: PowerSync Image Tag
+        type: string
+        required: false
+        default: latest
 
 jobs:
   tests:
@@ -82,6 +92,7 @@ jobs:
 
     env:
       test-title: ${{ matrix.workload }}-${{ matrix.backend-connector }}-${{ matrix.nemesis }}-${{ matrix.rate }}tps-${{ matrix.time-limit }}s
+      POWERSYNC_IMAGE_TAG: ${{ inputs.powersync-image-tag }}
 
     steps:  
       - name: Checkout jepsen-powersync

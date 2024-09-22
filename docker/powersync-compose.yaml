@@ -15,7 +15,7 @@ services:
     depends_on:
       - mongo
       - pg-db
-    image: journeyapps/powersync-service:latest
+    image: journeyapps/powersync-service:${POWERSYNC_IMAGE_TAG:-latest}
     # The unified service runs an API server and replication worker in the same container.
     # These services can be executed in different containers by using individual entry commands e.g.
     # Start only the API server with
