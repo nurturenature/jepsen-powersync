@@ -3,13 +3,13 @@
   :url "https://github.com/nurturenature/jepsen-powersync"
   :license {:name "Apache License Version 2.0, January 2004"
             :url "http://www.apache.org/licenses/"}
-  :dependencies [[org.clojure/clojure "1.11.1"]
-                 [jepsen "0.3.6-SNAPSHOT"]
+  :dependencies [[org.clojure/clojure "1.12.0"]
+                 [jepsen "0.3.7"]
                  [causal "0.1.0-SNAPSHOT"]
                  [cheshire "5.13.0"]
-                 [clj-http "3.12.3"]
-                 [com.github.seancorfield/next.jdbc "1.3.909"]
-                 [org.postgresql/postgresql "42.7.1"]]
+                 [clj-http "3.13.0"]
+                 [com.github.seancorfield/next.jdbc "1.3.955"]
+                 [org.postgresql/postgresql "42.7.4"]]
   :jvm-opts ["-Xmx8g"
              "-Djava.awt.headless=true"
              "-server"]
