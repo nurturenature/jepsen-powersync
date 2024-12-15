@@ -91,7 +91,7 @@ jobs:
         time-limit:        ${{ fromJSON(inputs.time-limits) }}
 
     env:
-      test-title: ${{ matrix.workload }}-${{ matrix.backend-connector }}-${{ matrix.nemesis }}-${{ matrix.rate }}tps-${{ matrix.time-limit }}s
+      test-title: ${{ matrix.rate }}tps-${{ matrix.time-limit }}s-${{ matrix.workload }}-${{ matrix.nemesis }}-${{ matrix.backend-connector }}
       POWERSYNC_IMAGE_TAG: ${{ inputs.powersync-image-tag }}
 
     steps:  
