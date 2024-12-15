@@ -231,14 +231,15 @@
     (merge
      (powersync opts)
      {:generator (gen/mix
-                  [; PostgreSQL
+                  [; PostgreSQL - read only
                    (gen/on-threads pg-processes
                                    (read-generator opts))
-                   ; PowerSync
+                   ; PowerSync -read write
                    (gen/on-threads ps-processes
                                    (read-generator opts))
                    (gen/on-threads ps-processes
-                                   (append-generator opts))])})))
+                                   (append-generator opts))])
+      :final-generator (txn-final-generator opts)})))
 
 (defn sqlite3-local
   "A local SQLite3, single user, workload."
