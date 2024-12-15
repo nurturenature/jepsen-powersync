@@ -24,7 +24,7 @@ on:
         required: false
         default: "[ '10', '20', '30', '40', '50' ]"
       time-limits:
-        description: 'Timelimits (as JSON)'
+        description: 'Time limits (as JSON)'
         type: string
         required: false
         default: "[ '100', '200', '300', '400', '500', '600']"
@@ -32,7 +32,7 @@ on:
         description: 'CLI opts string'
         type: string
         required: false
-        default: --nodes n1,n2,n3,n4,n5 --postgres-nodes n1
+        default: --nodes n1,n2,n3,n4,n5,n6 --postgres-nodes n1
       powersync-image-tag:
         description: PowerSync Image Tag
         type: string
@@ -62,7 +62,7 @@ on:
         required: false
         default: "[ '10', '20', '30', '40', '50' ]"
       time-limits:
-        description: 'Timelimits (as JSON)'
+        description: 'Time limits (as JSON)'
         type: string
         required: false
         default: "[ '100', '200', '300', '400', '500', '600']"
@@ -70,7 +70,7 @@ on:
         description: 'CLI opts string'
         type: string
         required: false
-        default: --nodes n1,n2,n3,n4,n5 --postgres-nodes n1
+        default: --nodes n1,n2,n3,n4,n5,n6 --postgres-nodes n1
       powersync-image-tag:
         description: PowerSync Image Tag
         type: string

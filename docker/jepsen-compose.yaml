@@ -61,6 +61,8 @@ services:
         condition: service_healthy
       n5:
         condition: service_healthy
+      n6:
+        condition: service_healthy
 
   n1:
     <<: *default-node
@@ -82,3 +84,7 @@ services:
     <<: *default-node
     container_name: jepsen-n5
     hostname: n5
+  n6:
+    <<: *default-node
+    container_name: jepsen-n6
+    hostname: n6
