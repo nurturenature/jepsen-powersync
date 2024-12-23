@@ -150,8 +150,10 @@
 
     (merge
      ps-workload
-     {:generator (gen/on-threads ps-processes ; PowerSync only for main workload
-                                 (:generator ps-workload))})))
+     {:generator (->> ; PowerSync nodes only for main workload
+                  ps-workload
+                  :generator
+                  (gen/on-threads ps-processes))})))
 
 (defn convergence
   "A PowerSync workload that only checks for strong convergence."
@@ -232,13 +234,14 @@
      (powersync opts)
      {:generator (gen/mix
                   [; PostgreSQL - read only
-                   (gen/on-threads pg-processes
-                                   (read-generator opts))
-                   ; PowerSync -read write
-                   (gen/on-threads ps-processes
-                                   (read-generator opts))
-                   (gen/on-threads ps-processes
-                                   (append-generator opts))])
+                   (->> (read-generator opts)
+                        (gen/on-threads pg-processes))
+
+                   ; PowerSync - read write
+                   (->> (read-generator opts)
+                        (gen/on-threads ps-processes))
+                   (->> (append-generator opts)
+                        (gen/on-threads ps-processes))])
       :final-generator (txn-final-generator opts)})))
 
 (defn sqlite3-local

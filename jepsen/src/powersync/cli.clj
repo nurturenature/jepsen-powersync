@@ -80,7 +80,10 @@
          " " (str/join "," (->> consistency-models
                                 (map #(short-consistency-name % (name %)))))
          " " (str/join "," (map name nemesis))
-         " " (count (set/difference nodes postgres-nodes)) "n-" rate "tps-" time-limit "s")))
+         " " (count postgres-nodes) "pg"
+         "-" (count (set/difference nodes postgres-nodes)) "ps"
+         "-" rate "tps"
+         "-" time-limit "s")))
 
 (defn powersync-test
   "Given options from the CLI, constructs a test map."
