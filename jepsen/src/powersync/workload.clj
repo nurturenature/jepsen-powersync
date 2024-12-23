@@ -137,7 +137,7 @@
      :final-generator (txn-final-generator opts)
      :checker         (checker/compose
                        {:causal-consistency    (adya/checker opts)
-                        :strong-convergence    (strong-convergence/final-reads)})}))
+                        :strong-convergence    (strong-convergence/final-reads (assoc opts :directory "strong-convergence"))})}))
 
 (defn powersync+
   "A PowerSync workload with PostgreSQL included in final reads."
@@ -160,7 +160,7 @@
   [opts]
   (merge (powersync opts)
          {:checker (checker/compose
-                    {:strong-convergence (strong-convergence/final-reads)})}))
+                    {:strong-convergence (strong-convergence/final-reads (assoc opts :directory "strong-convergence"))})}))
 
 (defn convergence+
   "A PowerSync workload that only checks for strong convergence,
@@ -168,7 +168,7 @@
   [opts]
   (merge (powersync+ opts)
          {:checker (checker/compose
-                    {:strong-convergence (strong-convergence/final-reads)})}))
+                    {:strong-convergence (strong-convergence/final-reads (assoc opts :directory "strong-convergence"))})}))
 
 (defn powersync-single
   "A single client PowerSync workload."
@@ -177,7 +177,7 @@
    (powersync opts)
    {:checker (checker/compose
               {:strict-serializable (list-append-checker (assoc opts :consistency-models [:strict-serializable]))
-               :strong-convergence  (strong-convergence/final-reads)})}))
+               :strong-convergence  (strong-convergence/final-reads (assoc opts :directory "strong-convergence"))})}))
 
 (defn ps-ro-pg-wo
   "A PowerSync doing reads only, PostgreSQL doing writes only, workload."
@@ -200,7 +200,7 @@
       :checker     (checker/compose
                     {:repeatable-read    (list-append-checker (assoc opts :consistency-models [:repeatable-read]))
                      :causal-consistency (adya/checker (merge opts causal-opts/causal-opts)) ; TODO: confirm consistent overriding by causal-opts
-                     :strong-convergence (strong-convergence/final-reads)})})))
+                     :strong-convergence (strong-convergence/final-reads (assoc opts :directory "strong-convergence"))})})))
 
 (defn ps-wo-pg-ro
   "A PowerSync doing writes only, PostgreSQL doing reads only, workload."
