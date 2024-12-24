@@ -1,4 +1,4 @@
-name: convergence-matrix
+name: convergence+-matrix
 
 on:
   workflow_dispatch:
@@ -9,7 +9,3 @@ jobs:
     with:
       workloads: >
         [ 'convergence+' ]
-      rates: >
-        [ '5', '10', '15', '20', '25', '30', '35', '40', '45', '50' ]
-      time-limits: >
-        [ '30', '60', '90', '120', '150', '180', '210', '240', '270', '300' ]
