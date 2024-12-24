@@ -79,7 +79,7 @@
   (let [total-key-count (or total-key-count default-key-count)]
     (gen/phases
      (gen/log "Quiesce...")
-     (gen/sleep 3)
+     (gen/sleep 10)
      (gen/log "Final reads...")
      (->> (range 0 total-key-count)
           (map (fn [k]
