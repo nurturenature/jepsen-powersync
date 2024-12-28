@@ -1,5 +1,7 @@
 (ns powersync.nemesis
-  (:require [clj-http.client :as http]
+  (:require [cheshire.core :as json]
+            [clj-http.client :as http]
+            [clojure.set :as set]
             [jepsen
              [control :as c]
              [generator :as gen]
@@ -166,12 +168,100 @@
                            :stop  #{:heal-sync}
                            :color "#B7A0E8"}}})))
 
+(defn upload-queue-count
+  "Get the count of transactions in the PowerSync db upload queue for the PowerSync node."
+  [_test node]
+  (try
+    (-> (str "http://" node ":8089/powersync/upload-queue-count")
+        (http/get {:accept :json})
+        :body
+        (json/decode true)
+        :db.upload-queue-count)
+    (catch java.net.ConnectException ex
+      (if (= (.getMessage ex) "Connection refused")
+        :connection-refused
+        (throw ex)))))
+
+(defn upload-queue-wait
+  "Wait until the count of transactions in the PowerSync db upload queue for the PowerSync node is 0."
+  [_test node]
+  (try
+    (-> (str "http://" node ":8089/powersync/upload-queue-wait")
+        (http/get {:accept :json})
+        :body
+        (json/decode true)
+        :db.upload-queue-wait)
+    (catch java.net.ConnectException ex
+      (if (= (.getMessage ex) "Connection refused")
+        :connection-refused
+        (throw ex)))))
+
+(defn upload-queue-nemesis
+  "A nemesis that gets the count of transactions in the PowerSync db upload queue for all PowerSync nodes,
+   or waits for the PowerSync db upload queue to be 0 for all PowerSync nodes.
+   This nemesis responds to:
+   ```
+   {:f :upload-queue-count :value :nil}
+   {:f :upload-queue-wait  :value :nil}
+   ```"
+  []
+  (reify
+    nemesis/Reflection
+    (fs [_this]
+      #{:upload-queue-count :upload-queue-wait})
+
+    nemesis/Nemesis
+    (setup! [this _test]
+      this)
+
+    (invoke! [_this {:keys [nodes postgres-nodes] :as test} {:keys [f] :as op}]
+      (let [nodes    (into #{} nodes)
+            ps-nodes (set/difference nodes postgres-nodes)
+            result   (case f
+                       :upload-queue-count (c/on-nodes test ps-nodes upload-queue-count)
+                       :upload-queue-wait  (c/on-nodes test ps-nodes upload-queue-wait))
+            result   (into (sorted-map) result)]
+        (assoc op :value result)))
+
+    (teardown! [_this _test]
+      nil)))
+
+(defn upload-queue-package
+  "A nemesis and generator package that gets the count of transactions in the PowerSync db upload queue for all PowerSync nodes,
+   with a final generator that waits for the count of transactions in the PowerSync db upload queue to be 0 for all PowerSync nodes.
+   
+   Opts:
+   ```clj
+   {:upload-queue nil}
+   ```"
+  [{:keys [faults interval] :as _opts}]
+  (when (contains? faults :upload-queue)
+    (let [interval           (or interval nc/default-interval)
+          upload-queue-count (repeat
+                              {:type  :info
+                               :f     :upload-queue-count
+                               :value nil})
+          upload-queue-wait  {:type  :info
+                              :f     :upload-queue-wait
+                              :value nil}
+          gen                (->> upload-queue-count
+                                  (gen/stagger interval))]
+      {:generator       gen
+       :final-generator upload-queue-wait
+       :nemesis         (upload-queue-nemesis)
+       :perf            #{{:name  "upload-queue"
+                           :fs    #{:upload-queue-count :upload-queue-wait}
+                           :start #{}
+                           :stop  #{}
+                           :color "#d3d3d3"}}}))) ; light grey
+
 (defn nemesis-package
   "Constructs combined nemeses and generators into a nemesis package."
   [opts]
   (let [opts (update opts :faults set)]
     (->> [(disconnect-connect-package opts)
-          (partition-sync-service-package opts)]
+          (partition-sync-service-package opts)
+          (upload-queue-package opts)]
          (concat (nc/nemesis-packages opts))
          (filter :generator)
          nc/compose-packages)))

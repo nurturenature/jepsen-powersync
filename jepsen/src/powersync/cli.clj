@@ -37,7 +37,8 @@
 (def nemeses
   "A collection of valid nemeses."
   #{:disconnect-connect :partition-sync
-    :pause :kill})
+    :pause :kill
+    :upload-queue})
 
 (def all-nemeses
   "Combinations of nemeses for tests"
@@ -92,14 +93,15 @@
         workload ((workloads workload-name) opts)
         db       (:db workload)
         nemesis  (nemesis/nemesis-package
-                  {:db         db
-                   :nodes      (:nodes opts)
-                   :faults     (:nemesis opts)
+                  {:db                 db
+                   :nodes              (:nodes opts)
+                   :faults             (:nemesis opts)
                    :disconnect-connect {:targets [:majority]}
                    :partition-sync     {:targets [:majority]}
-                   :pause      {:targets [:majority]}
-                   :kill       {:targets [:majority]}
-                   :interval   (:nemesis-interval opts)})]
+                   :pause              {:targets [:majority]}
+                   :kill               {:targets [:majority]}
+                   :upload-queue       nil
+                   :interval           (:nemesis-interval opts)})]
     (merge tests/noop-test
            opts
            {:name      (test-name opts)

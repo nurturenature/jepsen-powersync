@@ -17,7 +17,7 @@ on:
         description: 'Nemeses (as JSON)'
         type: string
         required: false
-        default: "[ 'none' ]"
+        default: "[ 'upload-queue' ]"
       rates:
         description: 'Rates (as JSON)'
         type: string
@@ -55,7 +55,7 @@ on:
         description: 'Nemeses (as JSON)'
         type: string
         required: false
-        default: "[ 'none' ]"
+        default: "[ 'upload-queue' ]"
       rates:
         description: 'Rates (as JSON)'
         type: string
