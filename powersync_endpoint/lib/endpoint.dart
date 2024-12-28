@@ -74,7 +74,7 @@ Future<Response> _sqlTxn(Request req) async {
   return Response.ok(resStr);
 }
 
-/// `/powersync` endpoint for status information
+/// `/powersync` endpoint for status, connect/disconnect, and upload-queue-count/upload-queue-wait
 Future<Response> _powersync(Request req, String action) async {
   Map response;
 
@@ -107,6 +107,18 @@ Future<Response> _powersync(Request req, String action) async {
         'db.connected': db.connected,
         'status.connected': status.connected
       };
+      break;
+
+    case 'upload-queue-count':
+      final uploadQueueCount = (await db.getUploadQueueStats()).count;
+      response = {'db.upload-queue-count': uploadQueueCount};
+      break;
+
+    case 'upload-queue-wait':
+      while ((await db.getUploadQueueStats()).count != 0) {
+        sleep(Duration(milliseconds: 100));
+      }
+      response = {'db.upload-queue-wait': 'queue-empty'};
       break;
 
     default:

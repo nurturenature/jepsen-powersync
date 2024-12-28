@@ -173,10 +173,13 @@ const _retryablePgErrors = {
 };
 
 // retry/delay strategy
-// - delay diversity, random uniform distribution
-// - persistent retries, relative large max
-const _minRetryDelay = 1; // in ms, each retry delay is min <= random <= max
-const _maxRetryDelay = 64;
+// - delay diversity
+//   - random uniform distribution
+//   - not too big to keep LWW fair(er)
+// - persistent retries
+//   - relative large max to keep LWW fair(er)
+const _minRetryDelay = 32; // in ms, each retry delay is min <= random <= max
+const _maxRetryDelay = 256;
 const _maxRetries = 32;
 final _rng = Random();
 
@@ -204,8 +207,10 @@ dynamic _txWithRetries(List<CrudEntry> crud) async {
 
             case UpdateType.patch:
               final patch = await tx.execute(
-                  'UPDATE lww SET v = \$1 WHERE id = \$2 RETURNING *',
-                  parameters: [crudEntry.opData!['v'], crudEntry.id]);
+                'UPDATE lww SET v = \'${crudEntry.opData!['v']}\' WHERE id = \'${crudEntry.id}\' RETURNING *',
+                // 'UPDATE lww SET v = \$1 WHERE id = \$2 RETURNING *',
+                // parameters: [crudEntry.opData!['v'], crudEntry.id]
+              );
               final row =
                   patch.single; // gets and enforces 1 and only 1 affected row
 

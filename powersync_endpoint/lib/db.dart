@@ -49,6 +49,10 @@ Future<void> initDb() async {
         config['BACKEND_CONNECTOR'], 'BACKEND_CONNECTOR', 'Unknown value')
   };
 
+  // retry significantly faster than default of 5s, designed to leverage a Transaction oriented BackendConnector
+  // must be set before connecting
+  db.retryDelay = Duration(milliseconds: 1000);
+
   await db.connect(connector: connector);
   log.info('db connected, connector: $connector, status: ${db.currentStatus}');
 
