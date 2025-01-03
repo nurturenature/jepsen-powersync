@@ -128,7 +128,8 @@
                         (gen/nemesis (:final-generator nemesis))
 
                         (gen/log "Final workload")
-                        (:final-generator workload))})))
+                        (->> (:final-generator workload)
+                             (gen/stagger (/ (:rate opts)))))})))
 
 (def cli-opts
   "Command line options"
