@@ -5,11 +5,21 @@ ARG JEPSEN_REGISTRY
 
 FROM ${JEPSEN_REGISTRY:-}jepsen-control AS jepsen-control
 
+# install latest Jepsen
+WORKDIR /jepsen
+RUN git clone -b main --depth 1 --single-branch https://github.com/jepsen-io/jepsen.git
+WORKDIR /jepsen/jepsen/jepsen
+RUN lein install
+WORKDIR /jepsen
+RUN rm -rf jepsen
+
 # Causal Consistency checker
 WORKDIR /jepsen
 RUN git clone -b main --depth 1 --single-branch https://github.com/nurturenature/jepsen-causal-consistency.git
 WORKDIR /jepsen/jepsen-causal-consistency
 RUN lein install
+WORKDIR /jepsen
+RUN rm -rf jepsen-causal-consistency
 
 # PowerSync tests
 WORKDIR /jepsen/jepsen-powersync
