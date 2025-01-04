@@ -2,11 +2,26 @@
 
 #### Misc Possible Issues
 
-- frequent, extraneous?, duplicate `SyncStatus` stream messages
-  ```log
-  [2:13:41.301] [powersync_endpoint] FINEST: statusStream: SyncStatus<connected: true connecting: false downloading: true uploading: false lastSyncedAt: 2024-07-28 02:13:40.138093, hasSynced: true, error: null>
-  [2:13:41.301] [powersync_endpoint] FINEST: statusStream: SyncStatus<connected: true connecting: false downloading: true uploading: false lastSyncedAt: 2024-07-28 02:13:40.138093, hasSynced: true, error: null>
+- [`db.statusStream` has a large # of contiguous duplicate SyncStatus messages, ~70% of all messages are duplicates](https://github.com/powersync-ja/powersync.dart/issues/224)
+  
+  `db.statusStream` has a large # of contiguous duplicate `SyncStatus` messages.
+  Usually ~70% of all messages are duplicates.
+
+  The logging code: 
+  ```dart
+  db.statusStream.listen((syncStatus) {
+      log.finest('statusStream: $syncStatus');
+  });
   ```
+
+  Often produces a series of duplicate messages (note the following 3 duplicates even occur within the same millisecond timestamp):
+  ```log
+  [2:4:26.279] [powersync_endpoint] FINEST: statusStream: SyncStatus<connected: true connecting: false downloading: true uploading: false lastSyncedAt: 2025-01-04 02:04:26.098549, hasSynced: true, error: null>
+  [2:4:26.279] [powersync_endpoint] FINEST: statusStream: SyncStatus<connected: true connecting: false downloading: true uploading: false lastSyncedAt: 2025-01-04 02:04:26.098549, hasSynced: true, error: null>
+  [2:4:26.279] [powersync_endpoint] FINEST: statusStream: SyncStatus<connected: true connecting: false downloading: true uploading: false lastSyncedAt: 2025-01-04 02:04:26.098549, hasSynced: true, error: null>
+  ```
+
+  To quantify the amount of duplication:
   ```dart
   int distinctSyncStatus = 0;
   int totalSyncStatus = 0;
@@ -19,10 +34,23 @@
     log.finest('totalSyncStatus: $totalSyncStatus');
   });
   ```
+
+  Produces typical output of:
   ```log
-  [2:5:36.814] [powersync_endpoint] FINEST: distinctSyncStatus: 568
-  [2:5:36.814] [powersync_endpoint] FINEST: totalSyncStatus: 7235
+  distinctSyncStatus: 1675
+  ...
+  totalSyncStatus: 6230
   ```
+
+  It seems like any de-duping of the `db.statusStream` should be done in the library vs the client application:
+  - avoid overhead of:
+    - sending duplicate messages to client application
+    - de-duping in the client application
+    - reactive UI/behavior/functionality being unnecessarily re-triggered in the client application
+  - and maybe other behavior/functionality at the library level is listening to the stream and duplicating work?
+
+  Note that this does not affect correctness and may not be considered a bug.
+  Maybe concerns re overhead are misplaced, a bit OCD :)
 
   
 - `connect/disconnect`
