@@ -214,7 +214,8 @@ dynamic _txWithRetries(List<CrudEntry> crud) async {
               final row =
                   patch.single; // gets and enforces 1 and only 1 affected row
 
-              log.finer('uploadData: patch result: $row');
+              log.finer(
+                  'uploadData: (${crudEntry.transactionId}) patch result: $row');
               break;
 
             case UpdateType.delete:
