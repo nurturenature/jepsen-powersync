@@ -1,79 +1,5 @@
 ## Logbook
 
-### Known Errors In New CrudTransactionConnector 
-
-- PostgreSQL could not serialize access due to concurrent update
-  - Max retries, 10, exceeded
-
-TODO: Implement a try hard, try harder, 'reverse' exponential backoff?
-- fair and polite
-- currently testing a more patient strategy
-  ```dart
-  // retry/delay strategy
-  // - delay diversity, random uniform distribution
-  // - persistent retries, relative large max
-  const _minRetryDelay = 1; // in ms, each retry delay is min <= random <= max
-  const _maxRetryDelay = 64;
-  const _maxRetries = 32;
-  final _rng = Random();
-  ```
-----
-
-### Errors That Aren't Understood Yet
-
-Only consistency anomaly consistently found
-- triggered by sustained higher transaction rates, 100 tps
-- PostgreSQL -> client db replication stops
-- introducing disconnecting/connecting, killing/starting, etc actually makes the system a bit more resilient
-
-
-```clj
-; can break replication and convergence
-; example of all clients doing a different final read of key 0
-:divergent-reads {0 {nil #{"n3"},
-                     [2 5] #{"n4"},
-                     [3 4 7] #{"n1"},
-                     [6] #{"n2"},
-                     [1] #{"n5"}}}
-                 ...
-```
-
-Let's:
-- shrink the tests to the smallest reproducible
-- trace a few transactions end-to-end
-- insure that it's not a test artifact, incorrect usage
-- maybe explore a Dart CLI app that reproduces?
-
-Test command:
-```bash
-lein run test --workload convergence --rate 100 --time-limit 30 --nodes n1,n2,n3,n4,n5 --postgres-nodes n1
-```
-
-Smallest example of divergence:
-```clj
-:divergent-reads {0 {nil #{"n3"
-                           "n4"
-                           "n5"},
-                     [3] #{"n1" "n2"}}}
-```
-
-Turn on PostgreSQL statement logging to see replication from `CrudTransactionConnector`:
-
-- see correct transaction isolation
-  ```log
-  LOG:  execute <unnamed>: SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL READ COMMITTED
-  LOG:  execute <unnamed>: SHOW TRANSACTION ISOLATION LEVEL
-  LOG:  execute <unnamed>: SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL REPEATABLE READ
-  ```
-- see correct handling of concurrent conflict retries
-  ```log
-  LOG:  statement: COMMIT;
-  ERROR:  could not serialize access due to concurrent update
-  STATEMENT:  UPDATE lww SET v = $1 WHERE id = $2 RETURNING *
-  LOG:  statement: ROLLBACK;
-  ```
-
-
 #### Misc Possible Issues
 
 - frequent, extraneous?, duplicate `SyncStatus` stream messages
@@ -147,6 +73,107 @@ disconnect when disconnected
 ----
 
 ## History
+
+### ~~Errors That Aren't Understood Yet~~
+
+This turned out to be an error in the applications `backendConnector` and usage by the test:
+
+This behavior was an artifact of the application's newly developed causally consistent backendConnector, and not inherent in PowerSync.
+
+Characteristics of the test and backendConnector that exhibited this behavior:
+
+- triggered by higher rates, transactions/second/client
+- larger transactions involving multiple updates to more keys
+  -  so more likely to conflict with other client's concurrent transactions with shared keys 
+- key/value updates with an exponential key distribution, i.e. grind against individual keys to try and force update inconsistencies
+- once the transactions/sec crossed a threshold, e.g. starting to challenge PostgreSQL's update latency
+  - retries were triggered due to PostgreSQL deadlocks/concurrent updates against common keys
+  - normal for all applications with multiple clients, same keys in a single transaction
+- retry values were too hot, i.e. too small
+- the end of test quiescence was inadequate to allow the backendConnector to complete the upload queue
+  - so final reads weren't really final 😔
+
+The backendConnector retry min/max values have been expanded and now the test explicitly waits for the upload queue == 0 during the end of test quiescence before final reads.
+
+Still need to tune the application's backendConnector's retry logic.
+For a fair(er) LWW, one almost wants a reverse exponential back-off, more like a Zeno's back-in 🙃
+
+#### Original, Incorrect Concerns:
+
+### ~~Known Errors In New CrudTransactionConnector~~ 
+
+- PostgreSQL could not serialize access due to concurrent update
+  - Max retries, 10, exceeded
+
+TODO: Implement a try hard, try harder, 'reverse' exponential backoff?
+- fair and polite
+- currently testing a more patient strategy
+  ```dart
+  // retry/delay strategy
+  // - delay diversity, random uniform distribution
+  // - persistent retries, relative large max
+  const _minRetryDelay = 1; // in ms, each retry delay is min <= random <= max
+  const _maxRetryDelay = 64;
+  const _maxRetries = 32;
+  final _rng = Random();
+  ```
+----
+
+### ~~Errors That Aren't Understood Yet~~
+
+Only consistency anomaly consistently found
+- triggered by sustained higher transaction rates, 100 tps
+- PostgreSQL -> client db replication stops
+- introducing disconnecting/connecting, killing/starting, etc actually makes the system a bit more resilient
+
+
+```clj
+; can break replication and convergence
+; example of all clients doing a different final read of key 0
+:divergent-reads {0 {nil #{"n3"},
+                     [2 5] #{"n4"},
+                     [3 4 7] #{"n1"},
+                     [6] #{"n2"},
+                     [1] #{"n5"}}}
+                 ...
+```
+
+Let's:
+- shrink the tests to the smallest reproducible
+- trace a few transactions end-to-end
+- insure that it's not a test artifact, incorrect usage
+- maybe explore a Dart CLI app that reproduces?
+
+Test command:
+```bash
+lein run test --workload convergence --rate 100 --time-limit 30 --nodes n1,n2,n3,n4,n5 --postgres-nodes n1
+```
+
+Smallest example of divergence:
+```clj
+:divergent-reads {0 {nil #{"n3"
+                           "n4"
+                           "n5"},
+                     [3] #{"n1" "n2"}}}
+```
+
+Turn on PostgreSQL statement logging to see replication from `CrudTransactionConnector`:
+
+- see correct transaction isolation
+  ```log
+  LOG:  execute <unnamed>: SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL READ COMMITTED
+  LOG:  execute <unnamed>: SHOW TRANSACTION ISOLATION LEVEL
+  LOG:  execute <unnamed>: SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL REPEATABLE READ
+  ```
+- see correct handling of concurrent conflict retries
+  ```log
+  LOG:  statement: COMMIT;
+  ERROR:  could not serialize access due to concurrent update
+  STATEMENT:  UPDATE lww SET v = $1 WHERE id = $2 RETURNING *
+  LOG:  statement: ROLLBACK;
+  ```
+
+----
 
 ### Exercise Backend Connector With Process Pause/Kill
 
