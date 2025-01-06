@@ -84,37 +84,30 @@ Future<Response> _powersync(Request req, String action) async {
 
   switch (action) {
     case 'status':
-      final currentStatus = db.currentStatus;
       response = {
         'env.LOCAL_ONLY': config['LOCAL_ONLY'],
         'db.closed': db.closed,
         'db.connected': db.connected,
         'db.runtimeType': db.runtimeType.toString(),
-        'db.currentStatus.connected': currentStatus.connected,
-        'db.currentStatus.lastSyncedAt':
-            currentStatus.lastSyncedAt?.toIso8601String()
+        'db.currentStatus': '${db.currentStatus}'
       };
       break;
 
     case 'connect':
       await db.connect(connector: connector);
-      final currentStatus = db.currentStatus;
       response = {
         'db.closed': db.closed,
         'db.connected': db.connected,
-        'db.currentStatus.connected': currentStatus.connected,
-        'db.currentStatus.connecting': currentStatus.connecting
+        'db.currentStatus': '${db.currentStatus}'
       };
       break;
 
     case 'disconnect':
       await db.disconnect();
-      final currentStatus = db.currentStatus;
       response = {
         'db.closed': db.closed,
         'db.connected': db.connected,
-        'db.currentStatus.connected': currentStatus.connected,
-        'db.currentStatus.connecting': currentStatus.connecting
+        'db.currentStatus': '${db.currentStatus}'
       };
       break;
 
@@ -128,6 +121,21 @@ Future<Response> _powersync(Request req, String action) async {
         sleep(Duration(milliseconds: 100));
       }
       response = {'db.upload-queue-wait': 'queue-empty'};
+      break;
+
+    case 'downloading-wait':
+      int tries = 0;
+      while ((db.currentStatus.downloading) == true && tries < 100) {
+        sleep(Duration(milliseconds: 100));
+        tries++;
+      }
+      if (tries == 100) {
+        log.severe(
+            'db.currentStatus.downloading never false after $tries tries, db.currentStatus: ${db.currentStatus}');
+        exit(127);
+      }
+
+      response = {'db.currentStatus': '${db.currentStatus}'};
       break;
 
     default:

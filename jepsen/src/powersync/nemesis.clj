@@ -196,19 +196,36 @@
         :connection-refused
         (throw ex)))))
 
+(defn downloading-wait
+  "Wait until db.currentStatus.downloading is false."
+  [_test node]
+  (try
+    (-> (str "http://" node ":8089/powersync/downloading-wait")
+        (http/get {:accept :json})
+        :body
+        (json/decode true)
+        :db.downloading-wait)
+    (catch java.net.ConnectException ex
+      (if (= (.getMessage ex) "Connection refused")
+        :connection-refused
+        (throw ex)))))
+
 (defn upload-queue-nemesis
   "A nemesis that gets the count of transactions in the PowerSync db upload queue for all PowerSync nodes,
-   or waits for the PowerSync db upload queue to be 0 for all PowerSync nodes.
+   - or waits for the PowerSync db upload queue to be 0 for all PowerSync nodes
+   - or waits for the PowerSync db currentStatus downloading to be false.
    This nemesis responds to:
    ```
    {:f :upload-queue-count :value :nil}
    {:f :upload-queue-wait  :value :nil}
+   {:f :downloading-wait   :value :nil}
    ```"
   []
   (reify
     nemesis/Reflection
     (fs [_this]
-      #{:upload-queue-count :upload-queue-wait})
+      #{:upload-queue-count :upload-queue-wait
+        :downloading-wait})
 
     nemesis/Nemesis
     (setup! [this _test]
@@ -219,7 +236,8 @@
             ps-nodes (set/difference nodes postgres-nodes)
             result   (case f
                        :upload-queue-count (c/on-nodes test ps-nodes upload-queue-count)
-                       :upload-queue-wait  (c/on-nodes test ps-nodes upload-queue-wait))
+                       :upload-queue-wait  (c/on-nodes test ps-nodes upload-queue-wait)
+                       :downloading-wait   (c/on-nodes test ps-nodes downloading-wait))
             result   (into (sorted-map) result)]
         (assoc op :value result)))
 
@@ -244,10 +262,13 @@
           upload-queue-wait  {:type  :info
                               :f     :upload-queue-wait
                               :value nil}
+          downloading-wait   {:type  :info
+                              :f     :downloading-wait
+                              :value nil}
           gen                (->> upload-queue-count
                                   (gen/stagger interval))]
       {:generator       gen
-       :final-generator upload-queue-wait
+       :final-generator [upload-queue-wait downloading-wait]
        :nemesis         (upload-queue-nemesis)
        :perf            #{{:name  "upload-queue"
                            :fs    #{:upload-queue-count :upload-queue-wait}
