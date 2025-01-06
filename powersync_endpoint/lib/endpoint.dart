@@ -25,7 +25,8 @@ final _port = int.parse(config['ENDPOINT_PORT'] ?? '8089');
 Future<Response> _sqlTxn(Request req) async {
   final reqStr = await req.readAsString();
   final op = jsonDecode(reqStr);
-  log.fine('invocation: $op');
+
+  log.fine('/sql-txn: request: $op');
 
   assert(op['value'].length >= 1);
 
@@ -68,9 +69,10 @@ Future<Response> _sqlTxn(Request req) async {
   });
 
   op['type'] = 'ok';
-  final resStr = jsonEncode(op);
-  log.fine('completion: $op');
 
+  log.fine('/sql-txn: response: $op');
+
+  final resStr = jsonEncode(op);
   return Response.ok(resStr);
 }
 
@@ -78,34 +80,41 @@ Future<Response> _sqlTxn(Request req) async {
 Future<Response> _powersync(Request req, String action) async {
   Map response;
 
+  log.fine('/powersync/$action: request');
+
   switch (action) {
     case 'status':
-      final status = db.currentStatus;
+      final currentStatus = db.currentStatus;
       response = {
         'env.LOCAL_ONLY': config['LOCAL_ONLY'],
         'db.closed': db.closed,
         'db.connected': db.connected,
         'db.runtimeType': db.runtimeType.toString(),
-        'status.connected': status.connected,
-        'status.lastSyncedAt': status.lastSyncedAt?.toIso8601String()
+        'db.currentStatus.connected': currentStatus.connected,
+        'db.currentStatus.lastSyncedAt':
+            currentStatus.lastSyncedAt?.toIso8601String()
       };
       break;
 
     case 'connect':
       await db.connect(connector: connector);
-      final status = db.currentStatus;
+      final currentStatus = db.currentStatus;
       response = {
+        'db.closed': db.closed,
         'db.connected': db.connected,
-        'status.connected': status.connected
+        'db.currentStatus.connected': currentStatus.connected,
+        'db.currentStatus.connecting': currentStatus.connecting
       };
       break;
 
     case 'disconnect':
       await db.disconnect();
-      final status = db.currentStatus;
+      final currentStatus = db.currentStatus;
       response = {
+        'db.closed': db.closed,
         'db.connected': db.connected,
-        'status.connected': status.connected
+        'db.currentStatus.connected': currentStatus.connected,
+        'db.currentStatus.connecting': currentStatus.connecting
       };
       break;
 
@@ -126,6 +135,8 @@ Future<Response> _powersync(Request req, String action) async {
       exit(127);
   }
 
+  log.fine('/powersync/$action: response: $response');
+
   final resStr = jsonEncode(response);
   return Response.ok(resStr);
 }
@@ -133,6 +144,8 @@ Future<Response> _powersync(Request req, String action) async {
 /// `/db` endpoint to query db
 Future<Response> _db(Request req, String action) async {
   late ResultSet response;
+
+  log.fine('/db/$action: request');
 
   switch (action) {
     case 'list':
@@ -142,6 +155,8 @@ Future<Response> _db(Request req, String action) async {
       log.severe('Unknown /db request: $req');
       exit(127);
   }
+
+  log.fine('/db/$action: response: $response');
 
   final resStr = jsonEncode(response);
   return Response.ok(resStr);

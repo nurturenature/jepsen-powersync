@@ -61,16 +61,16 @@ Future<void> initDb() async {
 
   // TODO: debug, delete me!
   // [`db.statusStream` has a large # of contiguous duplicate SyncStatus messages, ~70% of all messages are duplicates](https://github.com/powersync-ja/powersync.dart/issues/224)
-  int distinctSyncStatus = 0;
-  int totalSyncStatus = 0;
-  db.statusStream.distinct().listen((syncStatus) {
-    distinctSyncStatus++;
-    log.finest('distinctSyncStatus: $distinctSyncStatus');
-  });
-  db.statusStream.listen((syncStatus) {
-    totalSyncStatus++;
-    log.finest('totalSyncStatus: $totalSyncStatus');
-  });
+  // int distinctSyncStatus = 0;
+  // int totalSyncStatus = 0;
+  // db.statusStream.distinct().listen((syncStatus) {
+  //   distinctSyncStatus++;
+  //   log.finest('distinctSyncStatus: $distinctSyncStatus');
+  // });
+  // db.statusStream.listen((syncStatus) {
+  //   totalSyncStatus++;
+  //   log.finest('totalSyncStatus: $totalSyncStatus');
+  // });
 
   // log PowerSync status changes
   // monitor for upload error messages, check if they're ignorable
@@ -83,6 +83,11 @@ Future<void> initDb() async {
     }
 
     log.finest('statusStream: $syncStatus');
+  });
+
+  // log PowerSync db updates
+  db.updates.listen((updateNotification) {
+    log.finest('updates: $updateNotification');
   });
 
   // log current db contents
