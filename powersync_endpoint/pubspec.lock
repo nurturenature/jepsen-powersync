@@ -362,26 +362,26 @@ packages:
     dependency: "direct main"
     description:
       name: powersync
-      sha256: "5e615ff43bce68e6270360755055eb386ee4c713101415a439b87b100691e556"
+      sha256: "42996329063b85d891cc852fad9f18474f91a84bc153c21478d308a491ad6934"
       url: "https://pub.dev"
     source: hosted
-    version: "1.10.0"
+    version: "1.11.0"
   powersync_core:
     dependency: transitive
     description:
       name: powersync_core
-      sha256: "0dcd9915fb79f92771537b57088e72322fb3e7a0ff861964e820d67c231cd692"
+      sha256: "9dedf08fcc9d3b3ae02e3e1714ac5f734e63a0080baa2f11d77ff52eddead04c"
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.0"
+    version: "1.1.0"
   powersync_flutter_libs:
     dependency: transitive
     description:
       name: powersync_flutter_libs
-      sha256: bb91a9f74ba989d3e5183ba7b6742b1ccc829955be03e6196bccff7f4946dbce
+      sha256: "17761bdf3ce703865c8c98b638713e1ade672fe2aed131c50a92172faa5407f0"
       url: "https://pub.dev"
     source: hosted
-    version: "0.4.3"
+    version: "0.4.4"
   pub_semver:
     dependency: transitive
     description:
