@@ -62,8 +62,8 @@
    transactions consisting only of :r's."
   ([] (read-generator nil))
   ([{:keys [key-count total-key-count] :as _opts}]
-   (let [total-key-count (or total-key-count default-key-count)
-         key-count       (or key-count default-keys-txn)]
+   (let [key-count       (or key-count default-keys-txn)
+         total-key-count (or total-key-count default-key-count)]
      (repeatedly
       (fn [] (let [read-keys (->> (range 0 total-key-count)
                                   shuffle
@@ -75,15 +75,20 @@
 
 (defn txn-final-generator
   "final-generator for txn-generator."
-  [{:keys [total-key-count] :as _opts}]
-  (let [total-key-count (or total-key-count default-key-count)]
+  [{:keys [key-count total-key-count] :as _opts}]
+  (let [key-count       (or key-count default-keys-txn)
+        total-key-count (or total-key-count default-key-count)]
     (gen/phases
      (gen/log "Quiesce...")
      (gen/sleep 10)
      (gen/log "Final reads...")
      (->> (range 0 total-key-count)
-          (map (fn [k]
-                 {:type :invoke :f :r-final :value [[:r k nil]] :final-read? true}))
+          (partition-all key-count)
+          (map (fn [ks]
+                 (let [mops (->> ks
+                                 (mapv (fn [k]
+                                         [:r k nil])))]
+                   {:type :invoke :f :r-final :value mops :final-read? true})))
           (gen/each-thread)
           (gen/clients)))))
 
