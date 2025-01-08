@@ -79,8 +79,8 @@
   (let [key-count       (or key-count default-keys-txn)
         total-key-count (or total-key-count default-key-count)]
     (gen/phases
-     (gen/log "Quiesce...")
-     (gen/sleep 10)
+     (gen/log "Quiesce 3s...")
+     (gen/sleep 3)
      (gen/log "Final reads...")
      (->> (range 0 total-key-count)
           (partition-all key-count)

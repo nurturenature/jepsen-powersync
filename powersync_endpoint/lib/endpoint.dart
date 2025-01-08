@@ -125,17 +125,21 @@ Future<Response> _powersync(Request req, String action) async {
 
     case 'downloading-wait':
       int tries = 0;
-      while ((db.currentStatus.downloading) == true && tries < 100) {
-        sleep(Duration(milliseconds: 100));
+      const maxTries = 300;
+      const waitPerTry = Duration(milliseconds: 100);
+
+      while ((db.currentStatus.downloading) == true && tries < maxTries) {
+        sleep(waitPerTry);
         tries++;
       }
-      if (tries == 100) {
-        log.severe(
-            'db.currentStatus.downloading never false after $tries tries, db.currentStatus: ${db.currentStatus}');
-        exit(127);
+      if (tries == maxTries) {
+        response = {
+          'ERROR':
+              'Tried ${tries - 1} times every $waitPerTry, db.currentStatus: ${db.currentStatus}'
+        };
+      } else {
+        response = {'db.currentStatus': '${db.currentStatus}'};
       }
-
-      response = {'db.currentStatus': '${db.currentStatus}'};
       break;
 
     default:
