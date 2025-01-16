@@ -30,7 +30,7 @@ RUN git config --global --add safe.directory /usr/bin/flutter
 WORKDIR /app
 
 # app is responsible for getting native lib
-RUN wget --no-verbose -O libpowersync_x64.so https://github.com/powersync-ja/powersync-sqlite-core/releases/download/v0.3.8/libpowersync_x64.so
+RUN wget --no-verbose -O libpowersync_x64.so https://github.com/powersync-ja/powersync-sqlite-core/releases/download/v0.3.9/libpowersync_x64.so
 
 # Resolve app dependencies.
 COPY pubspec.* ./
