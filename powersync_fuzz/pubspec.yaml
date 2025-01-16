@@ -1,0 +1,16 @@
+name: powersync_fuzz
+description: A command-line application to fuzz PowerSync disconnect()/connect API.
+version: 0.0.1
+repository: https://github.com/nurturenature/jepsen-powersync/powersync_fuzz
+
+environment:
+  sdk: ^3.4.3
+
+dependencies:
+  args: ^2.4.2
+  list_utilities: ^1.0.0
+  logging: ^1.2.0
+
+dev_dependencies:
+  lints: ^3.0.0
+  test: ^1.24.0
