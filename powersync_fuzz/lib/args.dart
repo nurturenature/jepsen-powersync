@@ -18,9 +18,14 @@ void parseArgs(List<String> arguments) {
 
     // set args based on CLI or defaults
     args['clients'] = int.parse(results.option('clients')!);
+    // txn values
     args['keys'] = int.parse(results.option('keys')!);
     args['rate'] = int.parse(results.option('rate')!);
     args['txns'] = int.parse(results.option('txns')!);
+    // disconnect/connect
+    args['disconnect'] = results.flag('disconnect');
+    args['interval'] = int.parse(results.option('interval')!);
+    // logging
     args['logLevel'] = results.option('logLevel')!;
   } on FormatException catch (e) {
     // Print usage information if an invalid argument was provided.
@@ -34,10 +39,20 @@ ArgParser _buildParser() {
   return ArgParser()
     ..addOption('clients',
         abbr: 'c', defaultsTo: '5', help: 'number of PowerSync clients')
+    // txn values
     ..addOption('keys', abbr: 'k', defaultsTo: '100', help: 'number of keys')
     ..addOption('rate', abbr: 'r', defaultsTo: '100', help: 'txn rate in ms')
     ..addOption('txns', abbr: 't', defaultsTo: '100', help: 'number of txns')
+    // api values
+    ..addFlag('disconnect',
+        defaultsTo: true,
+        negatable: false,
+        help: 'call disconnect/connect API at intervals')
+    ..addOption('interval',
+        abbr: 'i', defaultsTo: '5000', help: 'api interval in ms')
+    // logging
     ..addOption('logLevel', abbr: 'l', defaultsTo: 'ALL', help: 'log level')
+    // help
     ..addFlag(
       'help',
       abbr: 'h',
