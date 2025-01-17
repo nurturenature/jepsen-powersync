@@ -6,6 +6,7 @@ import 'package:powersync/powersync.dart';
 import 'auth.dart';
 import 'config.dart';
 import 'log.dart';
+import 'utils.dart';
 
 // Assuming single use of `uploadData`, i.e. single Postgres connection appropriate
 
@@ -246,10 +247,8 @@ dynamic _txWithRetries(List<CrudEntry> crud) async {
       if (_retryablePgErrors.contains(se.code)) {
         log.fine("Retrying transaction $crud, due to PostgreSQL ${se.message}");
 
-        // TODO: confirm appropriate to sleep in this Isolate as it blocks
-        sleep(Duration(
-            milliseconds: _rng.nextInt(_maxRetryDelay - _minRetryDelay + 1) +
-                _minRetryDelay));
+        await isolateSleep(
+            _rng.nextInt(_maxRetryDelay - _minRetryDelay + 1) + _minRetryDelay);
 
         continue;
       }

@@ -7,6 +7,7 @@ import 'package:shelf_router/shelf_router.dart';
 import 'config.dart';
 import 'db.dart';
 import 'log.dart';
+import 'utils.dart';
 
 /// Global Jepsen endpoint.
 late HttpServer endpoint;
@@ -118,7 +119,7 @@ Future<Response> _powersync(Request req, String action) async {
 
     case 'upload-queue-wait':
       while ((await db.getUploadQueueStats()).count != 0) {
-        sleep(Duration(milliseconds: 100));
+        await isolateSleep(100);
       }
       response = {'db.upload-queue-wait': 'queue-empty'};
       break;
@@ -126,16 +127,16 @@ Future<Response> _powersync(Request req, String action) async {
     case 'downloading-wait':
       int tries = 0;
       const maxTries = 300;
-      const waitPerTry = Duration(milliseconds: 100);
+      const waitPerTry = 100;
 
       while ((db.currentStatus.downloading) == true && tries < maxTries) {
-        sleep(waitPerTry);
+        await isolateSleep(waitPerTry);
         tries++;
       }
       if (tries == maxTries) {
         response = {
           'ERROR':
-              'Tried ${tries - 1} times every $waitPerTry, db.currentStatus: ${db.currentStatus}'
+              'Tried ${tries - 1} times every ${waitPerTry}ms, db.currentStatus: ${db.currentStatus}'
         };
       } else {
         response = {'db.currentStatus': '${db.currentStatus}'};
