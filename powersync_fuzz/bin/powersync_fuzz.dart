@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:list_utilities/list_utilities.dart';
 import 'package:powersync_fuzz/args.dart';
 import 'package:powersync_fuzz/log.dart';
+import 'package:powersync_fuzz/postgresql.dart';
 import 'package:powersync_fuzz/utils.dart';
 import 'package:powersync_fuzz/worker.dart';
 
@@ -13,6 +14,11 @@ void main(List<String> arguments) async {
   parseArgs(arguments);
   initLogging('main');
   log.info('args: $args');
+
+  // initialize PostgreSQL
+  await initPostgreSQL();
+  log.info(
+      'PostgreSQL connection and database initialized, connection: $postgreSQL');
 
   // create a set of worker clients
   Set<Worker> clients = {};
@@ -46,6 +52,10 @@ void main(List<String> arguments) async {
     for (Worker client in clients) {
       client.closeTxns();
     }
+
+    // done with PostgreSQL
+    log.info('closing PostgreSQL');
+    await closePostgreSQL();
   });
 
   // a Stream of api calls

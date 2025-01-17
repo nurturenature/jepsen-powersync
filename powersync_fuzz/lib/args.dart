@@ -27,6 +27,14 @@ void parseArgs(List<String> arguments) {
     args['interval'] = int.parse(results.option('interval')!);
     // logging
     args['logLevel'] = results.option('logLevel')!;
+    // PostgreSQL
+    args['PG_DATABASE_HOST'] = results.option('PG_DATABASE_HOST')!;
+    args['PG_DATABASE_PORT'] = results.option('PG_DATABASE_PORT')!;
+    args['PG_DATABASE_NAME'] = results.option('PG_DATABASE_NAME')!;
+    args['PG_DATABASE_USER'] = results.option('PG_DATABASE_USER')!;
+    args['PG_DATABASE_PASSWORD'] = results.option('PG_DATABASE_PASSWORD')!;
+    // PowerSync
+    args['POWERSYNC_URL'] = results.option('POWERSYNC_URL')!;
   } on FormatException catch (e) {
     // Print usage information if an invalid argument was provided.
     print(e.message);
@@ -52,6 +60,14 @@ ArgParser _buildParser() {
         abbr: 'i', defaultsTo: '5000', help: 'api interval in ms')
     // logging
     ..addOption('logLevel', abbr: 'l', defaultsTo: 'ALL', help: 'log level')
+    // PostgreSQL
+    ..addOption('PG_DATABASE_HOST', defaultsTo: 'pg-db')
+    ..addOption('PG_DATABASE_PORT', defaultsTo: '5432')
+    ..addOption('PG_DATABASE_NAME', defaultsTo: 'postgres')
+    ..addOption('PG_DATABASE_USER', defaultsTo: 'postgres')
+    ..addOption('PG_DATABASE_PASSWORD', defaultsTo: 'mypassword')
+    // PowerSync
+    ..addOption('POWERSYNC_URL', defaultsTo: 'http://powersync:8080')
     // help
     ..addFlag(
       'help',
