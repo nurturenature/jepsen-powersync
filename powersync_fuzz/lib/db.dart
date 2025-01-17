@@ -23,6 +23,15 @@ bool _ignorableUploadError(Object ex) {
 }
 
 Future<void> initDb(String sqlite3Path) async {
+  // delete any existing files
+  try {
+    await File(sqlite3Path).delete();
+    await File('$sqlite3Path-shm').delete();
+    await File('$sqlite3Path-wal').delete();
+  } catch (ex) {
+    // don't care
+  }
+
   db = PowerSyncDatabase(schema: schema, path: sqlite3Path);
   log.info("Created db, schema: ${schema.tables.map((table) => {
         table.toJson()

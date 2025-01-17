@@ -6,7 +6,7 @@ import 'args.dart';
 /// Global Postgres connection.
 late Connection postgreSQL;
 
-Future<void> initPostgreSQL() async {
+Future<void> initPostgreSQL({bool initData = true}) async {
   final settings = ConnectionSettings(sslMode: SslMode.disable);
   postgreSQL = await Connection.open(
       Endpoint(
@@ -16,8 +16,14 @@ Future<void> initPostgreSQL() async {
           password: args['PG_DATABASE_PASSWORD']!),
       settings: settings);
 
-  // tests start from a known state
+  // start test from a known state?
+  if (initData) {
+    await _initData();
+  }
+}
 
+// start test from a known state
+Future<void> _initData() async {
   // conditionally create lww table
   await postgreSQL.execute('''
     CREATE TABLE IF NOT EXISTS public.lww (

@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:isolate';
 import 'package:powersync_fuzz/args.dart';
+import 'package:powersync_fuzz/db.dart';
 import 'package:powersync_fuzz/log.dart';
+import 'package:powersync_fuzz/postgresql.dart';
 
 class Worker {
   final int _clientNum;
@@ -73,7 +76,7 @@ class Worker {
         clientNum, txnReceivePort, txnSendPort, apiReceivePort, apiSendPort);
   }
 
-  static void _startRemoteIsolate(message) {
+  static Future<void> _startRemoteIsolate(message) async {
     final (
       int clientNum,
       Map<String, dynamic> mainArgs,
@@ -84,6 +87,14 @@ class Worker {
     // initialize worker environment, state
     args = mainArgs;
     initLogging('client-$clientNum');
+
+    // initialize PostgreSQL
+    await initPostgreSQL(initData: false);
+    log.info('PostgreSQL connection initialized, connection: $postgreSQL');
+
+    // initialize PowerSync db
+    await initDb('${Directory.current.path}/client-$clientNum.sqlite3');
+    log.info('db initialized: $db');
 
     // Isolate needs to be able to receive txn messages, and message Worker how to send to Isolate's txn receive port
     final txnReceivePort = ReceivePort();
