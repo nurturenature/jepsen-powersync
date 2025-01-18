@@ -1,8 +1,13 @@
 import 'dart:io';
+import 'dart:math';
+import 'package:list_utilities/list_utilities.dart';
 import 'package:powersync/sqlite3.dart';
+import 'args.dart';
 import 'db.dart';
 import 'log.dart';
 import 'utils.dart';
+
+final _rng = Random();
 
 /// Execute an sql transaction and return the results:
 /// - request is a Jepsen op value as a Map
@@ -12,11 +17,9 @@ import 'utils.dart';
 /// No Exceptions are expected!
 /// Single user local PowerSync is totally available, strict serializable.
 /// No catching, let Exceptions fail the test
-Future<Map> sqlTxn(Map req) async {
-  final op = req;
-
-  log.fine('sql-txn: request: $op');
-
+Future<Map> sqlTxn(Map op) async {
+  assert(op['type'] == 'invoke');
+  assert(op['f'] == 'txn');
   assert(op['value'].length >= 1);
 
   await db.writeTransaction((tx) async {
@@ -58,31 +61,21 @@ Future<Map> sqlTxn(Map req) async {
   });
 
   op['type'] = 'ok';
-
-  log.fine('sql-txn: response: $op');
-
   return op;
 }
 
 /// api endpoint for status, connect/disconnect, and upload-queue-count/upload-queue-wait
-Future<Map> powersyncApi(Map req, String action) async {
-  Map response;
+Future<Map> powersyncApi(Map op) async {
+  assert(op['type'] == 'invoke');
+  assert(op['f'] == 'api');
+  assert(op['value'] != null);
 
-  log.fine('powersyncApi: action: $action request: $req');
+  String newType = 'ok';
 
-  switch (action) {
-    case 'status':
-      response = {
-        'db.closed': db.closed,
-        'db.connected': db.connected,
-        'db.runtimeType': db.runtimeType.toString(),
-        'db.currentStatus': '${db.currentStatus}'
-      };
-      break;
-
+  switch (op['value']['f']) {
     case 'connect':
       await db.connect(connector: connector);
-      response = {
+      op['value']['v'] = {
         'db.closed': db.closed,
         'db.connected': db.connected,
         'db.currentStatus': '${db.currentStatus}'
@@ -91,7 +84,7 @@ Future<Map> powersyncApi(Map req, String action) async {
 
     case 'disconnect':
       await db.disconnect();
-      response = {
+      op['value']['v'] = {
         'db.closed': db.closed,
         'db.connected': db.connected,
         'db.currentStatus': '${db.currentStatus}'
@@ -100,14 +93,14 @@ Future<Map> powersyncApi(Map req, String action) async {
 
     case 'upload-queue-count':
       final uploadQueueCount = (await db.getUploadQueueStats()).count;
-      response = {'db.upload-queue-count': uploadQueueCount};
+      op['value']['v'] = {'db.upload-queue-count': uploadQueueCount};
       break;
 
     case 'upload-queue-wait':
       while ((await db.getUploadQueueStats()).count != 0) {
         await isolateSleep(100);
       }
-      response = {'db.upload-queue-wait': 'queue-empty'};
+      op['value']['v'] = {'db.upload-queue-wait': 'queue-empty'};
       break;
 
     case 'downloading-wait':
@@ -120,23 +113,23 @@ Future<Map> powersyncApi(Map req, String action) async {
         tries++;
       }
       if (tries == maxTries) {
-        response = {
-          'ERROR':
+        newType = 'error';
+        op['value']['v'] = {
+          'error':
               'Tried ${tries - 1} times every ${waitPerTry}ms, db.currentStatus: ${db.currentStatus}'
         };
       } else {
-        response = {'db.currentStatus': '${db.currentStatus}'};
+        op['value']['v'] = {'db.currentStatus': '${db.currentStatus}'};
       }
       break;
 
     default:
-      log.severe('Unknown powersyncApi request: $req');
+      log.severe('Unknown powersyncApi request: $op');
       exit(127);
   }
 
-  log.fine('powersyncApi: $action: response: $response');
-
-  return response;
+  op['type'] = newType;
+  return op;
 }
 
 /// db endpoint to query db
@@ -157,4 +150,23 @@ Future<ResultSet> dbApi(Map req, String action) async {
   log.fine('dbApi: action: $action response: $response');
 
   return response;
+}
+
+List<Map> genRandTxn(int num, int value) {
+  final List<Map> txn = [];
+
+  for (var i = 0; i < num; i++) {
+    final f = ['r', 'append'].getRandom(1).first;
+    final k = _rng.nextInt(args['keys']);
+    switch (f) {
+      case 'r':
+        txn.add({'f': 'r', 'k': k, 'v': null});
+        break;
+      case 'append':
+        txn.add({'f': 'append', 'k': k, 'v': value});
+        break;
+    }
+  }
+
+  return txn;
 }

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:isolate';
 import 'package:powersync_fuzz/args.dart';
 import 'package:powersync_fuzz/db.dart';
+import 'package:powersync_fuzz/endpoint.dart';
 import 'package:powersync_fuzz/log.dart';
 import 'package:powersync_fuzz/postgresql.dart';
 
@@ -54,12 +55,15 @@ class Worker {
 
     // Spawn the isolate.
     try {
-      await Isolate.spawn(_startRemoteIsolate, (
-        clientNum,
-        args,
-        initTxnReceivePort.sendPort,
-        initApiReceivePort.sendPort
-      ));
+      await Isolate.spawn(
+          _startRemoteIsolate,
+          (
+            clientNum,
+            args,
+            initTxnReceivePort.sendPort,
+            initApiReceivePort.sendPort
+          ),
+          debugName: 'client-$clientNum');
     } on Object {
       initTxnReceivePort.close();
       initApiReceivePort.close();
@@ -85,11 +89,12 @@ class Worker {
     ) = message as (int, Map<String, dynamic>, SendPort, SendPort);
 
     // initialize worker environment, state
-    args = mainArgs;
+    args = mainArgs; // args must be set first in Isolate
     initLogging('client-$clientNum');
 
     // initialize PostgreSQL
-    await initPostgreSQL(initData: false);
+    await initPostgreSQL(
+        initData: false); // database table was initialized in main Isolate
     log.info('PostgreSQL connection initialized, connection: $postgreSQL');
 
     // initialize PowerSync db
@@ -112,7 +117,7 @@ class Worker {
   static void _handleTxnRequestsToIsolate(
       ReceivePort receivePort, SendPort sendPort) {
     // listen for commands sent to the Isolate
-    receivePort.listen((message) {
+    receivePort.listen((message) async {
       // shutdown?
       if (message == 'shutdown') {
         receivePort.close();
@@ -122,10 +127,10 @@ class Worker {
       // txn
       final (int id, Map txn) = message as (int, Map);
       try {
-        // TODO: execute txn in db
-        // FOR NOW: assume ok
         log.fine('txn ($id) request: $txn');
-        txn.addAll({'type': 'ok'});
+
+        await sqlTxn(txn);
+
         log.fine('txn ($id) response: $txn');
         sendPort.send((id, txn));
       } catch (e) {
@@ -150,7 +155,7 @@ class Worker {
   static void _handleApiRequestsToIsolate(
       ReceivePort receivePort, SendPort sendPort) {
     // listen for commands sent to the Isolate
-    receivePort.listen((message) {
+    receivePort.listen((message) async {
       // shutdown?
       if (message == 'shutdown') {
         receivePort.close();
@@ -160,10 +165,10 @@ class Worker {
       // api call
       final (int id, Map api) = message as (int, Map);
       try {
-        // TODO: call api for db
-        // FOR NOW: assume ok
         log.fine('api ($id) request: $api');
-        api.addAll({'type': 'ok'});
+
+        await powersyncApi(api);
+
         log.fine('api ($id) response: $api');
         sendPort.send((id, api));
       } catch (e) {

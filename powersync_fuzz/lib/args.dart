@@ -22,6 +22,7 @@ void parseArgs(List<String> arguments) {
     args['keys'] = int.parse(results.option('keys')!);
     args['rate'] = int.parse(results.option('rate')!);
     args['txns'] = int.parse(results.option('txns')!);
+    args['maxTxnLen'] = int.parse(results.option('maxTxnLen')!);
     // disconnect/connect
     args['disconnect'] = results.flag('disconnect');
     args['interval'] = int.parse(results.option('interval')!);
@@ -51,6 +52,7 @@ ArgParser _buildParser() {
     ..addOption('keys', abbr: 'k', defaultsTo: '100', help: 'number of keys')
     ..addOption('rate', abbr: 'r', defaultsTo: '100', help: 'txn rate in ms')
     ..addOption('txns', abbr: 't', defaultsTo: '100', help: 'number of txns')
+    ..addOption('maxTxnLen', defaultsTo: '10', help: 'max transaction length')
     // api values
     ..addFlag('disconnect',
         defaultsTo: true,

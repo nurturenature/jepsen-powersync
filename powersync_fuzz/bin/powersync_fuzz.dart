@@ -1,13 +1,11 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:list_utilities/list_utilities.dart';
 import 'package:powersync_fuzz/args.dart';
+import 'package:powersync_fuzz/endpoint.dart';
 import 'package:powersync_fuzz/log.dart';
 import 'package:powersync_fuzz/postgresql.dart';
 import 'package:powersync_fuzz/utils.dart';
 import 'package:powersync_fuzz/worker.dart';
-
-final _rng = Random();
 
 void main(List<String> arguments) async {
   // parse args, set defaults, must be 1st in main
@@ -32,7 +30,11 @@ void main(List<String> arguments) async {
           .periodic(
           Duration(milliseconds: args['rate']),
           // using random keys and a sequential value
-          (value) => {"key": _rng.nextInt(args['keys']), "value": value})
+          (count) => {
+                'type': 'invoke',
+                'f': 'txn',
+                'value': genRandTxn(args['maxTxnLen'], count)
+              })
       // for a total # of txns
       .take(args['txns']);
 
@@ -65,8 +67,12 @@ void main(List<String> arguments) async {
           Duration(milliseconds: args['interval']),
           // using a random API call
           (count) => {
-                'count': count,
-                'api': ['disconnect', 'connect'].getRandom(1).first
+                'type': 'invoke',
+                'f': 'api',
+                'value': {
+                  'f': ['disconnect', 'connect'].getRandom(1).first,
+                  'v': {}
+                }
               })
       // for a total # of api calls, should finish before txn stream
       .take(((args['txns'] * args['rate'] / args['interval']) - 1).floor());
@@ -84,7 +90,11 @@ void main(List<String> arguments) async {
     // insure all clients connected
     log.info('api connecting all clients');
     for (Worker client in clients) {
-      await client.executeApi({'count': 'final', 'api': 'connect'});
+      await client.executeApi({
+        'type': 'invoke',
+        'f': 'api',
+        'value': {'f': 'connect', 'v': {}}
+      });
     }
 
     // close all clients
