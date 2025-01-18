@@ -154,6 +154,7 @@ Future<ResultSet> dbApi(Map req, String action) async {
 
 List<Map> genRandTxn(int num, int value) {
   final List<Map> txn = [];
+  final Set<int> appendedKeys = {};
 
   for (var i = 0; i < num; i++) {
     final f = ['r', 'append'].getRandom(1).first;
@@ -162,8 +163,14 @@ List<Map> genRandTxn(int num, int value) {
       case 'r':
         txn.add({'f': 'r', 'k': k, 'v': null});
         break;
-      case 'append':
+      // only append to a key once
+      case 'append' when !appendedKeys.contains(k):
+        appendedKeys.add(k);
         txn.add({'f': 'append', 'k': k, 'v': value});
+        break;
+      // duplicate append key so read it instead
+      default:
+        txn.add({'f': 'r', 'k': k, 'v': null});
         break;
     }
   }

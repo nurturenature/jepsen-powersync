@@ -76,9 +76,9 @@ Future<void> initDb(String sqlite3Path) async {
     SELECT name FROM sqlite_schema 
     WHERE type IN ('table','view') 
     AND name NOT LIKE 'sqlite_%'
-    ORDER BY 1
+    ORDER BY 1;
   ''');
-  final lww = await db.execute('SELECT k,v FROM lww');
+  final lww = await db.execute('SELECT k,v FROM lww order by k;');
   log.info("tables: $dbTables");
   log.info("lww: $lww");
 }
