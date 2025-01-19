@@ -1,9 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:list_utilities/list_utilities.dart';
 import 'package:powersync_fuzz/args.dart';
 import 'package:powersync_fuzz/endpoint.dart';
 import 'package:powersync_fuzz/log.dart';
-import 'package:powersync_fuzz/postgresql.dart';
+import 'package:powersync_fuzz/postgresql.dart' as pg;
 import 'package:powersync_fuzz/utils.dart';
 import 'package:powersync_fuzz/worker.dart';
 
@@ -14,9 +15,9 @@ void main(List<String> arguments) async {
   log.info('args: $args');
 
   // initialize PostgreSQL
-  await initPostgreSQL();
+  await pg.init();
   log.info(
-      'PostgreSQL connection and database initialized, connection: $postgreSQL');
+      'PostgreSQL connection and database initialized, connection: ${pg.postgreSQL}');
 
   // create a set of worker clients
   Set<Worker> clients = {};
@@ -25,16 +26,12 @@ void main(List<String> arguments) async {
   }
 
   // a Stream of txns
-  final streamOfTxns = Stream<Map>
+  final streamOfTxns = Stream<Map<String, dynamic>>
           // sent every rate ms
           .periodic(
           Duration(milliseconds: args['rate']),
           // using random keys and a sequential value
-          (count) => {
-                'type': 'invoke',
-                'f': 'txn',
-                'value': genRandTxn(args['maxTxnLen'], count)
-              })
+          (count) => rndTxnMessage(count))
       // for a total # of txns
       .take(args['txns']);
 
@@ -49,31 +46,27 @@ void main(List<String> arguments) async {
     log.info('txn quiesce for 3 seconds...');
     await isolateSleep(3000);
 
-    // close all txns in clients
-    log.info('txn closing all txn ports in clients');
+    await _checkStrongConvergence(clients);
+
+    // close all client txn/api ports
+    log.info('closing all txn/api ports in clients');
     for (Worker client in clients) {
       client.closeTxns();
+      client.closeApis();
     }
 
     // done with PostgreSQL
     log.info('closing PostgreSQL');
-    await closePostgreSQL();
+    await pg.close();
   });
 
   // a Stream of api calls
-  final streamOfApis = Stream<Map>
+  final streamOfApis = Stream<Map<String, dynamic>>
           // sent every interval ms
           .periodic(
           Duration(milliseconds: args['interval']),
           // using a random API call
-          (count) => {
-                'type': 'invoke',
-                'f': 'api',
-                'value': {
-                  'f': ['disconnect', 'connect'].getRandom(1).first,
-                  'v': {}
-                }
-              })
+          (_) => rndConnectOrDisconnectMessage())
       // for a total # of api calls, should finish before txn stream
       .take(((args['txns'] * args['rate'] / args['interval']) - 1).floor());
 
@@ -90,17 +83,50 @@ void main(List<String> arguments) async {
     // insure all clients connected
     log.info('api connecting all clients');
     for (Worker client in clients) {
-      await client.executeApi({
-        'type': 'invoke',
-        'f': 'api',
-        'value': {'f': 'connect', 'v': {}}
-      });
-    }
-
-    // close all clients
-    log.info('api closing all api ports in clients');
-    for (Worker worker in clients) {
-      worker.closeApis();
+      await client.executeApi(connectMessage());
     }
   });
+}
+
+/// Do a final read of all keys on PostgreSQL and all clients.
+/// Treat PostgreSQL as the source of truth and look for differences with each client.
+/// Any differences are errors.
+Future<void> _checkStrongConvergence(Set<Worker> clients) async {
+  final finalPgRead = await pg.selectAll('lww');
+  final Map<int, Map<int, String>> finalPsReads = {};
+  for (Worker client in clients) {
+    finalPsReads.addAll({
+      client.getClientNum():
+          (await client.executeApi(selectAllMessage()))['value']['v']
+    });
+  }
+  log.info('finalPgRead: $finalPgRead');
+  log.info('finalPsReads: $finalPsReads');
+
+  // {clientNum: {k: {pg: 'pg value', ps: 'ps value'}}}
+  final divergent = {};
+  for (var client in clients) {
+    final clientNum = client.getClientNum();
+    final ps = finalPsReads[clientNum]!;
+    final diffs = {};
+    for (var k = 0; k < args['keys']; k++) {
+      final pgV = finalPgRead[k];
+      final psV = ps[k];
+      if (pgV != psV) {
+        diffs.addAll({
+          k: {'pg': pgV, 'ps': psV}
+        });
+      }
+    }
+    if (diffs.isNotEmpty) {
+      divergent[clientNum] = diffs;
+    }
+  }
+
+  if (divergent.isEmpty) {
+    log.info('strong convergence on final reads! :)');
+  } else {
+    log.severe('divergent final reads!: $divergent :(');
+    exit(127);
+  }
 }

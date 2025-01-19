@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:http/http.dart' as http;
 import 'package:powersync/powersync.dart';
 import 'package:powersync/sqlite_async.dart' as sqlite;
 import 'backend_connector.dart';
@@ -15,6 +16,13 @@ late PowerSyncBackendConnector connector;
 bool _ignorableUploadError(Object ex) {
   // exposed by disconnect-connect nemesis
   if (ex is sqlite.ClosedException) {
+    return true;
+  }
+
+  // exposed by disconnect-connect nemesis
+  if (ex is http.ClientException &&
+      ex.message
+          .startsWith('Connection closed before full header was received')) {
     return true;
   }
 
@@ -56,14 +64,22 @@ Future<void> initDb(String sqlite3Path) async {
   // log PowerSync status changes
   // monitor for upload error messages, check if they're ignorable
   db.statusStream.listen((syncStatus) {
-    if (syncStatus.uploadError != null &&
-        !_ignorableUploadError(syncStatus.uploadError!)) {
-      log.severe(
-          'Upload error detected in statusStream: ${syncStatus.uploadError}');
-      exit(127);
+    // no error
+    if (syncStatus.uploadError == null) {
+      log.finest('statusStream: $syncStatus');
+      return;
     }
 
-    log.finest('statusStream: $syncStatus');
+    // ignorable error
+    if (_ignorableUploadError(syncStatus.uploadError!)) {
+      log.warning(
+          'ignorable upload error in statusStream: ${syncStatus.uploadError}');
+      return;
+    }
+
+    // unexpect error
+    log.severe('upload error in statusStream: ${syncStatus.uploadError}');
+    exit(127);
   });
 
   // log PowerSync db updates

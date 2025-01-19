@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 import 'package:list_utilities/list_utilities.dart';
-import 'package:powersync/sqlite3.dart';
+import 'package:powersync/sqlite3.dart' as sqlite3;
 import 'args.dart';
 import 'db.dart';
 import 'log.dart';
@@ -64,7 +64,7 @@ Future<Map> sqlTxn(Map op) async {
   return op;
 }
 
-/// api endpoint for status, connect/disconnect, and upload-queue-count/upload-queue-wait
+/// api endpoint for connect/disconnect, upload-queue-count/upload-queue-wait, and select-all
 Future<Map> powersyncApi(Map op) async {
   assert(op['type'] == 'invoke');
   assert(op['f'] == 'api');
@@ -123,6 +123,14 @@ Future<Map> powersyncApi(Map op) async {
       }
       break;
 
+    case 'select-all':
+      final Map<int, String> response = {};
+      final rows = (await db.getAll('SELECT k,v FROM lww ORDER BY k;'))
+          .map((row) => MapEntry(row['k'] as int, row['v'] as String));
+      response.addEntries(rows);
+      op['value']['v'] = response;
+      break;
+
     default:
       log.severe('Unknown powersyncApi request: $op');
       exit(127);
@@ -130,26 +138,6 @@ Future<Map> powersyncApi(Map op) async {
 
   op['type'] = newType;
   return op;
-}
-
-/// db endpoint to query db
-Future<ResultSet> dbApi(Map req, String action) async {
-  late ResultSet response;
-
-  log.fine('dbApi: action: $action request: $req');
-
-  switch (action) {
-    case 'list':
-      response = await db.getAll('SELECT * FROM lww ORDER BY k');
-      break;
-    default:
-      log.severe('Unknown /db request: $req');
-      exit(127);
-  }
-
-  log.fine('dbApi: action: $action response: $response');
-
-  return response;
 }
 
 List<Map> genRandTxn(int num, int value) {
@@ -176,4 +164,44 @@ List<Map> genRandTxn(int num, int value) {
   }
 
   return txn;
+}
+
+Map<String, dynamic> rndTxnMessage(int count) {
+  return Map.of({
+    'type': 'invoke',
+    'f': 'txn',
+    'value': genRandTxn(args['maxTxnLen'], count)
+  });
+}
+
+Map<String, dynamic> connectMessage() {
+  return Map.of({
+    'type': 'invoke',
+    'f': 'api',
+    'value': {'f': 'connect', 'v': {}}
+  });
+}
+
+Map<String, dynamic> disconnectMessage() {
+  return Map.of({
+    'type': 'invoke',
+    'f': 'api',
+    'value': {'f': 'disconnect', 'v': {}}
+  });
+}
+
+Map<String, dynamic> rndConnectOrDisconnectMessage() {
+  if (_rng.nextBool()) {
+    return connectMessage();
+  } else {
+    return disconnectMessage();
+  }
+}
+
+Map<String, dynamic> selectAllMessage() {
+  return Map.of({
+    'type': 'invoke',
+    'f': 'api',
+    'value': {'f': 'select-all', 'v': <sqlite3.Row>{}}
+  });
 }

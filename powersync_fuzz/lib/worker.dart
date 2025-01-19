@@ -5,7 +5,7 @@ import 'package:powersync_fuzz/args.dart';
 import 'package:powersync_fuzz/db.dart';
 import 'package:powersync_fuzz/endpoint.dart';
 import 'package:powersync_fuzz/log.dart';
-import 'package:powersync_fuzz/postgresql.dart';
+import 'package:powersync_fuzz/postgresql.dart' as pg;
 
 class Worker {
   final int _clientNum;
@@ -93,9 +93,9 @@ class Worker {
     initLogging('client-$clientNum');
 
     // initialize PostgreSQL
-    await initPostgreSQL(
+    await pg.init(
         initData: false); // database table was initialized in main Isolate
-    log.info('PostgreSQL connection initialized, connection: $postgreSQL');
+    log.info('PostgreSQL connection initialized, connection: ${pg.postgreSQL}');
 
     // initialize PowerSync db
     await initDb('${Directory.current.path}/client-$clientNum.sqlite3');
@@ -190,7 +190,7 @@ class Worker {
     if (_apisClosed && _activeApiRequests.isEmpty) _apiResponses.close();
   }
 
-  Future<Object?> executeTxn(Map txn) async {
+  Future<Object?> executeTxn(Map<String, dynamic> txn) async {
     // must not be closed
     if (_txnsClosed) throw StateError('Closed');
 
@@ -207,7 +207,7 @@ class Worker {
     return await completer.future;
   }
 
-  Future<Object?> executeApi(Map api) async {
+  Future<Map> executeApi(Map<String, dynamic> api) async {
     // must not be closed
     if (_apisClosed) {
       throw StateError(
@@ -224,7 +224,7 @@ class Worker {
 
     // send api request to isolate, await and return api response
     _apiRequests.send((id, api));
-    return await completer.future;
+    return (await completer.future) as Map;
   }
 
   void closeTxns() {
@@ -243,5 +243,9 @@ class Worker {
       if (_activeApiRequests.isEmpty) _apiResponses.close();
       log.info('client ($_clientNum) api ports closed');
     }
+  }
+
+  int getClientNum() {
+    return _clientNum;
   }
 }

@@ -3,4 +3,8 @@ A PowerSync fuzzer for testing the `disconnect()/connect()` API functionality.
 Compile with `./compile.sh`.
 Run with `./powersync_fuzz -h`.
 
-Capture log output `./powersync_fuzz | tee powersync_fuzz.log`
+Capture log output `./powersync_fuzz 2>&1 | tee powersync_fuzz.log`
+
+upload errors
+ignorable -> warning
+else -> severe

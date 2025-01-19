@@ -6,7 +6,7 @@ import 'args.dart';
 /// Global Postgres connection.
 late Connection postgreSQL;
 
-Future<void> initPostgreSQL({bool initData = true}) async {
+Future<void> init({bool initData = true}) async {
   final settings = ConnectionSettings(sslMode: SslMode.disable);
   postgreSQL = await Connection.open(
       Endpoint(
@@ -41,7 +41,16 @@ Future<void> _initData() async {
   }
 }
 
+Future<Map<int, String>> selectAll(String table) async {
+  final Map<int, String> response = {};
+  response.addEntries(
+      (await postgreSQL.execute('SELECT k,v FROM $table ORDER BY k;'))
+          .map((resultRow) => resultRow.toColumnMap())
+          .map((row) => MapEntry(row['k'], row['v'])));
+  return response;
+}
+
 /// Expect to be fully done with PostgreSQL, so force close it.
-Future<void> closePostgreSQL() async {
+Future<void> close() async {
   await postgreSQL.close(force: true);
 }
