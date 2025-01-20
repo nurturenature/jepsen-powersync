@@ -4,7 +4,9 @@ import 'package:powersync/powersync.dart';
 import 'package:powersync/sqlite_async.dart' as sqlite;
 import 'backend_connector.dart';
 import 'log.dart';
+import 'postgresql.dart' as pg;
 import 'schema.dart';
+import 'utils.dart' as utils;
 
 /// Global PowerSync db.
 late PowerSyncDatabase db;
@@ -61,6 +63,27 @@ Future<void> initDb(String sqlite3Path) async {
   await db.waitForFirstSync();
   log.info('db first sync completed, status: ${db.currentStatus}');
 
+  // TODO: remove
+  // debug incomplete db.waitForFirstSync()
+  final pgLww = await pg.selectAll(
+      'lww'); // PostgreSQL is source of truth, explicitly initialized at app startup
+  var currentStatus = db
+      .currentStatus; // get currentStatus first to show incorrect lastSyncedAt: hasSynced
+  var psLww = await selectAll('lww');
+  var diffs = utils.mapDiff('pg', pgLww, 'ps', psLww);
+  while (diffs.isNotEmpty) {
+    log.severe('db.waitForFirstSync incomplete: $diffs');
+    log.severe('    with currentStatus: $currentStatus');
+
+    // sleep and try again
+    await utils.isolateSleep(
+        100); // in ms, sleep in separate Isolate to not block async activity is this Isolate
+    currentStatus = db
+        .currentStatus; // get currentStatus first to show values while sync incomplete
+    psLww = await selectAll('lww');
+    diffs = utils.mapDiff('pg', pgLww, 'ps', psLww);
+  }
+
   // log PowerSync status changes
   // monitor for upload error messages, check if they're ignorable
   db.statusStream.listen((syncStatus) {
@@ -94,7 +117,14 @@ Future<void> initDb(String sqlite3Path) async {
     AND name NOT LIKE 'sqlite_%'
     ORDER BY 1;
   ''');
-  final lww = await db.execute('SELECT k,v FROM lww order by k;');
+
+  final lww = await selectAll('lww');
   log.info("tables: $dbTables");
   log.info("lww: $lww");
+}
+
+/// Select all rows from given table and return {k: v}.
+Future<Map<int, String>> selectAll(String table) async {
+  return Map.fromEntries((await db.getAll('SELECT k,v FROM lww ORDER BY k;'))
+      .map((row) => MapEntry(row['k'] as int, row['v'] as String)));
 }

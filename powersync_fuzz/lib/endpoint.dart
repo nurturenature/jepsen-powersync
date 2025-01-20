@@ -125,11 +125,7 @@ Future<Map> powersyncApi(Map op) async {
       break;
 
     case 'select-all':
-      final Map<int, String> response = {};
-      final rows = (await db.getAll('SELECT k,v FROM lww ORDER BY k;'))
-          .map((row) => MapEntry(row['k'] as int, row['v'] as String));
-      response.addEntries(rows);
-      op['value']['v'] = response;
+      op['value']['v'] = await selectAll('lww');
       break;
 
     default:
@@ -220,5 +216,13 @@ Map<String, dynamic> uploadQueueWaitMessage() {
     'type': 'invoke',
     'f': 'api',
     'value': {'f': 'upload-queue-wait', 'v': {}}
+  });
+}
+
+Map<String, dynamic> downloadingWaitMessage() {
+  return Map.of({
+    'type': 'invoke',
+    'f': 'api',
+    'value': {'f': 'downloading-wait', 'v': {}}
   });
 }

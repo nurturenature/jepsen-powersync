@@ -36,9 +36,15 @@ Future<void> _initData() async {
 
   // populate table with initial value for all keys
   await postgreSQL.execute('DELETE FROM lww;');
-  for (var key = 0; key < args['keys']; key++) {
-    await postgreSQL.execute("INSERT INTO lww (k,v) VALUES ($key,'');");
-  }
+
+  // initialize all k,v in a single transaction so all values are replicated/synced as a whole
+  await postgreSQL.runTx((tx) async {
+    for (var key = 0; key < args['keys']; key++) {
+      await tx.execute("INSERT INTO lww (k,v) VALUES ($key,'');");
+    }
+  },
+      settings:
+          TransactionSettings(isolationLevel: IsolationLevel.repeatableRead));
 }
 
 Future<Map<int, String>> selectAll(String table) async {

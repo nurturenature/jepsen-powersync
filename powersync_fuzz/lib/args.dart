@@ -21,7 +21,7 @@ void parseArgs(List<String> arguments) {
     // txn values
     args['keys'] = int.parse(results.option('keys')!);
     args['rate'] = int.parse(results.option('rate')!);
-    args['txns'] = int.parse(results.option('txns')!);
+    args['time'] = int.parse(results.option('time')!);
     args['maxTxnLen'] = int.parse(results.option('maxTxnLen')!);
     // disconnect/connect
     args['disconnect'] = results.flag('disconnect');
@@ -50,8 +50,10 @@ ArgParser _buildParser() {
         abbr: 'c', defaultsTo: '5', help: 'number of PowerSync clients')
     // txn values
     ..addOption('keys', abbr: 'k', defaultsTo: '100', help: 'number of keys')
-    ..addOption('rate', abbr: 'r', defaultsTo: '100', help: 'txn rate in ms')
-    ..addOption('txns', abbr: 't', defaultsTo: '100', help: 'number of txns')
+    ..addOption('rate',
+        abbr: 'r', defaultsTo: '10', help: 'txn rate in txn per second')
+    ..addOption('time',
+        abbr: 't', defaultsTo: '100', help: 'time of test in seconds')
     ..addOption('maxTxnLen', defaultsTo: '10', help: 'max transaction length')
     // api values
     ..addFlag('disconnect',
@@ -59,7 +61,9 @@ ArgParser _buildParser() {
         negatable: false,
         help: 'call disconnect/connect API at intervals')
     ..addOption('interval',
-        abbr: 'i', defaultsTo: '5000', help: 'api interval in ms')
+        abbr: 'i',
+        defaultsTo: '5',
+        help: 'disconnect/connect every interval in seconds')
     // logging
     ..addOption('logLevel', abbr: 'l', defaultsTo: 'ALL', help: 'log level')
     // PostgreSQL
