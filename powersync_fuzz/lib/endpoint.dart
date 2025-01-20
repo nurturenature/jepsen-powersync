@@ -75,20 +75,35 @@ Future<Map> powersyncApi(Map op) async {
   switch (op['value']['f']) {
     case 'connect':
       await db.connect(connector: connector);
-      op['value']['v'] = {
-        'db.closed': db.closed,
-        'db.connected': db.connected,
-        'db.currentStatus': '${db.currentStatus}'
+      final closed = db.closed;
+      final connected = db.connected;
+      final currentStatus = db.currentStatus;
+      final v = {
+        'db.closed': closed,
+        'db.connected': connected,
+        'db.currentStatus': currentStatus
       };
+      if (!connected) {
+        log.severe('expected db.connected to be true after db.connect(): $v');
+      }
+      op['value']['v'] = v;
       break;
 
     case 'disconnect':
       await db.disconnect();
-      op['value']['v'] = {
-        'db.closed': db.closed,
-        'db.connected': db.connected,
-        'db.currentStatus': '${db.currentStatus}'
+      final closed = db.closed;
+      final connected = db.connected;
+      final currentStatus = db.currentStatus;
+      final v = {
+        'db.closed': closed,
+        'db.connected': connected,
+        'db.currentStatus': currentStatus
       };
+      if (connected) {
+        log.severe(
+            'expected db.connected to be false after db.disconnect(): $v');
+      }
+      op['value']['v'] = v;
       break;
 
     case 'upload-queue-count':

@@ -32,6 +32,17 @@ bool _ignorableUploadError(Object ex) {
   return false;
 }
 
+// can this download error be ignored?
+bool _ignorableDownloadError(Object ex) {
+  // exposed by disconnect-connect nemesis
+  if (ex is sqlite.ClosedException) {
+    return true;
+  }
+
+  // don't ignore unexpected
+  return false;
+}
+
 Future<void> initDb(String sqlite3Path) async {
   // delete any existing files
   try {
@@ -85,24 +96,56 @@ Future<void> initDb(String sqlite3Path) async {
   }
 
   // log PowerSync status changes
+  // monitor for state mismatch
   // monitor for upload error messages, check if they're ignorable
   db.statusStream.listen((syncStatus) {
-    // no error
-    if (syncStatus.uploadError == null) {
+    // state mismatch
+    if (!syncStatus.connected &&
+        (syncStatus.downloading || syncStatus.uploading)) {
+      log.severe(
+          'syncStatus.connected is false yet uploading|downloading: $syncStatus');
+    }
+    if ((syncStatus.hasSynced == false && syncStatus.lastSyncedAt != null) ||
+        (syncStatus.hasSynced == true && syncStatus.lastSyncedAt == null)) {
+      log.severe('syncStatus.hasSynced/lastSyncedAt mismatch: $syncStatus');
+    }
+
+    // no errors
+    if (syncStatus.anyError == null) {
       log.finest('statusStream: $syncStatus');
       return;
     }
 
-    // ignorable error
-    if (_ignorableUploadError(syncStatus.uploadError!)) {
-      log.warning(
-          'ignorable upload error in statusStream: ${syncStatus.uploadError}');
-      return;
+    // upload error
+    if (syncStatus.uploadError != null) {
+      // ignorable
+      if (_ignorableUploadError(syncStatus.uploadError!)) {
+        log.warning(
+            'ignorable upload error in statusStream: ${syncStatus.uploadError}');
+        return;
+      }
+      // unexpected
+      log.severe(
+          'unexpected upload error in statusStream: ${syncStatus.uploadError}');
+      exit(127);
     }
 
-    // unexpect error
-    log.severe('upload error in statusStream: ${syncStatus.uploadError}');
-    exit(127);
+    // download error
+    if (syncStatus.downloadError != null) {
+      // ignorable
+      if (_ignorableDownloadError(syncStatus.downloadError!)) {
+        log.warning(
+            'ignorable download error in statusStream: ${syncStatus.downloadError}');
+        return;
+      }
+      // unexpected
+      log.severe(
+          'unexpected download error in statusStream: ${syncStatus.downloadError}');
+      exit(127);
+    }
+
+    // WTF?
+    throw StateError('Error interpreting syncStatus: $syncStatus');
   });
 
   // log PowerSync db updates
