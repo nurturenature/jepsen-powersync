@@ -5,7 +5,7 @@ import 'package:powersync_fuzz/args.dart';
 import 'package:powersync_fuzz/endpoint.dart';
 import 'package:powersync_fuzz/log.dart';
 import 'package:powersync_fuzz/postgresql.dart' as pg;
-import 'package:powersync_fuzz/utils.dart';
+import 'package:powersync_fuzz/utils.dart' as utils;
 import 'package:powersync_fuzz/worker.dart';
 
 void main(List<String> arguments) async {
@@ -18,33 +18,71 @@ void main(List<String> arguments) async {
   await pg.init();
   log.config(
       'PostgreSQL connection and database initialized, connection: ${pg.postgreSQL}');
+  log.config('PostgreSQL lww table: ${await pg.selectAll('lww')}');
 
   // create a set of worker clients
-  Set<Worker> clients = {};
+  log.info('creating ${args["clients"]} clients');
+  final List<Future<Worker>> clientFutures = [];
   for (var clientNum = 1; clientNum <= args['clients']; clientNum++) {
-    clients.add(await Worker.spawn(clientNum));
+    clientFutures.add(Worker.spawn(clientNum));
   }
+  Set<Worker> clients = Set.from(await clientFutures.wait);
 
-  // a Stream of txns
-  final streamOfTxns = Stream<Map<String, dynamic>>
-          // sent every rate ms
+  // Stream of disconnect/connect messages
+  final disconnectConnectStream = Stream<Map<String, dynamic>>
+      // sent every interval seconds
+      .periodic(
+      Duration(seconds: args['interval']),
+      // with a random disconnect/connect message
+      (_) => rndConnectOrDisconnectMessage());
+
+  // each disconnect/connect message from the Stream is individually sent to a random majority of clients
+  final disconnectConnectSubscription =
+      disconnectConnectStream.listen((disconnectOrConnectMessage) async {
+    final majorityClients = clients.getRandom((clients.length / 2).ceil());
+    final List<Future<Map>> apiFutures = [];
+    for (Worker client in majorityClients) {
+      apiFutures.addAll([
+        client.executeApi(
+            disconnectOrConnectMessage), // random disconnect or connect
+        client.executeApi(
+            uploadQueueCountMessage()) // upload queue count for debugging
+      ]);
+    }
+    await apiFutures.wait;
+  });
+
+  // a Stream of sql txn messages
+  final sqlTxnStream = Stream<Map<String, dynamic>>
+          // sent every tps rate
           .periodic(
-          Duration(milliseconds: args['rate']),
-          // using random keys and a sequential value
-          (count) => rndTxnMessage(count))
+          Duration(milliseconds: (1000 / args['rate']).floor()),
+          // using reads/appends against random keys with a sequential value
+          (value) => rndTxnMessage(value))
       // for a total # of txns
-      .take(args['txns']);
+      .take(args['time'] * args['rate']);
 
-  // each txn from the Stream is individually sent to a random client
-  streamOfTxns.listen((txn) async {
-    await clients.random().executeTxn(txn);
+  // each sql txn message from the Stream is individually sent to a random client
+  sqlTxnStream.listen((sqlTxnMessage) async {
+    await clients.random().executeTxn(sqlTxnMessage);
   }).onDone(() async {
-    // let txns catch up, TODO: why necessary?
-    await isolateSleep(1000);
+    // stop disconnecting/connection
+    await disconnectConnectSubscription.cancel();
+
+    // let txns/apis catch up, TODO: why necessary?
+    await utils.isolateSleep(1000);
+
+    // insure all clients connected
+    log.info('insuring all clients are connected');
+    final List<Future> connectingClients = [];
+    for (Worker client in clients) {
+      connectingClients.add(client.executeApi(connectMessage()));
+    }
+    await connectingClients.wait;
 
     // quiesce
-    log.info('txn quiesce for 3 seconds...');
-    await isolateSleep(3000);
+    log.info('quiesce for 3 seconds...');
+    await utils.isolateSleep(3000);
 
     // wait for upload queue to be empty
     log.info('wait for upload queue to be empty in clients');
@@ -56,6 +94,14 @@ void main(List<String> arguments) async {
       ]);
     }
     await uploadQueueFutures.wait;
+
+    // wait for downloading to be false
+    log.info('wait for downloading to be false in clients');
+    final List<Future> downloadingWaits = [];
+    for (Worker client in clients) {
+      downloadingWaits.add(client.executeApi(downloadingWaitMessage()));
+    }
+    await downloadingWaits.wait;
 
     log.info('check for strong convergence in final reads');
     await _checkStrongConvergence(clients);
@@ -70,35 +116,6 @@ void main(List<String> arguments) async {
     // done with PostgreSQL
     log.info('closing PostgreSQL');
     await pg.close();
-  });
-
-  // a Stream of api calls
-  final streamOfApis = Stream<Map<String, dynamic>>
-          // sent every interval ms
-          .periodic(
-          Duration(milliseconds: args['interval']),
-          // using a random API call
-          (_) => rndConnectOrDisconnectMessage())
-      // for a total # of api calls, should finish before txn stream
-      .take(((args['txns'] * args['rate'] / args['interval']) - 1).floor());
-
-  // each api call from the Stream is individually sent to a random majority of clients
-  streamOfApis.listen((api) async {
-    final majorityClients = clients.getRandom((args['clients'] / 2).ceil());
-    for (Worker client in majorityClients) {
-      await client.executeApi(api); // random disconnect or connect
-      await client.executeApi(
-          uploadQueueCountMessage()); // upload queue count for debugging
-    }
-  }).onDone(() async {
-    // let api catch up, TODO: why necessary?
-    await isolateSleep(1000);
-
-    // insure all clients connected
-    log.info('api connecting all clients');
-    for (Worker client in clients) {
-      await client.executeApi(connectMessage());
-    }
   });
 }
 
