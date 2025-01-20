@@ -8,3 +8,6 @@ Capture log output `./powersync_fuzz 2>&1 | tee powersync_fuzz.log`
 upload errors
 ignorable -> warning
 else -> severe
+
+uploading = true indeterminate
+severe

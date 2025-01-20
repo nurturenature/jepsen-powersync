@@ -93,14 +93,14 @@ Future<Map> powersyncApi(Map op) async {
 
     case 'upload-queue-count':
       final uploadQueueCount = (await db.getUploadQueueStats()).count;
-      op['value']['v'] = {'db.upload-queue-count': uploadQueueCount};
+      op['value']['v'] = {'db.uploadQueueStats.count': uploadQueueCount};
       break;
 
     case 'upload-queue-wait':
       while ((await db.getUploadQueueStats()).count != 0) {
         await isolateSleep(100);
       }
-      op['value']['v'] = {'db.upload-queue-wait': 'queue-empty'};
+      op['value']['v'] = {'db.uploadQueueStats.count': 'queue-empty'};
       break;
 
     case 'downloading-wait':
@@ -118,6 +118,7 @@ Future<Map> powersyncApi(Map op) async {
           'error':
               'Tried ${tries - 1} times every ${waitPerTry}ms, db.currentStatus: ${db.currentStatus}'
         };
+        log.severe(op);
       } else {
         op['value']['v'] = {'db.currentStatus': '${db.currentStatus}'};
       }
@@ -140,7 +141,7 @@ Future<Map> powersyncApi(Map op) async {
   return op;
 }
 
-List<Map> genRandTxn(int num, int value) {
+List<Map> _genRandTxn(int num, int value) {
   final List<Map> txn = [];
   final Set<int> appendedKeys = {};
 
@@ -170,7 +171,7 @@ Map<String, dynamic> rndTxnMessage(int count) {
   return Map.of({
     'type': 'invoke',
     'f': 'txn',
-    'value': genRandTxn(args['maxTxnLen'], count)
+    'value': _genRandTxn(args['maxTxnLen'], count)
   });
 }
 
@@ -203,5 +204,21 @@ Map<String, dynamic> selectAllMessage() {
     'type': 'invoke',
     'f': 'api',
     'value': {'f': 'select-all', 'v': <sqlite3.Row>{}}
+  });
+}
+
+Map<String, dynamic> uploadQueueCountMessage() {
+  return Map.of({
+    'type': 'invoke',
+    'f': 'api',
+    'value': {'f': 'upload-queue-count', 'v': {}}
+  });
+}
+
+Map<String, dynamic> uploadQueueWaitMessage() {
+  return Map.of({
+    'type': 'invoke',
+    'f': 'api',
+    'value': {'f': 'upload-queue-wait', 'v': {}}
   });
 }

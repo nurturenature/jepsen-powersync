@@ -12,11 +12,11 @@ void main(List<String> arguments) async {
   // parse args, set defaults, must be 1st in main
   parseArgs(arguments);
   initLogging('main');
-  log.info('args: $args');
+  log.config('args: $args');
 
   // initialize PostgreSQL
   await pg.init();
-  log.info(
+  log.config(
       'PostgreSQL connection and database initialized, connection: ${pg.postgreSQL}');
 
   // create a set of worker clients
@@ -46,6 +46,18 @@ void main(List<String> arguments) async {
     log.info('txn quiesce for 3 seconds...');
     await isolateSleep(3000);
 
+    // wait for upload queue to be empty
+    log.info('wait for upload queue to be empty in clients');
+    final List<Future> uploadQueueFutures = [];
+    for (Worker client in clients) {
+      uploadQueueFutures.addAll([
+        client.executeApi(uploadQueueCountMessage()),
+        client.executeApi(uploadQueueWaitMessage())
+      ]);
+    }
+    await uploadQueueFutures.wait;
+
+    log.info('check for strong convergence in final reads');
     await _checkStrongConvergence(clients);
 
     // close all client txn/api ports
@@ -74,7 +86,9 @@ void main(List<String> arguments) async {
   streamOfApis.listen((api) async {
     final majorityClients = clients.getRandom((args['clients'] / 2).ceil());
     for (Worker client in majorityClients) {
-      await client.executeApi(api);
+      await client.executeApi(api); // random disconnect or connect
+      await client.executeApi(
+          uploadQueueCountMessage()); // upload queue count for debugging
     }
   }).onDone(() async {
     // let api catch up, TODO: why necessary?
