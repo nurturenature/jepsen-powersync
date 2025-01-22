@@ -39,9 +39,13 @@ void main(List<String> arguments) async {
   // each disconnect/connect message from the Stream is individually sent to a random majority of clients
   final disconnectConnectSubscription =
       disconnectConnectStream.listen((disconnectOrConnectMessage) async {
-    final majorityClients = clients.getRandom((clients.length / 2).ceil());
+    final affectedClients =
+        (disconnectOrConnectMessage['value']['f'] == 'disconnect')
+            ? clients.getRandom(
+                (clients.length / 2).ceil()) // disconnect a random majority
+            : clients; // connect all
     final List<Future<Map>> apiFutures = [];
-    for (Worker client in majorityClients) {
+    for (Worker client in affectedClients) {
       apiFutures.addAll([
         client.executeApi(
             disconnectOrConnectMessage), // random disconnect or connect
@@ -102,6 +106,11 @@ void main(List<String> arguments) async {
       downloadingWaits.add(client.executeApi(downloadingWaitMessage()));
     }
     await downloadingWaits.wait;
+
+    // TODO: debugging, remove
+    for (final client in clients) {
+      log.info('currentReads: ${client.currentReads}');
+    }
 
     log.info('check for strong convergence in final reads');
     await _checkStrongConvergence(clients);

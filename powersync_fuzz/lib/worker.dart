@@ -24,6 +24,9 @@ class Worker {
   int _apiCounter = 0;
   bool _apisClosed = false;
 
+  // consistency checker instance variables
+  Map<int, String> currentReads = {};
+
   Worker._(this._clientNum, this._txnResponses, this._txnRequests,
       this._apiResponses, this._apiRequests) {
     _txnResponses.listen(_handleTxnResponsesFromIsolate);
@@ -150,6 +153,24 @@ class Worker {
     }
 
     if (_txnsClosed && _activeTxnRequests.isEmpty) _txnResponses.close();
+
+    // check reads for consistency
+    final op = response as Map<String, dynamic>;
+    if (op['type'] == 'ok' && op['f'] == 'txn') {
+      final List<Map> value = op['value'];
+      value // List of {f: k: v:}
+          .where((mop) => mop['f'] == 'r') // only reads
+          .forEach((mop) {
+        final k = mop['k'] as int;
+        final v = (mop['v'] != null) ? mop['v'] as String : '';
+        final vPrev = (currentReads[k] != null) ? currentReads[k] : '';
+        if (vPrev!.startsWith(v) && vPrev.length > v.length) {
+          log.severe(
+              'suspicious read for key $k, previous read $vPrev, this read $v, for $op');
+        }
+        currentReads[k] = v;
+      });
+    }
   }
 
   static void _handleApiRequestsToIsolate(

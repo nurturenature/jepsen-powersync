@@ -1,5 +1,7 @@
 A PowerSync fuzzer for testing the `disconnect()/connect()` API functionality.
 
+`download-powersync-sqlite-core.sh`
+
 Compile with `./compile.sh`.
 Run with `./powersync_fuzz -h`.
 
@@ -11,3 +13,5 @@ else -> severe
 
 uploading = true indeterminate
 severe
+
+syncStatus value mismatches

@@ -178,11 +178,36 @@ List<Map> _genRandTxn(int num, int value) {
   return txn;
 }
 
+List<Map> _genReadWriteReadTxn(int numMops, int value) {
+  final List<Map> txn = [];
+  final int numAppendKeys = (numMops / 2).floor();
+  final Set<int> appendedKeys = Set.from(allKeys.getRandom(numAppendKeys));
+
+  // read all keys
+  for (final k in allKeys) {
+    txn.add({'f': 'r', 'k': k, 'v': null});
+  }
+
+  // append random keys
+  for (final k in appendedKeys) {
+    txn.add({'f': 'append', 'k': k, 'v': value});
+  }
+
+  // read the append keys
+  for (final k in appendedKeys) {
+    txn.add({'f': 'r', 'k': k, 'v': null});
+  }
+
+  return txn;
+}
+
 Map<String, dynamic> rndTxnMessage(int count) {
   return Map.of({
     'type': 'invoke',
     'f': 'txn',
-    'value': _genRandTxn(args['maxTxnLen'], count)
+    'value': (args['readWriteReadTxn'])
+        ? _genReadWriteReadTxn(args['maxTxnLen'], count)
+        : _genRandTxn(args['maxTxnLen'], count)
   });
 }
 
