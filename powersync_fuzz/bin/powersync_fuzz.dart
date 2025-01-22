@@ -29,31 +29,45 @@ void main(List<String> arguments) async {
   Set<Worker> clients = Set.from(await clientFutures.wait);
 
   // Stream of disconnect/connect messages
-  final disconnectConnectStream = Stream<Map<String, dynamic>>
+  final ConnectionState connectionState = ConnectionState();
+  final disconnectConnectStream = Stream<ConnectionStates>
       // sent every interval seconds
       .periodic(
       Duration(seconds: args['interval']),
       // with a random disconnect/connect message
-      (_) => rndConnectOrDisconnectMessage());
+      (_) => connectionState.flipFlop());
 
-  // each disconnect/connect message from the Stream is individually sent to a random majority of clients
+  // each disconnect message from the Stream is individually sent to a random majority of clients
+  // each connect message from the Stream is individually sent to all clients
   final disconnectConnectSubscription =
-      disconnectConnectStream.listen((disconnectOrConnectMessage) async {
-    final affectedClients =
-        (disconnectOrConnectMessage['value']['f'] == 'disconnect')
-            ? clients.getRandom(
-                (clients.length / 2).ceil()) // disconnect a random majority
-            : clients; // connect all
+      disconnectConnectStream.listen((connectionStateMessage) async {
+    late Set<Worker> affectedClients;
+    late Map<String, dynamic> disconnectConnectMessage;
+    switch (connectionStateMessage) {
+      case ConnectionStates.disconnected:
+        affectedClients = clients.getRandom((clients.length / 2).ceil());
+        disconnectConnectMessage = disconnectMessage();
+        break;
+      case ConnectionStates.connected:
+        affectedClients = clients;
+        disconnectConnectMessage = connectMessage();
+        break;
+    }
+
     final List<Future<Map>> apiFutures = [];
     for (Worker client in affectedClients) {
-      apiFutures.addAll([
-        client.executeApi(
-            disconnectOrConnectMessage), // random disconnect or connect
-        client.executeApi(
-            uploadQueueCountMessage()) // upload queue count for debugging
-      ]);
+      apiFutures.add(
+        client.executeApi(disconnectConnectMessage),
+      );
     }
     await apiFutures.wait;
+
+    // upload queue count for debugging
+    final List<Future<Map>> uploadQueueCountFutures = [];
+    for (Worker client in affectedClients) {
+      uploadQueueCountFutures.add(client.executeApi(uploadQueueCountMessage()));
+    }
+    await uploadQueueCountFutures.wait;
   });
 
   // a Stream of sql txn messages
