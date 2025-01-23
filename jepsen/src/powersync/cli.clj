@@ -13,6 +13,7 @@
             [powersync
              [nemesis :as nemesis]
              [powersync :as ps]
+             [stats :as stats]
              [workload :as workload]]))
 
 (def workloads
@@ -112,6 +113,7 @@
                                               {:nemeses (:perf nemesis)})
                          :timeline           (timeline/html)
                          :stats              (checker/stats)
+                         :completions-by-node (stats/completions-by-node)
                          :exceptions         (checker/unhandled-exceptions)
                          :logs-ps-client     (checker/log-file-pattern #"ERROR" ps/log-file-short)
                          :workload           (:checker workload)})
