@@ -26,7 +26,6 @@ void parseArgs(List<String> arguments) {
     args['rate'] = int.parse(results.option('rate')!);
     args['time'] = int.parse(results.option('time')!);
     args['maxTxnLen'] = int.parse(results.option('maxTxnLen')!);
-    args['readWriteReadTxn'] = results.flag('readWriteReadTxn');
     // disconnect/connect
     args['disconnect'] = results.flag('disconnect');
     args['interval'] = int.parse(results.option('interval')!);
@@ -65,10 +64,6 @@ ArgParser _buildParser() {
     ..addOption('time',
         abbr: 't', defaultsTo: '100', help: 'time of test in seconds')
     ..addOption('maxTxnLen', defaultsTo: '10', help: 'max transaction length')
-    ..addFlag('readWriteReadTxn',
-        defaultsTo: true,
-        negatable: false,
-        help: 'read write read style transactions') // api values
     ..addFlag('disconnect',
         defaultsTo: true,
         negatable: false,

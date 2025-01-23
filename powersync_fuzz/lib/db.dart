@@ -74,8 +74,7 @@ Future<void> initDb(String sqlite3Path) async {
   await db.waitForFirstSync();
   log.info('db first sync completed, status: ${db.currentStatus}');
 
-  // TODO: remove
-  // debug incomplete db.waitForFirstSync()
+  // insure complete db.waitForFirstSync()
   final pgLww = await pg.selectAll(
       'lww'); // PostgreSQL is source of truth, explicitly initialized at app startup
   var currentStatus = db
@@ -83,8 +82,8 @@ Future<void> initDb(String sqlite3Path) async {
   var psLww = await selectAll('lww');
   var diffs = utils.mapDiff('pg', pgLww, 'ps', psLww);
   while (diffs.isNotEmpty) {
-    log.severe('db.waitForFirstSync incomplete: $diffs');
-    log.severe('    with currentStatus: $currentStatus');
+    log.info('db.waitForFirstSync incomplete: $diffs');
+    log.info('    with currentStatus: $currentStatus');
 
     // sleep and try again
     await utils.isolateSleep(

@@ -121,11 +121,6 @@ void main(List<String> arguments) async {
     }
     await downloadingWaits.wait;
 
-    // TODO: debugging, remove
-    for (final client in clients) {
-      log.info('currentReads: ${client.currentReads}');
-    }
-
     log.info('check for strong convergence in final reads');
     await _checkStrongConvergence(clients);
 

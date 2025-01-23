@@ -30,8 +30,9 @@ Future<Map> sqlTxn(Map op) async {
               .getOptional('SELECT k,v from lww where k = ?', [mop['k']]);
           // result row expected as db is pre-seeded
           if (select == null) {
-            throw StateError(
-                "Unexpected database state, uninitialized read key ${mop['k']}");
+            log.severe(
+                "Unexpected database state, uninitialized read key ${mop['k']} for op: $op");
+            exit(127);
           }
 
           // v == '' is a  null read
@@ -51,8 +52,9 @@ Future<Map> sqlTxn(Map op) async {
               [mop['v'], mop['k']]);
           // result set expected as db is pre-seeded
           if (update.isEmpty) {
-            throw StateError(
-                "Unexpected database state, uninitialized append key ${mop['k']}");
+            log.severe(
+                "Unexpected database state, uninitialized append key ${mop['k']} for op: $op");
+            exit(127);
           }
 
           return mop;
@@ -178,36 +180,11 @@ List<Map> _genRandTxn(int num, int value) {
   return txn;
 }
 
-List<Map> _genReadWriteReadTxn(int numMops, int value) {
-  final List<Map> txn = [];
-  final int numAppendKeys = (numMops / 2).floor();
-  final Set<int> appendedKeys = Set.from(allKeys.getRandom(numAppendKeys));
-
-  // read all keys
-  for (final k in allKeys) {
-    txn.add({'f': 'r', 'k': k, 'v': null});
-  }
-
-  // append random keys
-  for (final k in appendedKeys) {
-    txn.add({'f': 'append', 'k': k, 'v': value});
-  }
-
-  // read the append keys
-  for (final k in appendedKeys) {
-    txn.add({'f': 'r', 'k': k, 'v': null});
-  }
-
-  return txn;
-}
-
 Map<String, dynamic> rndTxnMessage(int count) {
   return Map.of({
     'type': 'invoke',
     'f': 'txn',
-    'value': (args['readWriteReadTxn'])
-        ? _genReadWriteReadTxn(args['maxTxnLen'], count)
-        : _genRandTxn(args['maxTxnLen'], count)
+    'value': _genRandTxn(args['maxTxnLen'], count)
   });
 }
 

@@ -163,10 +163,10 @@ class Worker {
           .forEach((mop) {
         final k = mop['k'] as int;
         final v = (mop['v'] != null) ? mop['v'] as String : '';
-        final vPrev = (currentReads[k] != null) ? currentReads[k] : '';
-        if (vPrev!.startsWith(v) && vPrev.length > v.length) {
+        final vPrev = (currentReads[k] != null) ? currentReads[k]! : '';
+        if (_suspiciousRead(vPrev, v)) {
           log.severe(
-              'suspicious read for key $k, previous read $vPrev, this read $v, for $op');
+              'ERROR: suspicious read for key $k, previous read $vPrev, this read $v, for $op');
         }
         currentReads[k] = v;
       });
@@ -269,4 +269,25 @@ class Worker {
   int getClientNum() {
     return _clientNum;
   }
+}
+
+bool _suspiciousRead(String prevRead, String currRead) {
+  if (prevRead.isEmpty) {
+    return false;
+  }
+
+  if (prevRead.length <= currRead.length) {
+    return false;
+  }
+
+  if (currRead.isEmpty) {
+    return true;
+  }
+
+  if (prevRead.substring(1, currRead.length - 1) !=
+      currRead.substring(1, currRead.length - 1)) {
+    return false;
+  }
+
+  return true;
 }
