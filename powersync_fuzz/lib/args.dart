@@ -60,13 +60,13 @@ ArgParser _buildParser() {
     // txn values
     ..addOption('keys', abbr: 'k', defaultsTo: '100', help: 'number of keys')
     ..addOption('rate',
-        abbr: 'r', defaultsTo: '10', help: 'txn rate in txn per second')
+        abbr: 'r', defaultsTo: '30', help: 'txn rate in txn per second')
     ..addOption('time',
         abbr: 't', defaultsTo: '100', help: 'time of test in seconds')
-    ..addOption('maxTxnLen', defaultsTo: '10', help: 'max transaction length')
+    ..addOption('maxTxnLen', defaultsTo: '4', help: 'max transaction length')
     ..addFlag('disconnect',
         defaultsTo: true,
-        negatable: false,
+        negatable: true,
         help: 'call disconnect/connect API at intervals')
     ..addOption('interval',
         abbr: 'i',

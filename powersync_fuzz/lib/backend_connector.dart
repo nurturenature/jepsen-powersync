@@ -98,21 +98,21 @@ class CrudBatchConnector extends PowerSyncBackendConnector {
                   crudEntry.opData!['k'],
                   crudEntry.opData!['v']
                 ]);
-            log.finer('uploadData: put result: $put');
+            log.finer('uploadData: put: $put');
             break;
 
           case UpdateType.patch:
             final patch = await postgreSQL.execute(
                 'UPDATE lww SET v = \$1 WHERE id = \$2',
                 parameters: [crudEntry.opData!['v'], crudEntry.id]);
-            log.finer('uploadData: patch result: $patch');
+            log.finer('uploadData: patch: $patch');
             break;
 
           case UpdateType.delete:
             final delete = await postgreSQL.execute(
                 'DELETE FROM lww WHERE id = \$1',
                 parameters: [crudEntry.id]);
-            log.finer('uploadData: delete result: $delete');
+            log.finer('uploadData: delete: $delete');
             break;
 
           default:
@@ -184,7 +184,8 @@ dynamic _txWithRetries(List<CrudEntry> crud) async {
               final row =
                   put.single; // gets and enforces 1 and only 1 affected row
 
-              log.finer('uploadData: put result: $row');
+              log.finer(
+                  'uploadData: txn: ${crudEntry.transactionId} put: $row');
               break;
 
             case UpdateType.patch:
@@ -193,11 +194,12 @@ dynamic _txWithRetries(List<CrudEntry> crud) async {
                 // 'UPDATE lww SET v = \$1 WHERE id = \$2 RETURNING *',
                 // parameters: [crudEntry.opData!['v'], crudEntry.id]
               );
-              final row =
-                  patch.single; // gets and enforces 1 and only 1 affected row
-
+              final row = patch // result of UPDATE
+                  .single // gets and enforces 1 and only 1 affected row
+                  .toColumnMap(); // pretty Map
+              row.remove('id'); // readability
               log.finer(
-                  'uploadData: (${crudEntry.transactionId}) patch result: ${row.toColumnMap()}');
+                  'uploadData: txn: ${crudEntry.transactionId} patch: $row');
               break;
 
             case UpdateType.delete:
@@ -207,7 +209,8 @@ dynamic _txWithRetries(List<CrudEntry> crud) async {
               final row =
                   delete.single; // gets and enforces 1 and only 1 affected row
 
-              log.finer('uploadData: delete result: $row');
+              log.finer(
+                  'uploadData: txn: ${crudEntry.transactionId} delete: $row');
               break;
 
             default:
@@ -226,7 +229,8 @@ dynamic _txWithRetries(List<CrudEntry> crud) async {
 
       // retryable?
       if (_retryablePgErrors.contains(se.code)) {
-        log.fine("Retrying transaction $crud, due to PostgreSQL ${se.message}");
+        log.fine(
+            "Retrying txn: ${crud.first.transactionId} PostgreSQL: ${se.message}");
 
         await isolateSleep(
             _rng.nextInt(_maxRetryDelay - _minRetryDelay + 1) + _minRetryDelay);

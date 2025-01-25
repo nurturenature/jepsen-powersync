@@ -86,7 +86,7 @@ Future<Map> powersyncApi(Map op) async {
         'db.currentStatus': currentStatus
       };
       if (!connected) {
-        log.severe('expected db.connected to be true after db.connect(): $v');
+        log.warning('expected db.connected to be true after db.connect(): $v');
       }
       op['value']['v'] = v;
       break;
@@ -102,7 +102,7 @@ Future<Map> powersyncApi(Map op) async {
         'db.currentStatus': currentStatus
       };
       if (connected) {
-        log.severe(
+        log.warning(
             'expected db.connected to be false after db.disconnect(): $v');
       }
       op['value']['v'] = v;
@@ -115,25 +115,30 @@ Future<Map> powersyncApi(Map op) async {
 
     case 'upload-queue-wait':
       while ((await db.getUploadQueueStats()).count != 0) {
-        await isolateSleep(100);
+        log.info(
+            'still waiting for db.uploadQueueStats.count == 0, currently ${(await db.getUploadQueueStats()).count}...');
+        await isolateSleep(1000);
       }
       op['value']['v'] = {'db.uploadQueueStats.count': 'queue-empty'};
       break;
 
     case 'downloading-wait':
-      int tries = 0;
-      const maxTries = 300;
-      const waitPerTry = 100;
+      int onTry = 1;
+      const maxTries = 30;
+      const waitPerTry = 1000;
 
-      while ((db.currentStatus.downloading) == true && tries < maxTries) {
+      while ((db.currentStatus.downloading) == true && onTry <= maxTries) {
+        log.info(
+            'still waiting after try $onTry for db.currentStatus.downloading == false...');
         await isolateSleep(waitPerTry);
-        tries++;
+        onTry++;
       }
-      if (tries == maxTries) {
+      if (onTry > maxTries) {
         newType = 'error';
+        op['type'] = newType; // update op now for better error message
         op['value']['v'] = {
           'error':
-              'Tried ${tries - 1} times every ${waitPerTry}ms, db.currentStatus: ${db.currentStatus}'
+              'Tried ${onTry - 1} times every ${waitPerTry}ms, db.currentStatus: ${db.currentStatus}'
         };
         log.severe(op);
       } else {

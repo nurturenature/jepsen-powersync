@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:io';
 import 'package:list_utilities/list_utilities.dart';
 import 'package:powersync_fuzz/args.dart';
@@ -12,7 +13,7 @@ void main(List<String> arguments) async {
   // parse args, set defaults, must be 1st in main
   parseArgs(arguments);
   initLogging('main');
-  log.config('args: $args');
+  log.info('args: $args');
 
   // initialize PostgreSQL
   await pg.init();
@@ -27,6 +28,8 @@ void main(List<String> arguments) async {
     clientFutures.add(Worker.spawn(clientNum));
   }
   Set<Worker> clients = Set.from(await clientFutures.wait);
+
+  log.info('starting stream of transactions...');
 
   // Stream of disconnect/connect messages
   final ConnectionState connectionState = ConnectionState();
@@ -141,41 +144,46 @@ void main(List<String> arguments) async {
 /// Treat PostgreSQL as the source of truth and look for differences with each client.
 /// Any differences are errors.
 Future<void> _checkStrongConvergence(Set<Worker> clients) async {
-  final finalPgRead = await pg.selectAll('lww');
-  final Map<int, Map<int, String>> finalPsReads = {};
+  // {pg: {k: v}    k/v for any diffs in any ps-#
+  //  ps-#: {k: v}}  k/v for this ps-# diff than pg
+  final Map<String, Map<int, String>> divergent = SplayTreeMap();
+  final Map<int, String> finalPgRead = await pg.selectAll('lww');
   for (Worker client in clients) {
-    finalPsReads.addAll({
-      client.getClientNum():
-          (await client.executeApi(selectAllMessage()))['value']['v']
-    });
-  }
-  log.info('finalPgRead: $finalPgRead');
-  log.info('finalPsReads: $finalPsReads');
-
-  // {clientNum: {k: {pg: 'pg value', ps: 'ps value'}}}
-  final divergent = {};
-  for (var client in clients) {
-    final clientNum = client.getClientNum();
-    final ps = finalPsReads[clientNum]!;
-    final diffs = {};
-    for (var k = 0; k < args['keys']; k++) {
-      final pgV = finalPgRead[k];
-      final psV = ps[k];
+    final Map<int, String> finalPsRead =
+        (await client.executeApi(selectAllMessage()))['value']['v'];
+    for (final int k in finalPgRead.keys) {
+      final pgV = finalPgRead[k]!;
+      final psV = finalPsRead[k]!;
       if (pgV != psV) {
-        diffs.addAll({
-          k: {'pg': pgV, 'ps': psV}
-        });
+        divergent.update(
+          'pg',
+          (inner) {
+            inner.addAll({k: pgV});
+            return inner;
+          },
+          ifAbsent: () => SplayTreeMap.from({k: pgV}),
+        );
+        divergent.update('ps-${client.getClientNum()}', (inner) {
+          inner.addAll({k: psV});
+          return inner;
+        }, ifAbsent: () => SplayTreeMap.from({k: psV}));
       }
-    }
-    if (diffs.isNotEmpty) {
-      divergent[clientNum] = diffs;
     }
   }
 
   if (divergent.isEmpty) {
-    log.info('strong convergence on final reads! :)');
+    log.info('Strong Convergence on final reads! :)');
   } else {
-    log.severe('divergent final reads!: $divergent :(');
+    log.severe('Divergent final reads!:');
+    for (final node in divergent.entries) {
+      log.severe(node.key);
+      for (final kv in node.value.entries) {
+        final k = kv.key;
+        final v = kv.value;
+        log.severe('\t{$k: $v}');
+      }
+    }
+    log.severe(':(');
     exit(127);
   }
 }

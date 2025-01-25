@@ -14,35 +14,6 @@ late PowerSyncDatabase db;
 /// Connector to PowerSync db.
 late PowerSyncBackendConnector connector;
 
-// can this upload error be ignored?
-bool _ignorableUploadError(Object ex) {
-  // exposed by disconnect-connect nemesis
-  if (ex is sqlite.ClosedException) {
-    return true;
-  }
-
-  // exposed by disconnect-connect nemesis
-  if (ex is http.ClientException &&
-      ex.message
-          .startsWith('Connection closed before full header was received')) {
-    return true;
-  }
-
-  // don't ignore unexpected
-  return false;
-}
-
-// can this download error be ignored?
-bool _ignorableDownloadError(Object ex) {
-  // exposed by disconnect-connect nemesis
-  if (ex is sqlite.ClosedException) {
-    return true;
-  }
-
-  // don't ignore unexpected
-  return false;
-}
-
 Future<void> initDb(String sqlite3Path) async {
   // delete any existing files
   try {
@@ -96,22 +67,22 @@ Future<void> initDb(String sqlite3Path) async {
 
   // log PowerSync status changes
   // monitor for state mismatch
-  // monitor for upload error messages, check if they're ignorable
+  // monitor for upload/download error messages, check if they're ignorable
   db.statusStream.listen((syncStatus) {
     // state mismatch
     if (!syncStatus.connected &&
         (syncStatus.downloading || syncStatus.uploading)) {
-      log.severe(
+      log.warning(
           'syncStatus.connected is false yet uploading|downloading: $syncStatus');
     }
     if ((syncStatus.hasSynced == false && syncStatus.lastSyncedAt != null) ||
         (syncStatus.hasSynced == true && syncStatus.lastSyncedAt == null)) {
-      log.severe('syncStatus.hasSynced/lastSyncedAt mismatch: $syncStatus');
+      log.warning('syncStatus.hasSynced/lastSyncedAt mismatch: $syncStatus');
     }
 
     // no errors
     if (syncStatus.anyError == null) {
-      log.finest('statusStream: $syncStatus');
+      log.finest('$syncStatus');
       return;
     }
 
@@ -119,7 +90,7 @@ Future<void> initDb(String sqlite3Path) async {
     if (syncStatus.uploadError != null) {
       // ignorable
       if (_ignorableUploadError(syncStatus.uploadError!)) {
-        log.warning(
+        log.info(
             'ignorable upload error in statusStream: ${syncStatus.uploadError}');
         return;
       }
@@ -133,7 +104,7 @@ Future<void> initDb(String sqlite3Path) async {
     if (syncStatus.downloadError != null) {
       // ignorable
       if (_ignorableDownloadError(syncStatus.downloadError!)) {
-        log.warning(
+        log.info(
             'ignorable download error in statusStream: ${syncStatus.downloadError}');
         return;
       }
@@ -149,7 +120,7 @@ Future<void> initDb(String sqlite3Path) async {
 
   // log PowerSync db updates
   db.updates.listen((updateNotification) {
-    log.finest('updates: $updateNotification');
+    log.finest('$updateNotification');
   });
 
   // log current db contents
@@ -169,4 +140,35 @@ Future<void> initDb(String sqlite3Path) async {
 Future<Map<int, String>> selectAll(String table) async {
   return Map.fromEntries((await db.getAll('SELECT k,v FROM lww ORDER BY k;'))
       .map((row) => MapEntry(row['k'] as int, row['v'] as String)));
+}
+
+// can this upload error be ignored?
+bool _ignorableUploadError(Object ex) {
+  // exposed by disconnect-connect nemesis
+  if (ex is sqlite.ClosedException) {
+    return true;
+  }
+
+  // exposed by disconnect-connect nemesis
+  if (ex is http.ClientException &&
+      (ex.message.startsWith(
+              'Connection closed before full header was received') ||
+          ex.message
+              .startsWith('HTTP request failed. Client is already closed.'))) {
+    return true;
+  }
+
+  // don't ignore unexpected
+  return false;
+}
+
+// can this download error be ignored?
+bool _ignorableDownloadError(Object ex) {
+  // exposed by disconnect-connect nemesis
+  if (ex is sqlite.ClosedException) {
+    return true;
+  }
+
+  // don't ignore unexpected
+  return false;
 }

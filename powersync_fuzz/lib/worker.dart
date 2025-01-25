@@ -66,7 +66,7 @@ class Worker {
             initTxnReceivePort.sendPort,
             initApiReceivePort.sendPort
           ),
-          debugName: 'client-$clientNum');
+          debugName: 'ps-$clientNum');
     } on Object {
       initTxnReceivePort.close();
       initApiReceivePort.close();
@@ -93,7 +93,7 @@ class Worker {
 
     // initialize worker environment, state
     args = mainArgs; // args must be set first in Isolate
-    initLogging('client-$clientNum');
+    initLogging('ps-$clientNum');
 
     // initialize PostgreSQL
     await pg.init(
@@ -101,7 +101,7 @@ class Worker {
     log.info('PostgreSQL connection initialized, connection: ${pg.postgreSQL}');
 
     // initialize PowerSync db
-    await initDb('${Directory.current.path}/client-$clientNum.sqlite3');
+    await initDb('${Directory.current.path}/ps-$clientNum.sqlite3');
     log.info('db initialized: $db');
 
     // Isolate needs to be able to receive txn messages, and message Worker how to send to Isolate's txn receive port
@@ -130,11 +130,11 @@ class Worker {
       // txn
       final (int id, Map txn) = message as (int, Map);
       try {
-        log.fine('txn ($id) request: $txn');
+        log.fine('txn request: $txn');
 
         await sqlTxn(txn);
 
-        log.fine('txn ($id) response: $txn');
+        log.fine('txn response: $txn');
         sendPort.send((id, txn));
       } catch (e) {
         sendPort.send((id, RemoteError(e.toString(), '')));
@@ -167,6 +167,7 @@ class Worker {
         if (_suspiciousRead(vPrev, v)) {
           log.severe(
               'ERROR: suspicious read for key $k, previous read $vPrev, this read $v, for $op');
+          exit(127);
         }
         currentReads[k] = v;
       });
@@ -186,11 +187,11 @@ class Worker {
       // api call
       final (int id, Map api) = message as (int, Map);
       try {
-        log.fine('api ($id) request: $api');
+        log.fine('api request: $api');
 
         await powersyncApi(api);
 
-        log.fine('api ($id) response: $api');
+        log.fine('api response: $api');
         sendPort.send((id, api));
       } catch (e) {
         sendPort.send((id, RemoteError(e.toString(), '')));

@@ -5,7 +5,7 @@ powersync_fuzz
 libpowersync_x64.so
 
 # sqlite3 files
-client-*.sqlite3*
+ps-*.sqlite3*
 
 # log files
 powersync_fuzz.log
