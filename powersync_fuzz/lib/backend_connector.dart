@@ -232,7 +232,7 @@ dynamic _txWithRetries(List<CrudEntry> crud) async {
         log.fine(
             "Retrying txn: ${crud.first.transactionId} PostgreSQL: ${se.message}");
 
-        await isolateSleep(
+        await futureSleep(
             _rng.nextInt(_maxRetryDelay - _minRetryDelay + 1) + _minRetryDelay);
 
         continue;

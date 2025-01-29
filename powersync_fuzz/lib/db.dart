@@ -57,7 +57,7 @@ Future<void> initDb(String sqlite3Path) async {
     log.info('    with currentStatus: $currentStatus');
 
     // sleep and try again
-    await utils.isolateSleep(
+    await utils.futureSleep(
         100); // in ms, sleep in separate Isolate to not block async activity is this Isolate
     currentStatus = db
         .currentStatus; // get currentStatus first to show values while sync incomplete

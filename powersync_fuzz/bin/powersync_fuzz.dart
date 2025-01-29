@@ -91,7 +91,7 @@ void main(List<String> arguments) async {
     await disconnectConnectSubscription.cancel();
 
     // let txns/apis catch up, TODO: why necessary?
-    await utils.isolateSleep(1000);
+    await utils.futureSleep(1000);
 
     // insure all clients connected
     log.info('insuring all clients are connected');
@@ -103,7 +103,7 @@ void main(List<String> arguments) async {
 
     // quiesce
     log.info('quiesce for 3 seconds...');
-    await utils.isolateSleep(3000);
+    await utils.futureSleep(3000);
 
     // wait for upload queue to be empty
     log.info('wait for upload queue to be empty in clients');

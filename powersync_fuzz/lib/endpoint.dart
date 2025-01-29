@@ -117,7 +117,7 @@ Future<Map> powersyncApi(Map op) async {
       while ((await db.getUploadQueueStats()).count != 0) {
         log.info(
             'still waiting for db.uploadQueueStats.count == 0, currently ${(await db.getUploadQueueStats()).count}...');
-        await isolateSleep(1000);
+        await futureSleep(1000);
       }
       op['value']['v'] = {'db.uploadQueueStats.count': 'queue-empty'};
       break;
@@ -130,7 +130,7 @@ Future<Map> powersyncApi(Map op) async {
       while ((db.currentStatus.downloading) == true && onTry <= maxTries) {
         log.info(
             'still waiting after try $onTry for db.currentStatus.downloading == false...');
-        await isolateSleep(waitPerTry);
+        await futureSleep(waitPerTry);
         onTry++;
       }
       if (onTry > maxTries) {
