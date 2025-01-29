@@ -4,7 +4,7 @@ version: 0.0.1
 repository: https://github.com/nurturenature/jepsen-powersync/powersync_fuzz
 
 environment:
-  sdk: ^3.4.3
+  sdk: ^3.6.1
 
 dependencies:
   args: ^2.4.2
@@ -13,8 +13,8 @@ dependencies:
   list_utilities: ^1.0.0
   logging: ^1.2.0
   postgres: ^3.4.8
-  powersync: ^1.11.1
+  powersync: ^1.11.2
 
 dev_dependencies:
-  lints: ^3.0.0
-  test: ^1.24.0
+  lints: ^5.1.1
+  test: ^1.25.14
