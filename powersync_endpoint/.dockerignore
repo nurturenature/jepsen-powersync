@@ -7,3 +7,4 @@ build/
 .gitignore
 .idea/
 .packages
+powersync_http

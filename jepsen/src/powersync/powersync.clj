@@ -17,7 +17,7 @@
 
 (def database-file
   "SQLite3 database file."
-  (str app-dir "/powersync_endpoint.sqlite3"))
+  (str app-dir "/powersync_http.sqlite3"))
 
 (def database-files
   "A collection of all SQLite3 database files."
@@ -30,7 +30,7 @@
 (def log-file-short "client.log")
 (def log-file       (str app-dir "/" log-file-short))
 
-(def app-ps-name "powersync_endpoint")
+(def app-ps-name "powersync_http")
 
 (def bin-path (str app-dir "/" app-ps-name))
 

@@ -4,5 +4,5 @@ set -e
 dart compile \
     exe \
     --target-os linux \
-    --output=powersync_endpoint \
-    bin/main.dart
+    --output=powersync_http \
+    bin/powersync_http.dart
