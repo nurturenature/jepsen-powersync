@@ -140,7 +140,7 @@ Future<Map> powersyncApi(Map op) async {
           'error':
               'Tried ${onTry - 1} times every ${waitPerTry}ms, db.currentStatus: ${db.currentStatus}'
         };
-        log.severe(op);
+        log.warning(op);
       } else {
         op['value']['v'] = {'db.currentStatus': '${db.currentStatus}'};
       }
