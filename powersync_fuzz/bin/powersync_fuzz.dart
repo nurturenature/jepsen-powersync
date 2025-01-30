@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
+import 'dart:math';
 import 'package:list_utilities/list_utilities.dart';
 import 'package:powersync_fuzz/args.dart';
 import 'package:powersync_fuzz/endpoint.dart';
@@ -8,6 +9,8 @@ import 'package:powersync_fuzz/log.dart';
 import 'package:powersync_fuzz/postgresql.dart' as pg;
 import 'package:powersync_fuzz/utils.dart' as utils;
 import 'package:powersync_fuzz/worker.dart';
+
+final _rng = Random();
 
 void main(List<String> arguments) async {
   // parse args, set defaults, must be 1st in main
@@ -29,51 +32,58 @@ void main(List<String> arguments) async {
   }
   Set<Worker> clients = Set.from(await clientFutures.wait);
 
-  log.info('starting stream of transactions...');
-
   // Stream of disconnect/connect messages
   final ConnectionState connectionState = ConnectionState();
-  final disconnectConnectStream = Stream<ConnectionStates>
-      // sent every interval seconds
-      .periodic(
-      Duration(seconds: args['interval']),
-      // with a random disconnect/connect message
-      (_) => connectionState.flipFlop());
+  Stream<ConnectionStates> disconnectConnectStream() async* {
+    final maxInterval = args['interval'] * 1000 * 2; // in ms
+    while (true) {
+      await utils.futureSleep(_rng.nextInt(maxInterval));
+      yield connectionState.flipFlop();
+    }
+  }
 
   // each disconnect message from the Stream is individually sent to a random majority of clients
   // each connect message from the Stream is individually sent to all clients
-  final disconnectConnectSubscription =
-      disconnectConnectStream.listen((connectionStateMessage) async {
-    late Set<Worker> affectedClients;
-    late Map<String, dynamic> disconnectConnectMessage;
-    switch (connectionStateMessage) {
-      case ConnectionStates.disconnected:
-        affectedClients = clients.getRandom((clients.length / 2).ceil());
-        disconnectConnectMessage = disconnectMessage();
-        break;
-      case ConnectionStates.connected:
-        affectedClients = clients;
-        disconnectConnectMessage = connectMessage();
-        break;
-    }
+  late StreamSubscription<ConnectionStates> disconnectConnectSubscription;
+  if (args['disconnect']) {
+    log.info('starting stream of disconnect/connect messages...');
+    disconnectConnectSubscription =
+        disconnectConnectStream().listen((connectionStateMessage) async {
+      late Set<Worker> affectedClients;
+      late Map<String, dynamic> disconnectConnectMessage;
+      switch (connectionStateMessage) {
+        case ConnectionStates.disconnected:
+          affectedClients = clients.getRandom((clients.length / 2).ceil());
+          disconnectConnectMessage = disconnectMessage();
+          break;
+        case ConnectionStates.connected:
+          affectedClients = clients;
+          disconnectConnectMessage = connectMessage();
+          break;
+      }
 
-    final List<Future<Map>> apiFutures = [];
-    for (Worker client in affectedClients) {
-      apiFutures.add(
-        client.executeApi(disconnectConnectMessage),
-      );
-    }
-    await apiFutures.wait;
+      log.info(
+          '$connectionStateMessage\'ing clients: ${affectedClients.map((client) => client.getClientNum())}');
 
-    // upload queue count for debugging
-    final List<Future<Map>> uploadQueueCountFutures = [];
-    for (Worker client in affectedClients) {
-      uploadQueueCountFutures.add(client.executeApi(uploadQueueCountMessage()));
-    }
-    await uploadQueueCountFutures.wait;
-  });
+      final List<Future<Map>> apiFutures = [];
+      for (Worker client in affectedClients) {
+        apiFutures.add(
+          client.executeApi(disconnectConnectMessage),
+        );
+      }
+      await apiFutures.wait;
 
+      // upload queue count for debugging
+      final List<Future<Map>> uploadQueueCountFutures = [];
+      for (Worker client in affectedClients) {
+        uploadQueueCountFutures
+            .add(client.executeApi(uploadQueueCountMessage()));
+      }
+      await uploadQueueCountFutures.wait;
+    });
+  }
   // a Stream of sql txn messages
+  log.info('starting stream of sql transactions...');
   final sqlTxnStream = Stream<Map<String, dynamic>>
           // sent every tps rate
           .periodic(
@@ -88,18 +98,22 @@ void main(List<String> arguments) async {
     await clients.random().executeTxn(sqlTxnMessage);
   }).onDone(() async {
     // stop disconnecting/connection
-    await disconnectConnectSubscription.cancel();
+    if (args['disconnect']) {
+      await disconnectConnectSubscription.cancel();
+    }
 
     // let txns/apis catch up, TODO: why necessary?
     await utils.futureSleep(1000);
 
     // insure all clients connected
-    log.info('insuring all clients are connected');
-    final List<Future> connectingClients = [];
-    for (Worker client in clients) {
-      connectingClients.add(client.executeApi(connectMessage()));
+    if (args['disconnect']) {
+      log.info('insuring all clients are connected');
+      final List<Future> connectingClients = [];
+      for (Worker client in clients) {
+        connectingClients.add(client.executeApi(connectMessage()));
+      }
+      await connectingClients.wait;
     }
-    await connectingClients.wait;
 
     // quiesce
     log.info('quiesce for 3 seconds...');
