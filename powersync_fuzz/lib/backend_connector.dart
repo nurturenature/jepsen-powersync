@@ -114,10 +114,6 @@ class CrudBatchConnector extends PowerSyncBackendConnector {
                 parameters: [crudEntry.id]);
             log.finer('uploadData: delete: $delete');
             break;
-
-          default:
-            log.severe("Unknown UpdateType: ${crudEntry.op}");
-            exit(127);
         }
       }
 
@@ -212,10 +208,6 @@ dynamic _txWithRetries(List<CrudEntry> crud) async {
               log.finer(
                   'uploadData: txn: ${crudEntry.transactionId} delete: $row');
               break;
-
-            default:
-              log.severe("Unknown UpdateType: ${crudEntry.op}");
-              exit(127);
           }
         }
       },
