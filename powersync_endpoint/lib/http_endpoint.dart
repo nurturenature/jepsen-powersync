@@ -39,8 +39,9 @@ Future<Response> _sqlTxn(Request req) async {
               .getOptional('SELECT k,v from lww where k = ?', [mop['k']]);
           // result row expected as db is pre-seeded
           if (select == null) {
-            throw StateError(
+            log.severe(
                 "Unexpected database state, uninitialized read key ${mop['k']}");
+            exit(127);
           }
 
           // v == '' is a  null read
@@ -60,8 +61,9 @@ Future<Response> _sqlTxn(Request req) async {
               [mop['v'], mop['k']]);
           // result set expected as db is pre-seeded
           if (update.isEmpty) {
-            throw StateError(
+            log.severe(
                 "Unexpected database state, uninitialized append key ${mop['k']}");
+            exit(127);
           }
 
           return mop;

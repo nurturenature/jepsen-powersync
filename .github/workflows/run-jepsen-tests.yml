@@ -22,7 +22,7 @@ on:
         description: 'Time limits (as JSON)'
         type: string
         required: false
-        default: "[ '100', '200', '300', '400', '500', '600']"
+        default: "[ '100', '200', '300' ]"
       cli-opts:
         description: 'CLI opts string'
         type: string
@@ -55,7 +55,7 @@ on:
         description: 'Time limits (as JSON)'
         type: string
         required: false
-        default: "[ '100', '200', '300', '400', '500', '600']"
+        default: "[ '100', '200', '300' ]"
       cli-opts:
         description: 'CLI opts string'
         type: string

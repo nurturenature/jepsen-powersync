@@ -114,7 +114,7 @@
                          :stats              (checker/stats)
                          :completions-by-node (stats/completions-by-node)
                          :exceptions         (checker/unhandled-exceptions)
-                         :logs-ps-client     (checker/log-file-pattern #"ERROR" ps/log-file-short)
+                         :logs-ps-client     (checker/log-file-pattern #"SEVER" ps/log-file-short)
                          :workload           (:checker workload)})
             :client    (:client workload)
             :nemesis   (:nemesis nemesis)
