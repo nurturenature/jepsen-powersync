@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
-import 'package:powersync_fuzz/args.dart';
-import 'package:powersync_fuzz/db.dart';
-import 'package:powersync_fuzz/endpoint.dart';
-import 'package:powersync_fuzz/log.dart';
-import 'package:powersync_fuzz/postgresql.dart' as pg;
+import 'package:powersync_endpoint/args.dart';
+import 'package:powersync_endpoint/db.dart';
+import 'package:powersync_endpoint/isolate_endpoint.dart';
+import 'package:powersync_endpoint/log.dart';
+import 'package:powersync_endpoint/postgresql.dart' as pg;
 
 class Worker {
   final int _clientNum;
@@ -254,7 +254,6 @@ class Worker {
       _txnsClosed = true;
       _txnRequests.send('shutdown');
       if (_activeTxnRequests.isEmpty) _txnResponses.close();
-      log.info('client ($_clientNum) txn ports closed');
     }
   }
 
@@ -263,7 +262,6 @@ class Worker {
       _apisClosed = true;
       _apiRequests.send('shutdown');
       if (_activeApiRequests.isEmpty) _apiResponses.close();
-      log.info('client ($_clientNum) api ports closed');
     }
   }
 

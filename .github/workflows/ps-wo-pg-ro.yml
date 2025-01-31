@@ -9,8 +9,6 @@ jobs:
     with:
       workloads: >
         [ 'ps-wo-pg-ro' ]
-      backend-connectors: >
-        [ 'CrudTransactionConnector', 'CrudBatchConnector']
       nemeses: >
         [ 'none' ]
       rates: >

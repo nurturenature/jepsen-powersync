@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:jose/jose.dart';
-import 'config.dart';
 import 'log.dart';
 
 // values were generated with https://github.com/powersync-ja/self-host-demo/tree/main/key-generator
@@ -38,7 +37,7 @@ Future<String> generateToken() async {
 
   final claims = JsonWebTokenClaims.fromJson({
     'iss': 'https://github.com/nurturenature/jepsen-powersync',
-    'sub': config['USER_ID'] as String,
+    'sub': 'userId',
     'aud': ['powersync-dev', 'powersync'],
     'iat': now.millisecondsSinceEpoch / 1000,
     'exp': now.add(Duration(minutes: 5)).millisecondsSinceEpoch / 1000,

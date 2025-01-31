@@ -75,10 +75,9 @@
 
 (defn test-name
   "Given opts, returns a meaningful test name."
-  [{:keys [backend-connector consistency-models nemesis nodes postgres-nodes rate time-limit workload] :as _opts}]
+  [{:keys [consistency-models nemesis nodes postgres-nodes rate time-limit workload] :as _opts}]
   (let [nodes (into #{} nodes)]
     (str (name workload)
-         " " (get {"CrudTransactionConnector" "CrudTxBackend" "CrudBatchConnector" "CrudBatchBackend"} backend-connector)
          " " (str/join "," (->> consistency-models
                                 (map #(short-consistency-name % (name %)))))
          " " (str/join "," (map name nemesis))
@@ -135,13 +134,7 @@
 
 (def cli-opts
   "Command line options"
-  [[nil "--backend-connector CLASSNAME" "What backend connector the PowerSync endpoint should use."
-    :parse-fn str
-    :default  "CrudTransactionConnector"
-    :validate [(partial contains? #{"CrudTransactionConnector" "CrudBatchConnector"})
-               (str "Must be one of " #{"CrudTransactionConnector" "CrudBatchConnector"})]]
-
-   [nil "--consistency-models MODELS" "What consistency models to check for."
+  [[nil "--consistency-models MODELS" "What consistency models to check for."
     :parse-fn parse-nemesis-spec
     :validate [(partial every? cm/all-models)
                (str "Must be one or more of " cm/all-models)]]

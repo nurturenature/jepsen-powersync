@@ -49,12 +49,8 @@
   []
   (reify db/DB
     (setup!
-      [this {:keys [backend-connector] :as test} node]
+      [this test node]
       (info "Setting up powersync_endpoint")
-
-      ; configure PowerSync backend connector
-      (c/cd app-dir
-            (c/exec :sed :-i :-E (str "s/^BACKEND_CONNECTOR=[A-Za-z]+/BACKEND_CONNECTOR=" backend-connector "/gm") ".env"))
 
       ; one client sets up PowerSync
       (locking powersync-setup?

@@ -10,6 +10,6 @@ echo
 docker exec \
        -i \
        -t \
-       -w /powersync_fuzz \
+       -w /powersync_endpoint \
        powersync-fuzz-node \
        bash

@@ -3,12 +3,12 @@ import 'dart:collection';
 import 'dart:io';
 import 'dart:math';
 import 'package:list_utilities/list_utilities.dart';
-import 'package:powersync_fuzz/args.dart';
-import 'package:powersync_fuzz/endpoint.dart';
-import 'package:powersync_fuzz/log.dart';
-import 'package:powersync_fuzz/postgresql.dart' as pg;
-import 'package:powersync_fuzz/utils.dart' as utils;
-import 'package:powersync_fuzz/worker.dart';
+import 'package:powersync_endpoint/args.dart';
+import 'package:powersync_endpoint/isolate_endpoint.dart';
+import 'package:powersync_endpoint/log.dart';
+import 'package:powersync_endpoint/postgresql.dart' as pg;
+import 'package:powersync_endpoint/utils.dart' as utils;
+import 'package:powersync_endpoint/worker.dart';
 
 final _rng = Random();
 
@@ -142,14 +142,12 @@ void main(List<String> arguments) async {
     await _checkStrongConvergence(clients);
 
     // close all client txn/api ports
-    log.info('closing all txn/api ports in clients');
     for (Worker client in clients) {
       client.closeTxns();
       client.closeApis();
     }
 
     // done with PostgreSQL
-    log.info('closing PostgreSQL');
     await pg.close();
   });
 }

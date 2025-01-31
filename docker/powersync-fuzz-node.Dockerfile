@@ -27,20 +27,20 @@ RUN git config --global --add safe.directory /usr/bin/flutter
 # build into /app
 WORKDIR /app
 
-# app is responsible for getting native lib
-RUN wget --no-verbose -O libpowersync_x64.so https://github.com/powersync-ja/powersync-sqlite-core/releases/download/v0.3.9/libpowersync_x64.so
-
 # Resolve app dependencies.
 COPY pubspec.* ./
 RUN dart pub get
 
 # Copy app source code and compile app to standalone binary.
 COPY ./ ./
-RUN dart compile exe --target-os linux --output powersync_fuzz bin/powersync_fuzz.dart
+RUN ./compile-fuzz.sh
+
+# app is responsible for getting native lib
+RUN ./download-powersync-sqlite-core.sh
 
 # copy executable, library, and env to final image
 FROM powersync-fuzz-setup AS powersync-fuzz-final
-WORKDIR /powersync_fuzz
+WORKDIR /powersync_endpoint
 COPY --from=dart-build /app/.env .env
 COPY --from=dart-build /app/powersync_fuzz powersync_fuzz
 COPY --from=dart-build /app/libpowersync_x64.so libpowersync_x64.so

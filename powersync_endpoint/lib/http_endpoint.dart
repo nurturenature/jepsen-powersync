@@ -4,7 +4,7 @@ import 'package:powersync/sqlite3.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart';
 import 'package:shelf_router/shelf_router.dart';
-import 'config.dart';
+import 'args.dart';
 import 'db.dart';
 import 'log.dart';
 import 'utils.dart';
@@ -13,7 +13,7 @@ import 'utils.dart';
 late HttpServer endpoint;
 
 final _ip = InternetAddress.anyIPv4;
-final _port = int.parse(config['ENDPOINT_PORT'] ?? '8089');
+final int _port = args['httpPort'];
 
 /// Execute an sql transaction and return the results:
 /// - request is a Jepsen op value as a JSON string
@@ -86,7 +86,6 @@ Future<Response> _powersync(Request req, String action) async {
   switch (action) {
     case 'status':
       response = {
-        'env.LOCAL_ONLY': config['LOCAL_ONLY'],
         'db.closed': db.closed,
         'db.connected': db.connected,
         'db.runtimeType': db.runtimeType.toString(),
@@ -119,7 +118,7 @@ Future<Response> _powersync(Request req, String action) async {
 
     case 'upload-queue-wait':
       while ((await db.getUploadQueueStats()).count != 0) {
-        await isolateSleep(100);
+        await futureSleep(100);
       }
       response = {'db.upload-queue-wait': 'queue-empty'};
       break;
@@ -130,7 +129,7 @@ Future<Response> _powersync(Request req, String action) async {
       const waitPerTry = 100;
 
       while ((db.currentStatus.downloading) == true && tries < maxTries) {
-        await isolateSleep(waitPerTry);
+        await futureSleep(waitPerTry);
         tries++;
       }
       if (tries == maxTries) {

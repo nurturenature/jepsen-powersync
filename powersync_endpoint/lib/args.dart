@@ -29,6 +29,8 @@ void parseArgs(List<String> arguments) {
     // disconnect/connect
     args['disconnect'] = results.flag('disconnect');
     args['interval'] = int.parse(results.option('interval')!);
+    // http_endpoint
+    args['httpPort'] = int.parse(results.option('httpPort')!);
     // logging
     args['logLevel'] = results.option('logLevel')!;
     // PostgreSQL
@@ -72,6 +74,8 @@ ArgParser _buildParser() {
         abbr: 'i',
         defaultsTo: '5',
         help: 'disconnect/connect every interval in seconds')
+    // http_endpoint
+    ..addOption('httpPort', defaultsTo: '8089', help: 'http_endpoint port')
     // logging
     ..addOption('logLevel', abbr: 'l', defaultsTo: 'ALL', help: 'log level')
     // PostgreSQL
@@ -92,6 +96,6 @@ ArgParser _buildParser() {
 }
 
 void _printUsage(ArgParser argParser) {
-  print('Usage: dart powersync_fuzz.dart <flags> [arguments]');
+  print('Usage: dart powersync_(http|fuzz).dart <flags> [arguments]');
   print(argParser.usage);
 }

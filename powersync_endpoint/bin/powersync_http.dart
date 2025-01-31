@@ -1,25 +1,26 @@
-import 'package:powersync_endpoint/backend_connector.dart';
-import 'package:powersync_endpoint/config.dart';
-import 'package:powersync_endpoint/db.dart';
-import 'package:powersync_endpoint/endpoint.dart';
+import 'dart:io';
+import 'package:powersync_endpoint/args.dart';
+import 'package:powersync_endpoint/db.dart' as db;
+import 'package:powersync_endpoint/http_endpoint.dart';
 import 'package:powersync_endpoint/log.dart';
+import 'package:powersync_endpoint/postgresql.dart' as pg;
 
 Future<void> main(List<String> arguments) async {
-  print('Initializing config');
-  initConfig();
+  // parse args, set defaults, must be 1st in main
+  parseArgs(arguments);
+  initLogging('main');
+  log.info('args: $args');
 
-  print('Initializing logging');
-  initLogging();
+  // initialize PostgreSQL
+  await pg.init(
+      initData: false); // TODO: have Jepsen init on 1st client/db setup
+  log.config(
+      'PostgreSQL connection and database initialized, connection: ${pg.postgreSQL}');
+  log.config('PostgreSQL lww table: ${await pg.selectAll('lww')}');
 
-  log.info('Initializing Postgres connection...');
-  await initPostgres();
-  log.info('Postgres connection initialized: $postgres');
+  await db.initDb('${Directory.current.path}/powersync_http.sqlite3');
+  log.info('db initialized: ${db.db}');
 
-  log.info('Initializing db...');
-  await initDb();
-  log.info('db initialized: $db');
-
-  log.info('Initializing endpoint...');
   await initEndpoint();
   log.info('endpoint initialized: $endpoint');
 

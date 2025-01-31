@@ -1,12 +1,14 @@
 import 'package:logging/logging.dart';
-import 'config.dart';
+import 'package:powersync_endpoint/args.dart';
 
 /// Global logger.
-final log = Logger('powersync_endpoint');
+late Logger log;
 
-void initLogging() {
+void initLogging(String name) {
+  log = Logger(name);
+
   Level level;
-  switch (config['ENDPOINT_LOG_LEVEL'] as String) {
+  switch (args['logLevel'] as String) {
     case 'OFF':
       level = Level.OFF;
     case 'FINEST':

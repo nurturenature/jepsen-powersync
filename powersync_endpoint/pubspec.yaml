@@ -1,5 +1,5 @@
 name: powersync_endpoint
-description: A Jepsen endpoint backend by PowerSync.
+description: A Jepsen endpoint backend by PowerSync, and a local CLI fuzzer for PowerSync.
 version: 0.0.1
 repository: https://github.com/nurturenature/jepsen-powersync
 
@@ -7,9 +7,10 @@ environment:
   sdk: ^3.6.1
 
 dependencies:
-  dotenv: ^4.2.0
+  args: ^2.6.0
   http: ^1.3.0
   jose: ^0.3.4
+  list_utilities: ^1.0.3
   logging: ^1.2.0
   postgres: ^3.4.8
   powersync: ^1.11.2
