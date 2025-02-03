@@ -6,8 +6,8 @@ import 'package:shelf/shelf_io.dart';
 import 'package:shelf_router/shelf_router.dart';
 import 'args.dart';
 import 'db.dart';
+import 'isolate_endpoint.dart' as ep;
 import 'log.dart';
-import 'utils.dart';
 
 /// Global Jepsen endpoint.
 late HttpServer endpoint;
@@ -25,57 +25,15 @@ final int _port = args['httpPort'];
 /// No catching, let Exceptions fail the test
 Future<Response> _sqlTxn(Request req) async {
   final reqStr = await req.readAsString();
-  final op = jsonDecode(reqStr);
+  final reqOp = jsonDecode(reqStr) as Map;
 
-  log.fine('/sql-txn: request: $op');
+  log.fine('txn request: $reqOp');
 
-  assert(op['value'].length >= 1);
+  final resOp = await ep.sqlTxn(reqOp);
 
-  await db.writeTransaction((tx) async {
-    op['value'].map((mop) async {
-      switch (mop['f']) {
-        case 'r':
-          final select = await tx
-              .getOptional('SELECT k,v from lww where k = ?', [mop['k']]);
-          // result row expected as db is pre-seeded
-          if (select == null) {
-            log.severe(
-                "Unexpected database state, uninitialized read key ${mop['k']}");
-            exit(127);
-          }
+  log.fine('txn response: $resOp');
 
-          // v == '' is a  null read
-          if ((select['v'] as String) == '') {
-            return mop;
-          } else {
-            // trim leading space that was created on first UPDATE
-            final v = (select['v'] as String).trimLeft();
-            mop['v'] = "[$v]";
-            return mop;
-          }
-
-        case 'append':
-          // note: creates leading space on first update, upsert isn't supported
-          final update = await tx.execute(
-              'UPDATE lww SET v = lww.v || \' \' || ? WHERE k = ? RETURNING *',
-              [mop['v'], mop['k']]);
-          // result set expected as db is pre-seeded
-          if (update.isEmpty) {
-            log.severe(
-                "Unexpected database state, uninitialized append key ${mop['k']}");
-            exit(127);
-          }
-
-          return mop;
-      }
-    }).toList();
-  });
-
-  op['type'] = 'ok';
-
-  log.fine('/sql-txn: response: $op');
-
-  final resStr = jsonEncode(op);
+  final resStr = jsonEncode(resOp);
   return Response.ok(resStr);
 }
 
@@ -83,65 +41,32 @@ Future<Response> _sqlTxn(Request req) async {
 Future<Response> _powersync(Request req, String action) async {
   Map response;
 
-  log.fine('/powersync/$action: request');
+  log.fine('api request: $action');
 
   switch (action) {
-    case 'status':
-      response = {
-        'db.closed': db.closed,
-        'db.connected': db.connected,
-        'db.runtimeType': db.runtimeType.toString(),
-        'db.currentStatus': '${db.currentStatus}'
-      };
-      break;
-
     case 'connect':
-      await db.connect(connector: connector);
-      response = {
-        'db.closed': db.closed,
-        'db.connected': db.connected,
-        'db.currentStatus': '${db.currentStatus}'
-      };
+      response = (await ep.powersyncApi(ep.connectMessage()))['value']['v'];
+      response['db.currentStatus'] = response['db.currentStatus'].toString();
       break;
 
     case 'disconnect':
-      await db.disconnect();
-      response = {
-        'db.closed': db.closed,
-        'db.connected': db.connected,
-        'db.currentStatus': '${db.currentStatus}'
-      };
+      response = (await ep.powersyncApi(ep.disconnectMessage()))['value']['v'];
+      response['db.currentStatus'] = response['db.currentStatus'].toString();
       break;
 
     case 'upload-queue-count':
-      final uploadQueueCount = (await db.getUploadQueueStats()).count;
-      response = {'db.upload-queue-count': uploadQueueCount};
+      response =
+          (await ep.powersyncApi(ep.uploadQueueCountMessage()))['value']['v'];
       break;
 
     case 'upload-queue-wait':
-      while ((await db.getUploadQueueStats()).count != 0) {
-        await futureSleep(100);
-      }
-      response = {'db.upload-queue-wait': 'queue-empty'};
+      response =
+          (await ep.powersyncApi(ep.uploadQueueWaitMessage()))['value']['v'];
       break;
 
     case 'downloading-wait':
-      int tries = 0;
-      const maxTries = 300;
-      const waitPerTry = 100;
-
-      while ((db.currentStatus.downloading) == true && tries < maxTries) {
-        await futureSleep(waitPerTry);
-        tries++;
-      }
-      if (tries == maxTries) {
-        response = {
-          'ERROR':
-              'Tried ${tries - 1} times every ${waitPerTry}ms, db.currentStatus: ${db.currentStatus}'
-        };
-      } else {
-        response = {'db.currentStatus': '${db.currentStatus}'};
-      }
+      response =
+          (await ep.powersyncApi(ep.downloadingWaitMessage()))['value']['v'];
       break;
 
     default:
@@ -149,28 +74,7 @@ Future<Response> _powersync(Request req, String action) async {
       exit(127);
   }
 
-  log.fine('/powersync/$action: response: $response');
-
-  final resStr = jsonEncode(response);
-  return Response.ok(resStr);
-}
-
-/// `/db` endpoint to query db
-Future<Response> _db(Request req, String action) async {
-  late ResultSet response;
-
-  log.fine('/db/$action: request');
-
-  switch (action) {
-    case 'list':
-      response = await db.getAll('SELECT * FROM lww ORDER BY k');
-      break;
-    default:
-      log.severe('Unknown /db request: $req');
-      exit(127);
-  }
-
-  log.fine('/db/$action: response: $response');
+  log.fine('api response: $action $response');
 
   final resStr = jsonEncode(response);
   return Response.ok(resStr);
@@ -178,8 +82,7 @@ Future<Response> _db(Request req, String action) async {
 
 final _router = Router()
   ..post('/sql-txn', _sqlTxn)
-  ..get('/powersync/<action>', _powersync)
-  ..get('/db/<action>', _db);
+  ..get('/powersync/<action>', _powersync);
 
 // configure a pipeline that logs requests
 final handler =

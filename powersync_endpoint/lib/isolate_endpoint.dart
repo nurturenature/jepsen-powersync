@@ -123,26 +123,29 @@ Future<Map> powersyncApi(Map op) async {
       break;
 
     case 'downloading-wait':
-      int onTry = 1;
       const maxTries = 30;
       const waitPerTry = 1000;
 
-      while ((db.currentStatus.downloading) == true && onTry <= maxTries) {
+      int onTry = 1;
+      var currentStatus = db.currentStatus;
+      while ((currentStatus.downloading) == true && onTry <= maxTries) {
         log.info(
-            'still waiting after try $onTry for db.currentStatus.downloading == false...');
+            'still waiting after try $onTry for db.currentStatus.downloading == false, $currentStatus');
         await futureSleep(waitPerTry);
         onTry++;
+        currentStatus = db.currentStatus;
       }
       if (onTry > maxTries) {
         newType = 'error';
         op['type'] = newType; // update op now for better error message
         op['value']['v'] = {
-          'error':
-              'Tried ${onTry - 1} times every ${waitPerTry}ms, db.currentStatus: ${db.currentStatus}'
+          'error': 'Tried ${onTry - 1} times every ${waitPerTry}ms',
+          'db.currentStatus.downloading': currentStatus.downloading
         };
         log.warning(op);
       } else {
-        op['value']['v'] = {'db.currentStatus': '${db.currentStatus}'};
+        op['value']
+            ['v'] = {'db.currentStatus.downloading': currentStatus.downloading};
       }
       break;
 

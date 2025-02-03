@@ -176,7 +176,7 @@
         (http/get {:accept :json})
         :body
         (json/decode true)
-        :db.upload-queue-count)
+        :db.uploadQueueStats.count)
     (catch java.net.ConnectException ex
       (if (= (.getMessage ex) "Connection refused")
         :connection-refused
@@ -190,7 +190,7 @@
         (http/get {:accept :json})
         :body
         (json/decode true)
-        :db.upload-queue-wait)
+        :db.uploadQueueStats.count)
     (catch java.net.ConnectException ex
       (if (= (.getMessage ex) "Connection refused")
         :connection-refused
@@ -204,7 +204,7 @@
         (http/get {:accept :json})
         :body
         (json/decode true)
-        :db.downloading-wait)
+        :db.currentStatus.downloading)
     (catch java.net.ConnectException ex
       (if (= (.getMessage ex) "Connection refused")
         :connection-refused
