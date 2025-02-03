@@ -1,7 +1,10 @@
-#
 # Custom powersync-fuzz node
 #
 FROM debian AS powersync-fuzz-setup
+
+# Help Debian and Docker get along
+ENV container=docker
+STOPSIGNAL SIGRTMIN+3
 
 # PowerSync deps
 RUN apt-get -qy update && \
