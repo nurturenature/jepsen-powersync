@@ -67,7 +67,7 @@ ArgParser _buildParser() {
         abbr: 't', defaultsTo: '100', help: 'time of test in seconds')
     ..addOption('maxTxnLen', defaultsTo: '4', help: 'max transaction length')
     ..addFlag('disconnect',
-        defaultsTo: true,
+        defaultsTo: false,
         negatable: true,
         help: 'call disconnect/connect API at intervals')
     ..addOption('interval',

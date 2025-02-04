@@ -82,6 +82,7 @@ void main(List<String> arguments) async {
       await uploadQueueCountFutures.wait;
     });
   }
+
   // a Stream of sql txn messages
   log.info('starting stream of sql transactions...');
   final sqlTxnStream = Stream<Map<String, dynamic>>
