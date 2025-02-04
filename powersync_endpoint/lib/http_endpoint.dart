@@ -1,11 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:powersync/sqlite3.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart';
 import 'package:shelf_router/shelf_router.dart';
 import 'args.dart';
-import 'db.dart';
 import 'isolate_endpoint.dart' as ep;
 import 'log.dart';
 

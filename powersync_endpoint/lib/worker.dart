@@ -6,6 +6,7 @@ import 'package:powersync_endpoint/db.dart';
 import 'package:powersync_endpoint/isolate_endpoint.dart';
 import 'package:powersync_endpoint/log.dart';
 import 'package:powersync_endpoint/postgresql.dart' as pg;
+import 'package:powersync_endpoint/utils.dart';
 
 class Worker {
   final int _clientNum;
@@ -25,7 +26,7 @@ class Worker {
   bool _apisClosed = false;
 
   // consistency checker instance variables
-  Map<int, String> currentReads = {};
+  final _readConsistency = ReadConsistency();
 
   Worker._(this._clientNum, this._txnResponses, this._txnRequests,
       this._apiResponses, this._apiRequests) {
@@ -162,14 +163,11 @@ class Worker {
           .where((mop) => mop['f'] == 'r') // only reads
           .forEach((mop) {
         final k = mop['k'] as int;
-        final v = (mop['v'] != null) ? mop['v'] as String : '';
-        final vPrev = (currentReads[k] != null) ? currentReads[k]! : '';
-        if (_suspiciousRead(vPrev, v)) {
-          log.severe(
-              'ERROR: suspicious read for key $k, previous read $vPrev, this read $v, for $op');
+        final v = mop['v'] as String?;
+        if (_readConsistency.suspiciousRead(k, v)) {
+          log.severe('ERROR: suspicious read: $mop, for $op');
           exit(127);
         }
-        currentReads[k] = v;
       });
     }
   }
@@ -268,25 +266,4 @@ class Worker {
   int getClientNum() {
     return _clientNum;
   }
-}
-
-bool _suspiciousRead(String prevRead, String currRead) {
-  if (prevRead.isEmpty) {
-    return false;
-  }
-
-  if (prevRead.length <= currRead.length) {
-    return false;
-  }
-
-  if (currRead.isEmpty) {
-    return true;
-  }
-
-  if (prevRead.substring(1, currRead.length - 1) !=
-      currRead.substring(1, currRead.length - 1)) {
-    return false;
-  }
-
-  return true;
 }
