@@ -20,6 +20,7 @@ void parseArgs(List<String> arguments) {
     }
 
     // set args based on CLI or defaults
+    args['table'] = results.option('table')!;
     args['clients'] = int.parse(results.option('clients')!);
     // txn values
     args['keys'] = int.parse(results.option('keys')!);
@@ -57,6 +58,8 @@ void parseArgs(List<String> arguments) {
 
 ArgParser _buildParser() {
   return ArgParser()
+    ..addOption('table',
+        allowed: ['lww', 'mww'], mandatory: true, help: 'table name/type')
     ..addOption('clients',
         abbr: 'c', defaultsTo: '5', help: 'number of PowerSync clients')
     // txn values

@@ -98,7 +98,7 @@ class Worker {
 
     // initialize PostgreSQL
     await pg.init(
-        initData: false); // database table was initialized in main Isolate
+        pg.Tables.lww, false); // database table was initialized in main Isolate
     log.info('PostgreSQL connection initialized, connection: ${pg.postgreSQL}');
 
     // initialize PowerSync db

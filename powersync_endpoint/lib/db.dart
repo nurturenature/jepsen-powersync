@@ -89,7 +89,7 @@ Future<void> initDb(pg.Tables table, String sqlite3Path) async {
     pg.Tables.mww => await selectAllMWW(),
   };
   log.info("tables: $dbTables");
-  log.info("$table: $currTable");
+  log.info("${table.name}: $currTable");
 }
 
 // delete any existing SQLite3 files

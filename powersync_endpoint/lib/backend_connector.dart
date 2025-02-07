@@ -59,7 +59,7 @@ dynamic _txWithRetries(Tables table, List<CrudEntry> crud) async {
           switch (crudEntry.op) {
             case UpdateType.put:
               final put = await tx.execute(
-                  'INSERT INTO $table (id,k,v) VALUES (\$1,\$2,\$3) RETURNING *',
+                  'INSERT INTO ${table.name} (id,k,v) VALUES (\$1,\$2,\$3) RETURNING *',
                   parameters: [
                     crudEntry.id,
                     crudEntry.opData!['k'],
@@ -75,10 +75,10 @@ dynamic _txWithRetries(Tables table, List<CrudEntry> crud) async {
             case UpdateType.patch:
               final patch = switch (table) {
                 Tables.lww => await tx.execute(
-                    'UPDATE $table SET v = \'${crudEntry.opData!['v']}\' WHERE id = \'${crudEntry.id}\' RETURNING *',
+                    'UPDATE ${table.name} SET v = \'${crudEntry.opData!['v']}\' WHERE id = \'${crudEntry.id}\' RETURNING *',
                   ),
                 Tables.mww => await tx.execute(
-                    'UPDATE $table SET v = MAX(${crudEntry.opData!['v']}, $table.v) WHERE id = \'${crudEntry.id}\' RETURNING *',
+                    'UPDATE ${table.name} SET v = MAX(${crudEntry.opData!['v']}, ${table.name}.v) WHERE id = \'${crudEntry.id}\' RETURNING *',
                   )
               };
               final row = patch // result of UPDATE
@@ -91,7 +91,7 @@ dynamic _txWithRetries(Tables table, List<CrudEntry> crud) async {
 
             case UpdateType.delete:
               final delete = await tx.execute(
-                  'DELETE FROM $table WHERE id = \$1 RETURNING *',
+                  'DELETE FROM ${table.name} WHERE id = \$1 RETURNING *',
                   parameters: [crudEntry.id]);
               final row =
                   delete.single; // gets and enforces 1 and only 1 affected row

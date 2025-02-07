@@ -13,7 +13,7 @@ Future<void> main(List<String> arguments) async {
 
   // initialize PostgreSQL
   await pg.init(
-      initData: false); // TODO: have Jepsen init on 1st client/db setup
+      pg.Tables.lww, false); // TODO: have Jepsen init on 1st client/db setup
   log.config(
       'PostgreSQL connection and database initialized, connection: ${pg.postgreSQL}');
   log.config('PostgreSQL lww table: ${await pg.selectAllLWW()}');

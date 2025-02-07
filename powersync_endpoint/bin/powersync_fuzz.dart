@@ -19,7 +19,7 @@ void main(List<String> arguments) async {
   log.info('args: $args');
 
   // initialize PostgreSQL
-  await pg.init();
+  await pg.init(pg.Tables.lww, true);
   log.config(
       'PostgreSQL connection and database initialized, connection: ${pg.postgreSQL}');
   log.config('PostgreSQL lww table: ${await pg.selectAllLWW()}');

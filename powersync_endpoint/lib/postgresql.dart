@@ -9,7 +9,7 @@ late Connection postgreSQL;
 /// possible tables
 enum Tables { lww, mww }
 
-Future<void> init({Tables table = Tables.lww, bool initData = true}) async {
+Future<void> init(Tables table, bool initData) async {
   final settings = ConnectionSettings(sslMode: SslMode.disable);
   postgreSQL = await Connection.open(
       Endpoint(
