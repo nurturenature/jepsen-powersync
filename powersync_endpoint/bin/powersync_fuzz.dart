@@ -22,7 +22,7 @@ void main(List<String> arguments) async {
   await pg.init();
   log.config(
       'PostgreSQL connection and database initialized, connection: ${pg.postgreSQL}');
-  log.config('PostgreSQL lww table: ${await pg.selectAll('lww')}');
+  log.config('PostgreSQL lww table: ${await pg.selectAllLWW()}');
 
   // create a set of worker clients
   log.info('creating ${args["clients"]} clients');
@@ -160,7 +160,7 @@ Future<void> _checkStrongConvergence(Set<Worker> clients) async {
   // {pg: {k: v}    k/v for any diffs in any ps-#
   //  ps-#: {k: v}}  k/v for this ps-# diff than pg
   final Map<String, Map<int, String>> divergent = SplayTreeMap();
-  final Map<int, String> finalPgRead = await pg.selectAll('lww');
+  final Map<int, String> finalPgRead = await pg.selectAllLWW();
   for (Worker client in clients) {
     final Map<int, String> finalPsRead =
         (await client.executeApi(selectAllMessage()))['value']['v'];

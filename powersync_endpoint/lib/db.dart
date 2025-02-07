@@ -14,26 +14,24 @@ late PowerSyncDatabase db;
 /// Connector to PowerSync db.
 late PowerSyncBackendConnector connector;
 
-Future<void> initDb(String sqlite3Path) async {
+Future<void> initDb(pg.Tables table, String sqlite3Path) async {
   // delete any existing files
-  try {
-    await File(sqlite3Path).delete();
-    await File('$sqlite3Path-shm').delete();
-    await File('$sqlite3Path-wal').delete();
-  } catch (ex) {
-    // don't care
-  }
+  await _deleteSqlite3Files(sqlite3Path);
 
-  db = PowerSyncDatabase(schema: schema, path: sqlite3Path);
-  log.info("Created db, schema: ${schema.tables.map((table) => {
-        table.toJson()
+  db = switch (table) {
+    pg.Tables.lww => PowerSyncDatabase(schema: schemaLWW, path: sqlite3Path),
+    pg.Tables.mww => PowerSyncDatabase(schema: schemaMWW, path: sqlite3Path),
+  };
+  log.info("Created db, schemas: ${db.schema.tables.map((table) => {
+        table.name:
+            table.columns.map((column) => '${column.name} ${column.type.name}')
       })}, path: $sqlite3Path");
 
   await db.initialize();
   log.info(
       'db initialized, runtimeType: ${db.runtimeType}, status: ${db.currentStatus}');
 
-  connector = CrudTransactionConnector(db);
+  connector = CrudTransactionConnector(table, db);
 
   // retry significantly faster than default of 5s, designed to leverage a Transaction oriented BackendConnector
   // must be set before connecting
@@ -46,28 +44,67 @@ Future<void> initDb(String sqlite3Path) async {
   log.info('db first sync completed, status: ${db.currentStatus}');
 
   // insure complete db.waitForFirstSync()
-  final pgLww = await pg.selectAll(
-      'lww'); // PostgreSQL is source of truth, explicitly initialized at app startup
-  var currentStatus = db
-      .currentStatus; // get currentStatus first to show incorrect lastSyncedAt: hasSynced
-  var psLww = await selectAll('lww');
-  var diffs = utils.mapDiff('pg', pgLww, 'ps', psLww);
+  // PostgreSQL is source of truth, explicitly initialized at app startup
+  final Map<int, dynamic> pgTable = switch (table) {
+    pg.Tables.lww => await pg.selectAllLWW(),
+    pg.Tables.mww => await pg.selectAllMWW()
+  };
+  // get currentStatus first to show incorrect lastSyncedAt: hasSynced
+  var currentStatus = db.currentStatus;
+  Map<int, dynamic> psTable = switch (table) {
+    pg.Tables.lww => await selectAllLWW(),
+    pg.Tables.mww => await selectAllMWW(),
+  };
+  var diffs = utils.mapDiff('pg', pgTable, 'ps', psTable);
   while (diffs.isNotEmpty) {
     log.info('db.waitForFirstSync incomplete: $diffs');
-    log.info('    with currentStatus: $currentStatus');
+    log.info('\twith currentStatus: $currentStatus');
 
     // sleep and try again
-    await utils.futureSleep(
-        100); // in ms, sleep in separate Isolate to not block async activity is this Isolate
-    currentStatus = db
-        .currentStatus; // get currentStatus first to show values while sync incomplete
-    psLww = await selectAll('lww');
-    diffs = utils.mapDiff('pg', pgLww, 'ps', psLww);
+    await utils.futureSleep(100);
+    currentStatus = db.currentStatus;
+    psTable = switch (table) {
+      pg.Tables.lww => await selectAllLWW(),
+      pg.Tables.mww => await selectAllMWW(),
+    };
+    diffs = utils.mapDiff('pg', pgTable, 'ps', psTable);
   }
 
   // log PowerSync status changes
-  // monitor for state mismatch
-  // monitor for upload/download error messages, check if they're ignorable
+  _logSyncStatus(db);
+
+  // log PowerSync db updates
+  _logUpdates(db);
+
+  // log current db contents
+  final dbTables = await db.execute('''
+    SELECT name FROM sqlite_schema 
+    WHERE type IN ('table','view') 
+    AND name NOT LIKE 'sqlite_%'
+    ORDER BY 1;
+  ''');
+
+  final currTable = switch (table) {
+    pg.Tables.lww => await selectAllLWW(),
+    pg.Tables.mww => await selectAllMWW(),
+  };
+  log.info("tables: $dbTables");
+  log.info("$table: $currTable");
+}
+
+// delete any existing SQLite3 files
+Future<void> _deleteSqlite3Files(String sqlite3Path) async {
+  try {
+    await File(sqlite3Path).delete();
+    await File('$sqlite3Path-shm').delete();
+    await File('$sqlite3Path-wal').delete();
+  } catch (ex) {
+    // don't care
+  }
+}
+
+// log PowerSync status changes
+void _logSyncStatus(PowerSyncDatabase db) {
   db.statusStream.listen((syncStatus) {
     // state mismatch
     if (!syncStatus.connected &&
@@ -117,29 +154,25 @@ Future<void> initDb(String sqlite3Path) async {
     // WTF?
     throw StateError('Error interpreting syncStatus: $syncStatus');
   });
+}
 
-  // log PowerSync db updates
+// log PowerSync db updates
+void _logUpdates(PowerSyncDatabase db) {
   db.updates.listen((updateNotification) {
     log.finest('$updateNotification');
   });
-
-  // log current db contents
-  final dbTables = await db.execute('''
-    SELECT name FROM sqlite_schema 
-    WHERE type IN ('table','view') 
-    AND name NOT LIKE 'sqlite_%'
-    ORDER BY 1;
-  ''');
-
-  final lww = await selectAll('lww');
-  log.info("tables: $dbTables");
-  log.info("lww: $lww");
 }
 
-/// Select all rows from given table and return {k: v}.
-Future<Map<int, String>> selectAll(String table) async {
+/// Select all rows from lww table and return {k: v}.
+Future<Map<int, String>> selectAllLWW() async {
   return Map.fromEntries((await db.getAll('SELECT k,v FROM lww ORDER BY k;'))
-      .map((row) => MapEntry(row['k'] as int, row['v'] as String)));
+      .map((row) => MapEntry(row['k'], row['v'])));
+}
+
+/// Select all rows from mww table and return {k: v}.
+Future<Map<int, int>> selectAllMWW() async {
+  return Map.fromEntries((await db.getAll('SELECT k,v FROM mww ORDER BY k;'))
+      .map((row) => MapEntry(row['k'], row['v'])));
 }
 
 // can this upload error be ignored?

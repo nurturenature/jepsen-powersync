@@ -49,7 +49,7 @@ const _maxRetryDelay = 256;
 const _maxRetries = 32;
 final _rng = Random();
 
-dynamic _txWithRetries(List<CrudEntry> crud) async {
+dynamic _txWithRetries(Tables table, List<CrudEntry> crud) async {
   for (var i = 0; i < _maxRetries; i++) {
     try {
       // execute the PowerSync transaction in a PostgreSQL transaction
@@ -59,7 +59,7 @@ dynamic _txWithRetries(List<CrudEntry> crud) async {
           switch (crudEntry.op) {
             case UpdateType.put:
               final put = await tx.execute(
-                  'INSERT INTO lww (id,k,v) VALUES (\$1,\$2,\$3) RETURNING *',
+                  'INSERT INTO $table (id,k,v) VALUES (\$1,\$2,\$3) RETURNING *',
                   parameters: [
                     crudEntry.id,
                     crudEntry.opData!['k'],
@@ -73,11 +73,14 @@ dynamic _txWithRetries(List<CrudEntry> crud) async {
               break;
 
             case UpdateType.patch:
-              final patch = await tx.execute(
-                'UPDATE lww SET v = \'${crudEntry.opData!['v']}\' WHERE id = \'${crudEntry.id}\' RETURNING *',
-                // 'UPDATE lww SET v = \$1 WHERE id = \$2 RETURNING *',
-                // parameters: [crudEntry.opData!['v'], crudEntry.id]
-              );
+              final patch = switch (table) {
+                Tables.lww => await tx.execute(
+                    'UPDATE $table SET v = \'${crudEntry.opData!['v']}\' WHERE id = \'${crudEntry.id}\' RETURNING *',
+                  ),
+                Tables.mww => await tx.execute(
+                    'UPDATE $table SET v = MAX(${crudEntry.opData!['v']}, $table.v) WHERE id = \'${crudEntry.id}\' RETURNING *',
+                  )
+              };
               final row = patch // result of UPDATE
                   .single // gets and enforces 1 and only 1 affected row
                   .toColumnMap(); // pretty Map
@@ -88,7 +91,7 @@ dynamic _txWithRetries(List<CrudEntry> crud) async {
 
             case UpdateType.delete:
               final delete = await tx.execute(
-                  'DELETE FROM lww WHERE id = \$1 RETURNING *',
+                  'DELETE FROM $table WHERE id = \$1 RETURNING *',
                   parameters: [crudEntry.id]);
               final row =
                   delete.single; // gets and enforces 1 and only 1 affected row
@@ -159,9 +162,10 @@ dynamic _txWithRetries(List<CrudEntry> crud) async {
 ///   - not safe to proceed
 ///     - `exit` to force app restart and resync
 class CrudTransactionConnector extends PowerSyncBackendConnector {
+  Tables table;
   PowerSyncDatabase db;
 
-  CrudTransactionConnector(this.db);
+  CrudTransactionConnector(this.table, this.db);
 
   @override
   Future<PowerSyncCredentials?> fetchCredentials() async {
@@ -176,7 +180,7 @@ class CrudTransactionConnector extends PowerSyncBackendConnector {
     for (CrudTransaction? crudTransaction = await db.getNextCrudTransaction();
         crudTransaction != null;
         crudTransaction = await db.getNextCrudTransaction()) {
-      switch (await _txWithRetries(crudTransaction.crud)) {
+      switch (await _txWithRetries(table, crudTransaction.crud)) {
         case 'ok':
           await crudTransaction.complete();
           break;

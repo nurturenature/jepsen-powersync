@@ -102,7 +102,8 @@ class Worker {
     log.info('PostgreSQL connection initialized, connection: ${pg.postgreSQL}');
 
     // initialize PowerSync db
-    await initDb('${Directory.current.path}/ps-$clientNum.sqlite3');
+    await initDb(
+        pg.Tables.lww, '${Directory.current.path}/ps-$clientNum.sqlite3');
     log.info('db initialized: $db');
 
     // Isolate needs to be able to receive txn messages, and message Worker how to send to Isolate's txn receive port

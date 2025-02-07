@@ -6,7 +6,10 @@ import 'args.dart';
 /// Global Postgres connection.
 late Connection postgreSQL;
 
-Future<void> init({bool initData = true}) async {
+/// possible tables
+enum Tables { lww, mww }
+
+Future<void> init({Tables table = Tables.lww, bool initData = true}) async {
   final settings = ConnectionSettings(sslMode: SslMode.disable);
   postgreSQL = await Connection.open(
       Endpoint(
@@ -18,12 +21,20 @@ Future<void> init({bool initData = true}) async {
 
   // start test from a known state?
   if (initData) {
-    await _initData();
+    switch (table) {
+      case Tables.lww:
+        await _initDataLWW();
+        break;
+
+      case Tables.mww:
+        await _initDataMWW();
+        break;
+    }
   }
 }
 
-// start test from a known state
-Future<void> _initData() async {
+// start test from a known lww state
+Future<void> _initDataLWW() async {
   // conditionally create lww table
   await postgreSQL.execute('''
     CREATE TABLE IF NOT EXISTS public.lww (
@@ -47,10 +58,44 @@ Future<void> _initData() async {
           TransactionSettings(isolationLevel: IsolationLevel.repeatableRead));
 }
 
-Future<Map<int, String>> selectAll(String table) async {
+// start test from a known mww state
+Future<void> _initDataMWW() async {
+  // conditionally create mww table
+  await postgreSQL.execute('''
+    CREATE TABLE IF NOT EXISTS public.mww (
+        id TEXT NOT NULL,
+        k INTEGER NOT NULL UNIQUE,
+        v INTEGER NOT NULL,
+        CONSTRAINT mww_pkey PRIMARY KEY (id)
+    );
+    ''');
+
+  // populate table with initial value for all keys
+  await postgreSQL.execute('DELETE FROM mww;');
+
+  // initialize all id,k,v in a single transaction so all values are replicated/synced as a whole
+  await postgreSQL.runTx((tx) async {
+    for (var key = 0; key < args['keys']; key++) {
+      await tx.execute("INSERT INTO mww (id,k,v) VALUES ('$key',$key,0);");
+    }
+  },
+      settings:
+          TransactionSettings(isolationLevel: IsolationLevel.repeatableRead));
+}
+
+Future<Map<int, String>> selectAllLWW() async {
   final Map<int, String> response = {};
   response.addEntries(
-      (await postgreSQL.execute('SELECT k,v FROM $table ORDER BY k;'))
+      (await postgreSQL.execute('SELECT k,v FROM lww ORDER BY k;'))
+          .map((resultRow) => resultRow.toColumnMap())
+          .map((row) => MapEntry(row['k'], row['v'])));
+  return response;
+}
+
+Future<Map<int, int>> selectAllMWW() async {
+  final Map<int, int> response = {};
+  response.addEntries(
+      (await postgreSQL.execute('SELECT k,v FROM mww ORDER BY k;'))
           .map((resultRow) => resultRow.toColumnMap())
           .map((row) => MapEntry(row['k'], row['v'])));
   return response;

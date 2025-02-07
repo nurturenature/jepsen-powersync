@@ -150,7 +150,7 @@ Future<Map> powersyncApi(Map op) async {
       break;
 
     case 'select-all':
-      op['value']['v'] = await selectAll('lww');
+      op['value']['v'] = await selectAllLWW();
       break;
 
     default:
