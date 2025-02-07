@@ -18,17 +18,26 @@ void main(List<String> arguments) async {
   initLogging('main');
   log.info('args: $args');
 
+  final table = switch (args['table']) {
+    'lww' => pg.Tables.lww,
+    'mww' => pg.Tables.mww,
+    _ => throw StateError("Invalid table arg ${args['table']}")
+  };
+
   // initialize PostgreSQL
-  await pg.init(pg.Tables.lww, true);
+  await pg.init(table, true);
   log.config(
       'PostgreSQL connection and database initialized, connection: ${pg.postgreSQL}');
-  log.config('PostgreSQL lww table: ${await pg.selectAllLWW()}');
+  log.config('PostgreSQL table: ${table.name} ${switch (table) {
+    pg.Tables.lww => await pg.selectAllLWW(),
+    pg.Tables.mww => await pg.selectAllMWW()
+  }}');
 
   // create a set of worker clients
   log.info('creating ${args["clients"]} clients');
   final List<Future<Worker>> clientFutures = [];
   for (var clientNum = 1; clientNum <= args['clients']; clientNum++) {
-    clientFutures.add(Worker.spawn(clientNum));
+    clientFutures.add(Worker.spawn(table, clientNum));
   }
   Set<Worker> clients = Set.from(await clientFutures.wait);
 
@@ -90,7 +99,7 @@ void main(List<String> arguments) async {
           .periodic(
           Duration(milliseconds: (1000 / args['rate']).floor()),
           // using reads/appends against random keys with a sequential value
-          (value) => rndTxnMessage(value))
+          (value) => rndTxnMessage(table, value))
       // for a total # of txns
       .take(args['time'] * args['rate']);
 
@@ -140,7 +149,7 @@ void main(List<String> arguments) async {
     await downloadingWaits.wait;
 
     log.info('check for strong convergence in final reads');
-    await _checkStrongConvergence(clients);
+    await _checkStrongConvergence(table, clients);
 
     // close all client txn/api ports
     for (Worker client in clients) {
@@ -156,14 +165,18 @@ void main(List<String> arguments) async {
 /// Do a final read of all keys on PostgreSQL and all clients.
 /// Treat PostgreSQL as the source of truth and look for differences with each client.
 /// Any differences are errors.
-Future<void> _checkStrongConvergence(Set<Worker> clients) async {
+Future<void> _checkStrongConvergence(
+    pg.Tables table, Set<Worker> clients) async {
   // {pg: {k: v}    k/v for any diffs in any ps-#
   //  ps-#: {k: v}}  k/v for this ps-# diff than pg
   final Map<String, Map<int, String>> divergent = SplayTreeMap();
-  final Map<int, String> finalPgRead = await pg.selectAllLWW();
+  final Map<int, dynamic> finalPgRead = switch (table) {
+    pg.Tables.lww => await pg.selectAllLWW(),
+    pg.Tables.mww => await pg.selectAllMWW()
+  };
   for (Worker client in clients) {
-    final Map<int, String> finalPsRead =
-        (await client.executeApi(selectAllMessage()))['value']['v'];
+    final Map<int, dynamic> finalPsRead =
+        (await client.executeApi(selectAllMessage(table)))['value']['v'];
     for (final int k in finalPgRead.keys) {
       final pgV = finalPgRead[k]!;
       final psV = finalPsRead[k]!;

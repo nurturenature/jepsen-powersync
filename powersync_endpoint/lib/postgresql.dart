@@ -76,7 +76,7 @@ Future<void> _initDataMWW() async {
   // initialize all id,k,v in a single transaction so all values are replicated/synced as a whole
   await postgreSQL.runTx((tx) async {
     for (var key = 0; key < args['keys']; key++) {
-      await tx.execute("INSERT INTO mww (id,k,v) VALUES ('$key',$key,0);");
+      await tx.execute("INSERT INTO mww (id,k,v) VALUES ('$key',$key,-1);");
     }
   },
       settings:

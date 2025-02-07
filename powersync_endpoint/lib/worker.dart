@@ -34,7 +34,7 @@ class Worker {
     _apiResponses.listen(_handleApiResponsesFromIsolate);
   }
 
-  static Future<Worker> spawn(int clientNum) async {
+  static Future<Worker> spawn(pg.Tables table, int clientNum) async {
     // Create a txn receive port and its initial message handler to receive the send port, e.g. a txn connection
     final initTxnReceivePort = RawReceivePort();
     final txnConnection = Completer<(ReceivePort, SendPort)>.sync();
@@ -62,6 +62,7 @@ class Worker {
       await Isolate.spawn(
           _startRemoteIsolate,
           (
+            table,
             clientNum,
             args,
             initTxnReceivePort.sendPort,
@@ -86,11 +87,12 @@ class Worker {
 
   static Future<void> _startRemoteIsolate(message) async {
     final (
+      pg.Tables table,
       int clientNum,
       Map<String, dynamic> mainArgs,
       SendPort txnSendPort,
       SendPort apiSendPort
-    ) = message as (int, Map<String, dynamic>, SendPort, SendPort);
+    ) = message as (pg.Tables, int, Map<String, dynamic>, SendPort, SendPort);
 
     // initialize worker environment, state
     args = mainArgs; // args must be set first in Isolate
@@ -98,12 +100,11 @@ class Worker {
 
     // initialize PostgreSQL
     await pg.init(
-        pg.Tables.lww, false); // database table was initialized in main Isolate
+        table, false); // database table was initialized in main Isolate
     log.info('PostgreSQL connection initialized, connection: ${pg.postgreSQL}');
 
     // initialize PowerSync db
-    await initDb(
-        pg.Tables.lww, '${Directory.current.path}/ps-$clientNum.sqlite3');
+    await initDb(table, '${Directory.current.path}/ps-$clientNum.sqlite3');
     log.info('db initialized: $db');
 
     // Isolate needs to be able to receive txn messages, and message Worker how to send to Isolate's txn receive port
@@ -156,9 +157,9 @@ class Worker {
 
     if (_txnsClosed && _activeTxnRequests.isEmpty) _txnResponses.close();
 
-    // check reads for consistency
+    // check lww reads for consistency
     final op = response as Map<String, dynamic>;
-    if (op['type'] == 'ok' && op['f'] == 'txn') {
+    if (op['table'] == 'lww' && op['type'] == 'ok' && op['f'] == 'txn') {
       final List<Map> value = op['value'];
       value // List of {f: k: v:}
           .where((mop) => mop['f'] == 'r') // only reads

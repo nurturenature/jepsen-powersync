@@ -130,8 +130,9 @@
 (defn invoke
   "Invokes the op against the endpoint and returns the result."
   [op endpoint]
-  (let [body   (->> (select-keys op [:value]) ; only sending :value
-                    op->json)                 ; don't expose rest of op map
+  (let [body   (-> (select-keys op [:value]) ; only sending :value, don't expose rest of op map 
+                   (assoc :table "lww")
+                   op->json)                 ; 
         ]
     (try
       (let [result (http/post endpoint

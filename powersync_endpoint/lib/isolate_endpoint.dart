@@ -5,6 +5,7 @@ import 'package:powersync/sqlite3.dart' as sqlite3;
 import 'args.dart';
 import 'db.dart';
 import 'log.dart';
+import 'postgresql.dart' as pg;
 import 'utils.dart';
 
 final _rng = Random();
@@ -22,12 +23,14 @@ Future<Map> sqlTxn(Map op) async {
   assert(op['f'] == 'txn');
   assert(op['value'].length >= 1);
 
+  final table = op['table']! as String;
+
   await db.writeTransaction((tx) async {
     op['value'].map((mop) async {
       switch (mop['f']) {
         case 'r':
           final select = await tx
-              .getOptional('SELECT k,v from lww where k = ?', [mop['k']]);
+              .getOptional('SELECT k,v from $table where k = ?', [mop['k']]);
           // result row expected as db is pre-seeded
           if (select == null) {
             log.severe(
@@ -35,21 +38,37 @@ Future<Map> sqlTxn(Map op) async {
             exit(127);
           }
 
-          // v == '' is a  null read
-          if ((select['v'] as String) == '') {
-            return mop;
-          } else {
-            // trim leading space that was created on first UPDATE
-            final v = (select['v'] as String).trimLeft();
-            mop['v'] = "[$v]";
-            return mop;
+          switch (table) {
+            case 'lww':
+              // v == '' is a  null read
+              if ((select['v'] as String) == '') {
+                return mop;
+              } else {
+                // trim leading space that was created on first UPDATE
+                final v = (select['v'] as String).trimLeft();
+                mop['v'] = "[$v]";
+                return mop;
+              }
+
+            case 'mww':
+              mop['v'] = select['v'] as int;
+              return mop;
+
+            default:
+              throw StateError('Invalid table value: $table');
           }
 
         case 'append':
           // note: creates leading space on first update, upsert isn't supported
-          final update = await tx.execute(
-              'UPDATE lww SET v = lww.v || \' \' || ? WHERE k = ? RETURNING *',
-              [mop['v'], mop['k']]);
+          final update = switch (table) {
+            'lww' => await tx.execute(
+                'UPDATE lww SET v = lww.v || \' \' || ? WHERE k = ? RETURNING *',
+                [mop['v'], mop['k']]),
+            'mww' => await tx.execute(
+                'UPDATE mww SET v = MAX(mww.v, ?) WHERE k = ? RETURNING *',
+                [mop['v'], mop['k']]),
+            _ => throw StateError('Invalid table value: $table')
+          };
           // result set expected as db is pre-seeded
           if (update.isEmpty) {
             log.severe(
@@ -150,7 +169,11 @@ Future<Map> powersyncApi(Map op) async {
       break;
 
     case 'select-all':
-      op['value']['v'] = await selectAllLWW();
+      op['value']['v'] = switch (op['value']['k']) {
+        'lww' => await selectAllLWW(),
+        'mww' => await selectAllMWW(),
+        _ => throw StateError("Invalid table value: ${op['value']['k']}")
+      };
       break;
 
     default:
@@ -188,11 +211,12 @@ List<Map> _genRandTxn(int num, int value) {
   return txn;
 }
 
-Map<String, dynamic> rndTxnMessage(int count) {
+Map<String, dynamic> rndTxnMessage(pg.Tables table, int count) {
   return Map.of({
     'type': 'invoke',
     'f': 'txn',
-    'value': _genRandTxn(args['maxTxnLen'], count)
+    'value': _genRandTxn(args['maxTxnLen'], count),
+    'table': table.name
   });
 }
 
@@ -227,19 +251,11 @@ Map<String, dynamic> disconnectMessage() {
   });
 }
 
-Map<String, dynamic> rndConnectOrDisconnectMessage() {
-  if (_rng.nextBool()) {
-    return connectMessage();
-  } else {
-    return disconnectMessage();
-  }
-}
-
-Map<String, dynamic> selectAllMessage() {
+Map<String, dynamic> selectAllMessage(pg.Tables table) {
   return Map.of({
     'type': 'invoke',
     'f': 'api',
-    'value': {'f': 'select-all', 'v': <sqlite3.Row>{}}
+    'value': {'f': 'select-all', 'k': table.name, 'v': <sqlite3.Row>{}}
   });
 }
 

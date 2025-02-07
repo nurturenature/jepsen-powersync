@@ -73,14 +73,21 @@ dynamic _txWithRetries(Tables table, List<CrudEntry> crud) async {
               break;
 
             case UpdateType.patch:
-              final patch = switch (table) {
-                Tables.lww => await tx.execute(
+              late Result patch;
+              switch (table) {
+                case Tables.lww:
+                  patch = await tx.execute(
                     'UPDATE ${table.name} SET v = \'${crudEntry.opData!['v']}\' WHERE id = \'${crudEntry.id}\' RETURNING *',
-                  ),
-                Tables.mww => await tx.execute(
-                    'UPDATE ${table.name} SET v = MAX(${crudEntry.opData!['v']}, ${table.name}.v) WHERE id = \'${crudEntry.id}\' RETURNING *',
-                  )
-              };
+                  );
+                  break;
+
+                case Tables.mww:
+                  final v = crudEntry.opData!['v'] as int;
+                  patch = await tx.execute(
+                      'UPDATE ${table.name} SET v = GREATEST($v, ${table.name}.v) WHERE id = \'${crudEntry.id}\' RETURNING *');
+                  break;
+              }
+
               final row = patch // result of UPDATE
                   .single // gets and enforces 1 and only 1 affected row
                   .toColumnMap(); // pretty Map

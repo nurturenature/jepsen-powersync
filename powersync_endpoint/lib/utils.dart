@@ -10,8 +10,8 @@ Map<int, Map<String, dynamic>> mapDiff(String name1, Map<int, dynamic> map1,
   final Map<int, Map<String, dynamic>> diffs = {};
 
   for (int k in map1.keys) {
-    final String? v1 = map1[k];
-    final String? v2 = map2[k];
+    final v1 = map1[k];
+    final v2 = map2[k];
     if (v1 != v2) {
       diffs[k] = {name1: v1, name2: v2};
     }
