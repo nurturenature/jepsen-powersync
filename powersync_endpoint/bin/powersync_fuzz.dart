@@ -169,7 +169,7 @@ Future<void> _checkStrongConvergence(
     pg.Tables table, Set<Worker> clients) async {
   // {pg: {k: v}    k/v for any diffs in any ps-#
   //  ps-#: {k: v}}  k/v for this ps-# diff than pg
-  final Map<String, Map<int, String>> divergent = SplayTreeMap();
+  final Map<String, Map<int, dynamic>> divergent = SplayTreeMap();
   final Map<int, dynamic> finalPgRead = switch (table) {
     pg.Tables.lww => await pg.selectAllLWW(),
     pg.Tables.mww => await pg.selectAllMWW()
