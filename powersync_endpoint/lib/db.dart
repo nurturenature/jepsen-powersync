@@ -202,6 +202,13 @@ bool _ignorableDownloadError(Object ex) {
     return true;
   }
 
+  // exposed by disconnect-connect nemesis
+  if (ex is SyncResponseException &&
+      ex.statusCode == 401 &&
+      ex.description.startsWith('"exp" claim timestamp check failed')) {
+    return true;
+  }
+
   // don't ignore unexpected
   return false;
 }

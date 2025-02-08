@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 import 'package:list_utilities/list_utilities.dart';
 import 'package:powersync_endpoint/args.dart';
+import 'package:powersync_endpoint/causal_checker.dart';
 import 'package:powersync_endpoint/isolate_endpoint.dart';
 import 'package:powersync_endpoint/log.dart';
 import 'package:powersync_endpoint/postgresql.dart' as pg;
@@ -40,6 +41,9 @@ void main(List<String> arguments) async {
     clientFutures.add(Worker.spawn(table, clientNum));
   }
   Set<Worker> clients = Set.from(await clientFutures.wait);
+
+  // create a causal consistency checker
+  final causalChecker = CausalChecker(args['clients'], args['keys']);
 
   // Stream of disconnect/connect messages
   final ConnectionState connectionState = ConnectionState();
@@ -105,7 +109,12 @@ void main(List<String> arguments) async {
 
   // each sql txn message from the Stream is individually sent to a random client
   sqlTxnStream.listen((sqlTxnMessage) async {
-    await clients.random().executeTxn(sqlTxnMessage);
+    final op = (await clients.random().executeTxn(sqlTxnMessage))
+        as Map<String, dynamic>;
+    if (!causalChecker.checkOp(op)) {
+      log.severe('Causal Consistency check failed for op: $op');
+      exit(127);
+    }
   }).onDone(() async {
     // stop disconnecting/connection
     if (args['disconnect']) {

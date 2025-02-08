@@ -186,7 +186,7 @@ Future<Map> powersyncApi(Map op) async {
 }
 
 List<Map> _genRandTxn(int num, int value) {
-  final List<Map> txn = [];
+  final List<Map<String, dynamic>> txn = [];
   final Set<int> appendedKeys = {};
 
   for (var i = 0; i < num; i++) {
