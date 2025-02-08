@@ -82,6 +82,7 @@ dynamic _txWithRetries(Tables table, List<CrudEntry> crud) async {
                   break;
 
                 case Tables.mww:
+                  // max write wins, so GREATEST() value of v
                   final v = crudEntry.opData!['v'] as int;
                   patch = await tx.execute(
                       'UPDATE ${table.name} SET v = GREATEST($v, ${table.name}.v) WHERE id = \'${crudEntry.id}\' RETURNING *');

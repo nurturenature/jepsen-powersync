@@ -59,16 +59,17 @@ Future<Map> sqlTxn(Map op) async {
           }
 
         case 'append':
-          // note: creates leading space on first update, upsert isn't supported
           final update = switch (table) {
+            // note: creates leading space on first update, upsert isn't supported
             'lww' => await tx.execute(
                 'UPDATE lww SET v = lww.v || \' \' || ? WHERE k = ? RETURNING *',
                 [mop['v'], mop['k']]),
             'mww' => await tx.execute(
-                'UPDATE mww SET v = MAX(mww.v, ?) WHERE k = ? RETURNING *',
+                'UPDATE mww SET v = ? WHERE k = ? RETURNING *',
                 [mop['v'], mop['k']]),
             _ => throw StateError('Invalid table value: $table')
           };
+
           // result set expected as db is pre-seeded
           if (update.isEmpty) {
             log.severe(
