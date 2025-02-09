@@ -9,7 +9,8 @@ class CausalChecker {
 
   CausalChecker(this._numClients, this._numKeys) {
     _clientStates = {};
-    for (var clientNum = 1; clientNum <= _numClients; clientNum++) {
+    // clientNum 0 reserved for pseudo client PG
+    for (var clientNum = 0; clientNum <= _numClients; clientNum++) {
       _clientStates
           .addEntries([MapEntry(clientNum, List.filled(_numKeys, -1))]);
     }
@@ -37,7 +38,7 @@ class CausalChecker {
         case 'r':
           // must read a null, -1, or a value that was written
           if (v != -1 && _mwWfrStates[(k, v)] == null) {
-            _debug();
+            debug();
             log.severe(
                 'reading a k/v: $k/$v that was never written in op: $op');
             return false;
@@ -46,7 +47,7 @@ class CausalChecker {
           // monotonic reads, monotonic writes, read your writes, writes follow reads
           //   - read value must be >= prev value
           if (v < _clientStates[clientNum]![k]) {
-            _debug();
+            debug();
             log.severe(
                 'value of read k/v: $k/$v is less than expected value: ${_clientStates[clientNum]![k]} in op: $op');
             return false;
@@ -73,7 +74,7 @@ class CausalChecker {
         case 'append':
           // writes must be unique
           if (_mwWfrStates[(k, v)] != null) {
-            _debug();
+            debug();
             log.severe(
                 'writing a k/v: $k/$v that was already written in op: $op');
             return false;
@@ -82,7 +83,7 @@ class CausalChecker {
           // monotonic reads, monotonic writes, read your writes, writes follow reads
           //   - write value must be > prev value
           if (v <= _clientStates[clientNum]![k]) {
-            _debug();
+            debug();
             log.severe(
                 'value of write: $v is less than or equal previous value: ${_clientStates[clientNum]![k]} in op: $op');
             return false;
@@ -106,9 +107,9 @@ class CausalChecker {
     return true;
   }
 
-  void _debug() {
+  void debug() {
     log.info('causal client states:');
-    for (var clientNum = 1; clientNum <= _numClients; clientNum++) {
+    for (var clientNum = 0; clientNum <= _numClients; clientNum++) {
       log.info('\t$clientNum: ${_clientStates[clientNum]}');
     }
 

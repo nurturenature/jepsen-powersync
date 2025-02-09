@@ -115,6 +115,9 @@ void main(List<String> arguments) async {
       log.severe('Causal Consistency check failed for op: $op');
       exit(127);
     }
+
+    // TODO: always check PG?
+    _causalCheckPg(causalChecker);
   }).onDone(() async {
     // stop disconnecting/connection
     if (args['disconnect']) {
@@ -219,6 +222,28 @@ Future<void> _checkStrongConvergence(
       }
     }
     log.severe(':(');
+    exit(127);
+  }
+}
+
+// read all k/v from PG and check for Causal Consistency
+// assume we're pseudo clientNum 0
+Future<void> _causalCheckPg(CausalChecker causalChecker) async {
+  final allKV = await pg.selectAllMWW();
+  final List<Map<String, dynamic>> opValue = [];
+  for (final kv in allKV.entries) {
+    opValue.add({'f': 'r', 'k': kv.key, 'v': kv.value});
+  }
+  final op = {
+    'type': 'ok',
+    'f': 'txn',
+    'value': opValue,
+    'table': 'mww',
+    'clientNum': 0
+  };
+
+  if (!causalChecker.checkOp(op)) {
+    log.severe('Failed checking PG for Causal Consistency!');
     exit(127);
   }
 }
