@@ -38,6 +38,13 @@ Future<Map> sqlTxn(Map op) async {
             exit(127);
           }
 
+          // literal null read is an error, db is pre-seeded
+          if (select['v'] == null) {
+            log.severe(
+                "Literal null read for key: ${mop['k']} in mop: $mop in op: $op");
+            exit(127);
+          }
+
           switch (table) {
             case 'lww':
               // v == '' is a  null read
