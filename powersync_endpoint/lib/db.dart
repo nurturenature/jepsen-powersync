@@ -191,6 +191,13 @@ bool _ignorableUploadError(Object ex) {
     return true;
   }
 
+  // exposed by disconnect-connect nemesis
+  if (ex is SyncResponseException &&
+      ex.statusCode == 429 &&
+      ex.description.startsWith('Too Many Requests')) {
+    return true;
+  }
+
   // don't ignore unexpected
   return false;
 }
