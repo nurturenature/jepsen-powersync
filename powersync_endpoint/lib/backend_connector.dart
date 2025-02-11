@@ -45,8 +45,8 @@ const _retryablePgErrors = {
 // - persistent retries
 //   - relative large max to keep LWW fair(er)
 const _minRetryDelay = 32; // in ms, each retry delay is min <= random <= max
-const _maxRetryDelay = 256;
-const _maxRetries = 32;
+const _maxRetryDelay = 512;
+const _maxRetries = 64;
 final _rng = Random();
 
 dynamic _txWithRetries(Tables table, List<CrudEntry> crud) async {
