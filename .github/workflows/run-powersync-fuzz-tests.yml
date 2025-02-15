@@ -1,0 +1,132 @@
+name: Run Powersync Fuzz Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      clients:
+        description: 'Clients (as JSON)'
+        type: string
+        required: true
+        default: "[ '5', '10' ]"
+      postgresql:
+        description: '[no-]postgresql (as JSON)'
+        type: string
+        required: true
+        default: "[ 'no-postgresql', 'postgresql' ]"
+      rates:
+        description: 'Rates (as JSON)'
+        type: string
+        required: true
+        default: "[ '10', '20', '30', '40', '50' ]"
+      times:
+        description: 'Time limits (as JSON)'
+        type: string
+        required: true
+        default: "[ '100', '200', '300' ]"
+      disconnect:
+        description: '[no-]disconnect (as JSON)'
+        type: string
+        required: true
+        default: "[ 'no-disconnect', 'disconnect' ]"
+      powersync-image-tag:
+        description: PowerSync Image Tag
+        type: string
+        required: true
+        default: latest
+       
+  workflow_call:
+    inputs:
+      clients:
+        description: 'Clients (as JSON)'
+        type: string
+        required: false
+        default: "[ '5', '10' ]"
+      postgresql:
+        description: '[no-]postgresql (as JSON)'
+        type: string
+        required: false
+        default: "[ 'no-postgresql', 'postgresql' ]"
+      rates:
+        description: 'Rates (as JSON)'
+        type: string
+        required: false
+        default: "[ '10', '20', '30', '40', '50' ]"
+      times:
+        description: 'Time limits (as JSON)'
+        type: string
+        required: false
+        default: "[ '100', '200', '300' ]"
+      disconnect:
+        description: '[no-]disconnect (as JSON)'
+        type: string
+        required: false
+        default: "[ 'no-disconnect', 'disconnect' ]"
+      powersync-image-tag:
+        description: PowerSync Image Tag
+        type: string
+        required: false
+        default: latest
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        clients:    ${{ fromJSON(inputs.clients) }}
+        postgresql: ${{ fromJSON(inputs.postgresql) }}
+        rate:       ${{ fromJSON(inputs.rates) }}
+        time:       ${{ fromJSON(inputs.times) }}
+        disconnect: ${{ fromJSON(inputs.disconnect) }}      
+
+    env:
+      test-title: ${{ matrix.clients}} $${{ matrix.postgresql }} ${{ matrix.rate }}tps-${{ matrix.time }}s-${{ matrix.disconnect }}
+      POWERSYNC_IMAGE_TAG: ${{ inputs.powersync-image-tag }}
+
+    steps:  
+      - name: Checkout jepsen-powersync
+        uses: actions/checkout@v4
+      
+      - name: Bring Up Docker Environment
+        run: |
+          cd $GITHUB_WORKSPACE/docker
+          ./powersync-fuzz-build.sh
+          ./powersync-fuzz-compose-up.sh
+          
+      - name: ${{ env.test-title }}
+        run: |
+          cd $GITHUB_WORKSPACE/docker
+          ./powersync-fuzz-run.sh ./powersync_fuzz                \
+                                  --table mww                     \
+                                  --clients ${{ matrix.clients }} \
+                                  --${{ matrix.postgresql}}       \
+                                  --rate ${{ matrix.rate }}       \
+                                  --time ${{ matrix.time }}       \ 
+                                  --${{ matrix.disconnect }}
+                                   
+      - name: PowerSync Fuzz, Service, PostgreSQL, and Mongo Logs
+        if: ${{ always() }}
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/artifacts
+          docker logs powersync     &> $GITHUB_WORKSPACE/artifacts/powersync.log     || echo "no docker logs" > $GITHUB_WORKSPACE/artifacts/powersync.log
+          docker logs pg-db         &> $GITHUB_WORKSPACE/artifacts/pg-db.log         || echo "no docker logs" > $GITHUB_WORKSPACE/artifacts/pg-db.log
+          docker logs mongo         &> $GITHUB_WORKSPACE/artifacts/mongo.log         || echo "no docker logs" > $GITHUB_WORKSPACE/artifacts/mongo.log
+          docker logs mongo-rs-init &> $GITHUB_WORKSPACE/artifacts/mongo-rs-init.log || echo "no docker logs" > $GITHUB_WORKSPACE/artifacts/mongo-rs-init.log
+          docker cp powersync-fuzz-node:/powersync_endpoint/powersync_fuzz.log $GITHUB_WORKSPACE/artifacts
+
+      - name: 'PowerSync Fuzz Test Artifacts: powersync_fuzz.log'
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: '${{ env.test-title }}-powersync_fuzz.log'
+          path: |
+            ${{ github.workspace }}/artifacts/powersync_fuzz.log
+            
+      - name: 'PowerSync Fuzz Test Artifacts: full'
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: '${{ env.test-title }}-${{ job.status }}'
+          path: |
+            ${{ github.workspace }}/artifacts
