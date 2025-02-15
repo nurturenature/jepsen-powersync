@@ -4,11 +4,14 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart';
 import 'package:shelf_router/shelf_router.dart';
 import 'args.dart';
-import 'isolate_endpoint.dart' as ep;
+import 'ps_endpoint.dart' as pse;
 import 'log.dart';
 
-/// Global Jepsen endpoint.
+/// Global Jepsen http endpoint.
 late HttpServer endpoint;
+
+// my PowerSync endpoint
+final _pse = pse.PSEndpoint();
 
 final _ip = InternetAddress.anyIPv4;
 final int _port = args['httpPort'];
@@ -27,7 +30,7 @@ Future<Response> _sqlTxn(Request req) async {
 
   log.fine('txn request: $reqOp');
 
-  final resOp = await ep.sqlTxn(reqOp);
+  final resOp = await _pse.sqlTxn(reqOp);
 
   log.fine('txn response: $resOp');
 
@@ -43,28 +46,29 @@ Future<Response> _powersync(Request req, String action) async {
 
   switch (action) {
     case 'connect':
-      response = (await ep.powersyncApi(ep.connectMessage()))['value']['v'];
+      response = (await _pse.powersyncApi(_pse.connectMessage()))['value']['v'];
       response['db.currentStatus'] = response['db.currentStatus'].toString();
       break;
 
     case 'disconnect':
-      response = (await ep.powersyncApi(ep.disconnectMessage()))['value']['v'];
+      response =
+          (await _pse.powersyncApi(_pse.disconnectMessage()))['value']['v'];
       response['db.currentStatus'] = response['db.currentStatus'].toString();
       break;
 
     case 'upload-queue-count':
-      response =
-          (await ep.powersyncApi(ep.uploadQueueCountMessage()))['value']['v'];
+      response = (await _pse
+          .powersyncApi(_pse.uploadQueueCountMessage()))['value']['v'];
       break;
 
     case 'upload-queue-wait':
-      response =
-          (await ep.powersyncApi(ep.uploadQueueWaitMessage()))['value']['v'];
+      response = (await _pse
+          .powersyncApi(_pse.uploadQueueWaitMessage()))['value']['v'];
       break;
 
     case 'downloading-wait':
-      response =
-          (await ep.powersyncApi(ep.downloadingWaitMessage()))['value']['v'];
+      response = (await _pse
+          .powersyncApi(_pse.downloadingWaitMessage()))['value']['v'];
       break;
 
     default:

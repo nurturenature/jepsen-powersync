@@ -5,7 +5,7 @@ import 'dart:math';
 import 'package:list_utilities/list_utilities.dart';
 import 'package:powersync_endpoint/args.dart';
 import 'package:powersync_endpoint/causal_checker.dart';
-import 'package:powersync_endpoint/isolate_endpoint.dart';
+import 'package:powersync_endpoint/endpoint.dart' as ep;
 import 'package:powersync_endpoint/log.dart';
 import 'package:powersync_endpoint/postgresql.dart' as pg;
 import 'package:powersync_endpoint/pg_endpoint.dart' as pge;
@@ -14,6 +14,8 @@ import 'package:powersync_endpoint/utils.dart' as utils;
 import 'package:powersync_endpoint/worker.dart';
 
 final _rng = Random();
+
+final _pse = pse.PSEndpoint();
 
 void main(List<String> arguments) async {
   // parse args, set defaults, must be 1st in main
@@ -52,8 +54,8 @@ void main(List<String> arguments) async {
   final causalChecker = CausalChecker(args['clients'], args['keys']);
 
   // Stream of disconnect/connect messages
-  final ConnectionState connectionState = ConnectionState();
-  Stream<ConnectionStates> disconnectConnectStream() async* {
+  final ep.ConnectionState connectionState = ep.ConnectionState();
+  Stream<ep.ConnectionStates> disconnectConnectStream() async* {
     final maxInterval = args['interval'] * 1000 * 2; // in ms
     while (true) {
       await utils.futureSleep(_rng.nextInt(maxInterval));
@@ -63,7 +65,7 @@ void main(List<String> arguments) async {
 
   // each disconnect message from the Stream is individually sent to a random majority of clients
   // each connect message from the Stream is individually sent to all clients
-  late StreamSubscription<ConnectionStates> disconnectConnectSubscription;
+  late StreamSubscription<ep.ConnectionStates> disconnectConnectSubscription;
   if (args['disconnect']) {
     log.info('starting stream of disconnect/connect messages...');
     disconnectConnectSubscription =
@@ -71,13 +73,13 @@ void main(List<String> arguments) async {
       late Set<Worker> affectedClients;
       late Map<String, dynamic> disconnectConnectMessage;
       switch (connectionStateMessage) {
-        case ConnectionStates.disconnected:
+        case ep.ConnectionStates.disconnected:
           affectedClients = clients.getRandom((clients.length / 2).ceil());
-          disconnectConnectMessage = disconnectMessage();
+          disconnectConnectMessage = _pse.disconnectMessage();
           break;
-        case ConnectionStates.connected:
+        case ep.ConnectionStates.connected:
           affectedClients = clients;
-          disconnectConnectMessage = connectMessage();
+          disconnectConnectMessage = _pse.connectMessage();
           break;
       }
 
@@ -96,7 +98,7 @@ void main(List<String> arguments) async {
       final List<Future<Map>> uploadQueueCountFutures = [];
       for (Worker client in affectedClients) {
         uploadQueueCountFutures
-            .add(client.executeApi(uploadQueueCountMessage()));
+            .add(client.executeApi(_pse.uploadQueueCountMessage()));
       }
       await uploadQueueCountFutures.wait;
     });
@@ -109,7 +111,7 @@ void main(List<String> arguments) async {
           .periodic(
           Duration(milliseconds: (1000 / args['rate']).floor()),
           // using reads/appends against random keys with a sequential value
-          (value) => rndTxnMessage(table, value))
+          (value) => _pse.rndTxnMessage(table, value))
       // for a total # of txns
       .take(args['time'] * args['rate']);
 
@@ -138,7 +140,7 @@ void main(List<String> arguments) async {
       log.info('insuring all clients are connected');
       final List<Future> connectingClients = [];
       for (Worker client in clients) {
-        connectingClients.add(client.executeApi(connectMessage()));
+        connectingClients.add(client.executeApi(_pse.connectMessage()));
       }
       await connectingClients.wait;
     }
@@ -152,8 +154,8 @@ void main(List<String> arguments) async {
     final List<Future> uploadQueueFutures = [];
     for (Worker client in clients) {
       uploadQueueFutures.addAll([
-        client.executeApi(uploadQueueCountMessage()),
-        client.executeApi(uploadQueueWaitMessage())
+        client.executeApi(_pse.uploadQueueCountMessage()),
+        client.executeApi(_pse.uploadQueueWaitMessage())
       ]);
     }
     await uploadQueueFutures.wait;
@@ -162,7 +164,7 @@ void main(List<String> arguments) async {
     log.info('wait for downloading to be false in clients');
     final List<Future> downloadingWaits = [];
     for (Worker client in clients) {
-      downloadingWaits.add(client.executeApi(downloadingWaitMessage()));
+      downloadingWaits.add(client.executeApi(_pse.downloadingWaitMessage()));
     }
     await downloadingWaits.wait;
 
@@ -194,7 +196,7 @@ Future<void> _checkStrongConvergence(
   };
   for (Worker client in clients) {
     final Map<int, dynamic> finalPsRead =
-        (await client.executeApi(selectAllMessage(table)))['value']['v'];
+        (await client.executeApi(_pse.selectAllMessage(table)))['value']['v'];
     for (final int k in finalPgRead.keys) {
       final pgV = finalPgRead[k]!;
       final psV = finalPsRead[k]!;
