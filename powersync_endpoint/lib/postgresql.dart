@@ -14,6 +14,7 @@ Future<void> init(Tables table, bool initData) async {
   postgreSQL = await Connection.open(
       Endpoint(
           host: args['PG_DATABASE_HOST']!,
+          port: args['PG_DATABASE_PORT']!,
           database: args['PG_DATABASE_NAME']!,
           username: args['PG_DATABASE_USER']!,
           password: args['PG_DATABASE_PASSWORD']!),
