@@ -97,13 +97,13 @@ jobs:
       - name: ${{ env.test-title }}
         run: |
           cd $GITHUB_WORKSPACE/docker
-          ./powersync-fuzz-run.sh ./powersync_fuzz                \
-                                  --table mww                     \
-                                  --clients ${{ matrix.clients }} \
-                                  --${{ matrix.postgresql}}       \
-                                  --rate ${{ matrix.rate }}       \
-                                  --time ${{ matrix.time }}       \ 
-                                  --${{ matrix.disconnect }}
+          ./powersync-fuzz-run.sh ./powersync_fuzz                    \
+                                  --table mww                         \
+                                  --clients ${{ matrix.clients }}     \
+                                  ${{ '--' }}${{ matrix.postgresql }} \
+                                  --rate ${{ matrix.rate }}           \
+                                  --time ${{ matrix.time }}           \ 
+                                  ${{ '--' }}${{ matrix.disconnect }}
                                    
       - name: PowerSync Fuzz, Service, PostgreSQL, and Mongo Logs
         if: ${{ always() }}
