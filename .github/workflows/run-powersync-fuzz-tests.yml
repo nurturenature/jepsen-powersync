@@ -8,11 +8,6 @@ on:
         type: string
         required: true
         default: "[ '5', '10' ]"
-      postgresql:
-        description: '[no-]postgresql (as JSON)'
-        type: string
-        required: true
-        default: "[ 'no-postgresql', 'postgresql' ]"
       rates:
         description: 'Rates (as JSON)'
         type: string
@@ -23,11 +18,16 @@ on:
         type: string
         required: true
         default: "[ '100', '200', '300' ]"
-      disconnect:
-        description: '[no-]disconnect (as JSON)'
+      postgresql:
+        description: '--[no-]postgresql (as JSON)'
         type: string
         required: true
-        default: "[ 'no-disconnect', 'disconnect' ]"
+        default: "[ '--no-postgresql', '--postgresql' ]"
+      disconnect:
+        description: '--[no-]disconnect (as JSON)'
+        type: string
+        required: true
+        default: "[ '--no-disconnect', '--disconnect' ]"
       powersync-image-tag:
         description: PowerSync Image Tag
         type: string
@@ -41,11 +41,6 @@ on:
         type: string
         required: false
         default: "[ '5', '10' ]"
-      postgresql:
-        description: '[no-]postgresql (as JSON)'
-        type: string
-        required: false
-        default: "[ 'no-postgresql', 'postgresql' ]"
       rates:
         description: 'Rates (as JSON)'
         type: string
@@ -56,11 +51,16 @@ on:
         type: string
         required: false
         default: "[ '100', '200', '300' ]"
-      disconnect:
-        description: '[no-]disconnect (as JSON)'
+      postgresql:
+        description: '--[no-]postgresql (as JSON)'
         type: string
         required: false
-        default: "[ 'no-disconnect', 'disconnect' ]"
+        default: "[ '--no-postgresql', '--postgresql' ]"
+      disconnect:
+        description: '--[no-]disconnect (as JSON)'
+        type: string
+        required: false
+        default: "[ '--no-disconnect', '--disconnect' ]"
       powersync-image-tag:
         description: PowerSync Image Tag
         type: string
@@ -75,13 +75,13 @@ jobs:
       fail-fast: false
       matrix:
         clients:    ${{ fromJSON(inputs.clients) }}
-        postgresql: ${{ fromJSON(inputs.postgresql) }}
         rate:       ${{ fromJSON(inputs.rates) }}
         time:       ${{ fromJSON(inputs.times) }}
+        postgresql: ${{ fromJSON(inputs.postgresql) }}
         disconnect: ${{ fromJSON(inputs.disconnect) }}      
 
     env:
-      test-title: ${{ matrix.clients}} $${{ matrix.postgresql }} ${{ matrix.rate }}tps-${{ matrix.time }}s-${{ matrix.disconnect }}
+      test-title: ${{ matrix.clients}}c-${{ matrix.rate }}tps-${{ matrix.time }}s-$${{ matrix.postgresql }}-${{ matrix.disconnect }}
       POWERSYNC_IMAGE_TAG: ${{ inputs.powersync-image-tag }}
 
     steps:  
@@ -100,10 +100,10 @@ jobs:
           ./powersync-fuzz-run.sh ./powersync_fuzz                    \
                                   --table mww                         \
                                   --clients ${{ matrix.clients }}     \
-                                  ${{ '--' }}${{ matrix.postgresql }} \
                                   --rate ${{ matrix.rate }}           \
                                   --time ${{ matrix.time }}           \ 
-                                  ${{ '--' }}${{ matrix.disconnect }}
+                                  ${{ matrix.postgresql }}            \
+                                  ${{ matrix.disconnect }}
                                    
       - name: PowerSync Fuzz, Service, PostgreSQL, and Mongo Logs
         if: ${{ always() }}
