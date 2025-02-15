@@ -37,7 +37,7 @@ void parseArgs(List<String> arguments) {
     args['logLevel'] = results.option('logLevel')!;
     // PostgreSQL
     args['PG_DATABASE_HOST'] = results.option('PG_DATABASE_HOST')!;
-    args['PG_DATABASE_PORT'] = results.option('PG_DATABASE_PORT')!;
+    args['PG_DATABASE_PORT'] = int.parse(results.option('PG_DATABASE_PORT')!);
     args['PG_DATABASE_NAME'] = results.option('PG_DATABASE_NAME')!;
     args['PG_DATABASE_USER'] = results.option('PG_DATABASE_USER')!;
     args['PG_DATABASE_PASSWORD'] = results.option('PG_DATABASE_PASSWORD')!;
@@ -60,7 +60,7 @@ void parseArgs(List<String> arguments) {
 ArgParser _buildParser() {
   return ArgParser()
     ..addOption('table',
-        allowed: ['lww', 'mww'], mandatory: true, help: 'table name/type')
+        allowed: ['lww', 'mww'], defaultsTo: 'mww', help: 'table name/type')
     ..addOption('clients',
         abbr: 'c', defaultsTo: '5', help: 'number of PowerSync clients')
     ..addFlag('postgresql',
