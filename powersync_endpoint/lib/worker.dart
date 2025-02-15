@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:isolate';
 import 'package:powersync_endpoint/args.dart';
 import 'package:powersync_endpoint/db.dart';
-import 'package:powersync_endpoint/isolate_endpoint.dart';
+import 'package:powersync_endpoint/endpoint.dart';
 import 'package:powersync_endpoint/log.dart';
 import 'package:powersync_endpoint/postgresql.dart' as pg;
 import 'package:powersync_endpoint/utils.dart';
@@ -34,7 +34,8 @@ class Worker {
     _apiResponses.listen(_handleApiResponsesFromIsolate);
   }
 
-  static Future<Worker> spawn(pg.Tables table, int clientNum) async {
+  static Future<Worker> spawn(
+      pg.Tables table, int clientNum, Endpoint endpoint) async {
     // Create a txn receive port and its initial message handler to receive the send port, e.g. a txn connection
     final initTxnReceivePort = RawReceivePort();
     final txnConnection = Completer<(ReceivePort, SendPort)>.sync();
@@ -66,7 +67,8 @@ class Worker {
             clientNum,
             args,
             initTxnReceivePort.sendPort,
-            initApiReceivePort.sendPort
+            initApiReceivePort.sendPort,
+            endpoint
           ),
           debugName: 'ps-$clientNum');
     } on Object {
@@ -91,8 +93,16 @@ class Worker {
       int clientNum,
       Map<String, dynamic> mainArgs,
       SendPort txnSendPort,
-      SendPort apiSendPort
-    ) = message as (pg.Tables, int, Map<String, dynamic>, SendPort, SendPort);
+      SendPort apiSendPort,
+      Endpoint endpoint
+    ) = message as (
+      pg.Tables,
+      int,
+      Map<String, dynamic>,
+      SendPort,
+      SendPort,
+      Endpoint
+    );
 
     // initialize worker environment, state
     args = mainArgs; // args must be set first in Isolate
@@ -116,12 +126,12 @@ class Worker {
     apiSendPort.send(apiReceivePort.sendPort);
 
     // setup Isolate to handle incoming commands, send responses
-    _handleTxnRequestsToIsolate(txnReceivePort, txnSendPort);
-    _handleApiRequestsToIsolate(apiReceivePort, apiSendPort);
+    _handleTxnRequestsToIsolate(txnReceivePort, txnSendPort, endpoint);
+    _handleApiRequestsToIsolate(apiReceivePort, apiSendPort, endpoint);
   }
 
   static void _handleTxnRequestsToIsolate(
-      ReceivePort receivePort, SendPort sendPort) {
+      ReceivePort receivePort, SendPort sendPort, Endpoint endpoint) {
     // listen for commands sent to the Isolate
     receivePort.listen((message) async {
       // shutdown?
@@ -135,7 +145,7 @@ class Worker {
       try {
         log.fine('txn request: $txn');
 
-        await sqlTxn(txn);
+        await endpoint.sqlTxn(txn);
 
         log.fine('txn response: $txn');
         sendPort.send((id, txn));
@@ -175,7 +185,7 @@ class Worker {
   }
 
   static void _handleApiRequestsToIsolate(
-      ReceivePort receivePort, SendPort sendPort) {
+      ReceivePort receivePort, SendPort sendPort, Endpoint endpoint) {
     // listen for commands sent to the Isolate
     receivePort.listen((message) async {
       // shutdown?
@@ -189,7 +199,7 @@ class Worker {
       try {
         log.fine('api request: $api');
 
-        await powersyncApi(api);
+        await endpoint.powersyncApi(api);
 
         log.fine('api response: $api');
         sendPort.send((id, api));

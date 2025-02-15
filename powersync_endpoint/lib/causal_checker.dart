@@ -27,6 +27,12 @@ class CausalChecker {
       'clientNum': int clientNum
     } = op;
 
+    // ok for PostgreSQL, client 0, to have an error op, e.g. concurrent access
+    // if so, it's a no-op re updating any state
+    if (clientNum == 0 && type == 'error') {
+      return true;
+    }
+
     // must be an op of interest
     if (type != 'ok' || f != 'txn' || value.isEmpty || table != 'mww') {
       throw StateError('Invalid request to check op: $op');

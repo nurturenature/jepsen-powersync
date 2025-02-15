@@ -22,6 +22,7 @@ void parseArgs(List<String> arguments) {
     // set args based on CLI or defaults
     args['table'] = results.option('table')!;
     args['clients'] = int.parse(results.option('clients')!);
+    args['postgresql'] = results.flag('postgresql');
     // txn values
     args['keys'] = int.parse(results.option('keys')!);
     args['rate'] = int.parse(results.option('rate')!);
@@ -62,6 +63,8 @@ ArgParser _buildParser() {
         allowed: ['lww', 'mww'], mandatory: true, help: 'table name/type')
     ..addOption('clients',
         abbr: 'c', defaultsTo: '5', help: 'number of PowerSync clients')
+    ..addFlag('postgresql',
+        defaultsTo: false, negatable: true, help: 'include a postgresql client')
     // txn values
     ..addOption('keys', abbr: 'k', defaultsTo: '100', help: 'number of keys')
     ..addOption('rate',

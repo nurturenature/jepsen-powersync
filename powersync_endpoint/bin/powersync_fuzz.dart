@@ -8,6 +8,8 @@ import 'package:powersync_endpoint/causal_checker.dart';
 import 'package:powersync_endpoint/isolate_endpoint.dart';
 import 'package:powersync_endpoint/log.dart';
 import 'package:powersync_endpoint/postgresql.dart' as pg;
+import 'package:powersync_endpoint/pg_endpoint.dart' as pge;
+import 'package:powersync_endpoint/ps_endpoint.dart' as pse;
 import 'package:powersync_endpoint/utils.dart' as utils;
 import 'package:powersync_endpoint/worker.dart';
 
@@ -38,9 +40,13 @@ void main(List<String> arguments) async {
   log.info('creating ${args["clients"]} clients');
   final List<Future<Worker>> clientFutures = [];
   for (var clientNum = 1; clientNum <= args['clients']; clientNum++) {
-    clientFutures.add(Worker.spawn(table, clientNum));
+    clientFutures.add(Worker.spawn(table, clientNum, pse.PSEndpoint()));
   }
   Set<Worker> clients = Set.from(await clientFutures.wait);
+  // include a PostgreSQL client?
+  if (args['postgresql']) {
+    clients.add(await Worker.spawn(table, 0, pge.PGEndpoint()));
+  }
 
   // create a causal consistency checker
   final causalChecker = CausalChecker(args['clients'], args['keys']);
