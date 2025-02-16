@@ -81,7 +81,7 @@ jobs:
         disconnect: ${{ fromJSON(inputs.disconnect) }}      
 
     env:
-      test-title: ${{ matrix.clients}}c-${{ matrix.rate }}tps-${{ matrix.time }}s-$${{ matrix.postgresql }}-${{ matrix.disconnect }}
+      test-title: ${{ matrix.clients}}c-${{ matrix.rate }}tps-${{ matrix.time }}s-${{ matrix.postgresql }}-${{ matrix.disconnect }}
       POWERSYNC_IMAGE_TAG: ${{ inputs.powersync-image-tag }}
 
     steps:  
@@ -93,6 +93,9 @@ jobs:
           cd $GITHUB_WORKSPACE/docker
           ./powersync-fuzz-build.sh
           ./powersync-fuzz-compose-up.sh
+          docker network ls
+          docker network inspect powersync-fuzz_powersync-fuzz
+          docker container inspect pg-db
           
       - name: ${{ env.test-title }}
         run: |
