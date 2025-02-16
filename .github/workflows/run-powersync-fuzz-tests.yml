@@ -104,7 +104,7 @@ jobs:
                                   --table mww                         \
                                   --clients ${{ matrix.clients }}     \
                                   --rate ${{ matrix.rate }}           \
-                                  --time ${{ matrix.time }}           \ 
+                                  --time ${{ matrix.time }}           \
                                   ${{ matrix.postgresql }}            \
                                   ${{ matrix.disconnect }}
                                    
