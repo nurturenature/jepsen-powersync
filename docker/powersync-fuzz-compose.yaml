@@ -1,7 +1,7 @@
 name: powersync-fuzz
 
-networks:
-  powersync-fuzz:
+# networks:
+#   powersync-fuzz:
 
 services:
   powersync-fuzz-node:
@@ -10,23 +10,23 @@ services:
     hostname: powersync-fuzz-node
     tty: true
     stop_signal: SIGRTMIN+3
-    networks:
-      - powersync-fuzz
+    # networks:
+    #   - powersync-fuzz
     depends_on:
       powersync:
         condition: service_started
 
-  pg-db:
-    networks:
-      - powersync-fuzz
+  # pg-db:
+  #   networks:
+  #     - powersync-fuzz
 
-  mongo:
-    networks:
-      - powersync-fuzz
-  mongo-rs-init:
-    networks:
-      - powersync-fuzz
+  # mongo:
+  #   networks:
+  #     - powersync-fuzz
+  # mongo-rs-init:
+  #   networks:
+  #     - powersync-fuzz
 
-  powersync:
-    networks:
-      - powersync-fuzz
+  # powersync:
+  #   networks:
+  #     - powersync-fuzz
