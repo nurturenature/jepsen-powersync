@@ -1,5 +1,6 @@
 import 'package:postgres/postgres.dart';
 import 'args.dart';
+import 'log.dart';
 
 /// Assuming single use of `backendConnector` `uploadData`, i.e. single Postgres connection appropriate
 
@@ -10,15 +11,18 @@ late Connection postgreSQL;
 enum Tables { lww, mww }
 
 Future<void> init(Tables table, bool initData) async {
+  final endpoint = Endpoint(
+      host: args['PG_DATABASE_HOST']!,
+      port: args['PG_DATABASE_PORT']!,
+      database: args['PG_DATABASE_NAME']!,
+      username: args['PG_DATABASE_USER']!,
+      password: args['PG_DATABASE_PASSWORD']!);
   final settings = ConnectionSettings(sslMode: SslMode.disable);
-  postgreSQL = await Connection.open(
-      Endpoint(
-          host: args['PG_DATABASE_HOST']!,
-          port: args['PG_DATABASE_PORT']!,
-          database: args['PG_DATABASE_NAME']!,
-          username: args['PG_DATABASE_USER']!,
-          password: args['PG_DATABASE_PASSWORD']!),
-      settings: settings);
+
+  log.config(
+      'connecting to PostgreSQL @ ${endpoint.host}:${endpoint.port}/${endpoint.database} as ${endpoint.username}/${endpoint.password} with socket: ${endpoint.isUnixSocket}');
+
+  postgreSQL = await Connection.open(endpoint, settings: settings);
 
   // start test from a known state?
   if (initData) {
