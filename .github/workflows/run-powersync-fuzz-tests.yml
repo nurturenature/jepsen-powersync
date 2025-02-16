@@ -94,7 +94,7 @@ jobs:
           ./powersync-fuzz-build.sh
           ./powersync-fuzz-compose-up.sh
           docker network ls
-          docker network inspect powersync-fuzz_powersync-fuzz
+          docker network inspect powersync-fuzz_default
           docker container inspect pg-db
           
       - name: ${{ env.test-title }}
