@@ -4,7 +4,7 @@ version: 0.0.1
 repository: https://github.com/nurturenature/jepsen-powersync
 
 environment:
-  sdk: ^3.6.1
+  sdk: ^3.7.0
 
 dependencies:
   args: ^2.6.0
@@ -12,7 +12,7 @@ dependencies:
   jose: ^0.3.4
   list_utilities: ^1.0.3
   logging: ^1.2.0
-  postgres: ^3.4.8
+  postgres: ^3.5.2
   powersync: ^1.11.2
   shelf: ^1.4.1
   shelf_router: ^1.1.4
