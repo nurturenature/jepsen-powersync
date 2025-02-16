@@ -3,6 +3,6 @@ set -e
 
 docker exec \
        -t \
-       -w /powersync_endpoint \
-       powersync-fuzz-node \
+       -w /jepsen/jepsen-powersync/powersync_endpoint \
+       jepsen-n1 \
        bash -c "$* 2>&1 | tee powersync_fuzz.log"

@@ -33,15 +33,20 @@ WORKDIR /app
 COPY pubspec.* ./
 RUN dart pub get
 
-# Copy app source code and compile app to standalone binary.
+# copy app source code
 COPY ./ ./
-RUN ./compile-http.sh
+
 # app is responsible for getting native lib
 RUN ./download-powersync-sqlite-core.sh
 
-# copy executable, library, and env to final image
+# compile apps to standalone binaries
+RUN ./compile-http.sh
+RUN ./compile-fuzz.sh
+
+# copy env, library, and executables to final image
 FROM jepsen-setup AS jepsen-final
 WORKDIR /jepsen/jepsen-powersync/powersync_endpoint
 COPY --from=dart-build /app/.env .env
-COPY --from=dart-build /app/powersync_http powersync_http
 COPY --from=dart-build /app/libpowersync_x64.so libpowersync_x64.so
+COPY --from=dart-build /app/powersync_http powersync_http
+COPY --from=dart-build /app/powersync_fuzz powersync_fuzz
