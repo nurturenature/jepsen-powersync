@@ -13,13 +13,18 @@ Future<void> main(List<String> arguments) async {
 
   // initialize PostgreSQL
   await pg.init(
-      pg.Tables.lww, false); // TODO: have Jepsen init on 1st client/db setup
+    pg.Tables.lww,
+    false,
+  ); // TODO: have Jepsen init on 1st client/db setup
   log.config(
-      'PostgreSQL connection and database initialized, connection: ${pg.postgreSQL}');
+    'PostgreSQL connection and database initialized, connection: ${pg.postgreSQL}',
+  );
   log.config('PostgreSQL lww table: ${await pg.selectAllLWW()}');
 
   await db.initDb(
-      pg.Tables.lww, '${Directory.current.path}/powersync_http.sqlite3');
+    pg.Tables.lww,
+    '${Directory.current.path}/powersync_http.sqlite3',
+  );
   log.info('db initialized: ${db.db}');
 
   await initEndpoint();

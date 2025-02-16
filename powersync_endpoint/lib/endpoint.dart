@@ -25,7 +25,7 @@ abstract class Endpoint {
       'type': 'invoke',
       'f': 'txn',
       'value': _genRandTxn(args['maxTxnLen'], count),
-      'table': table.name
+      'table': table.name,
     });
   }
 
@@ -59,7 +59,7 @@ abstract class Endpoint {
     return Map.of({
       'type': 'invoke',
       'f': 'api',
-      'value': {'f': 'connect', 'v': {}}
+      'value': {'f': 'connect', 'v': {}},
     });
   }
 
@@ -67,7 +67,7 @@ abstract class Endpoint {
     return Map.of({
       'type': 'invoke',
       'f': 'api',
-      'value': {'f': 'disconnect', 'v': {}}
+      'value': {'f': 'disconnect', 'v': {}},
     });
   }
 
@@ -75,7 +75,7 @@ abstract class Endpoint {
     return Map.of({
       'type': 'invoke',
       'f': 'api',
-      'value': {'f': 'select-all', 'k': table.name, 'v': <sqlite3.Row>{}}
+      'value': {'f': 'select-all', 'k': table.name, 'v': <sqlite3.Row>{}},
     });
   }
 
@@ -83,7 +83,7 @@ abstract class Endpoint {
     return Map.of({
       'type': 'invoke',
       'f': 'api',
-      'value': {'f': 'upload-queue-count', 'v': {}}
+      'value': {'f': 'upload-queue-count', 'v': {}},
     });
   }
 
@@ -91,7 +91,7 @@ abstract class Endpoint {
     return Map.of({
       'type': 'invoke',
       'f': 'api',
-      'value': {'f': 'upload-queue-wait', 'v': {}}
+      'value': {'f': 'upload-queue-wait', 'v': {}},
     });
   }
 
@@ -99,7 +99,7 @@ abstract class Endpoint {
     return Map.of({
       'type': 'invoke',
       'f': 'api',
-      'value': {'f': 'downloading-wait', 'v': {}}
+      'value': {'f': 'downloading-wait', 'v': {}},
     });
   }
 }
@@ -113,7 +113,7 @@ class ConnectionState {
   ConnectionStates flipFlop() {
     _state = switch (_state) {
       ConnectionStates.connected => ConnectionStates.disconnected,
-      ConnectionStates.disconnected => ConnectionStates.connected
+      ConnectionStates.disconnected => ConnectionStates.connected,
     };
     return _state;
   }

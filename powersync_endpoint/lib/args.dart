@@ -59,27 +59,51 @@ void parseArgs(List<String> arguments) {
 
 ArgParser _buildParser() {
   return ArgParser()
-    ..addOption('table',
-        allowed: ['lww', 'mww'], defaultsTo: 'mww', help: 'table name/type')
-    ..addOption('clients',
-        abbr: 'c', defaultsTo: '5', help: 'number of PowerSync clients')
-    ..addFlag('postgresql',
-        defaultsTo: false, negatable: true, help: 'include a postgresql client')
+    ..addOption(
+      'table',
+      allowed: ['lww', 'mww'],
+      defaultsTo: 'mww',
+      help: 'table name/type',
+    )
+    ..addOption(
+      'clients',
+      abbr: 'c',
+      defaultsTo: '5',
+      help: 'number of PowerSync clients',
+    )
+    ..addFlag(
+      'postgresql',
+      defaultsTo: false,
+      negatable: true,
+      help: 'include a postgresql client',
+    )
     // txn values
     ..addOption('keys', abbr: 'k', defaultsTo: '100', help: 'number of keys')
-    ..addOption('rate',
-        abbr: 'r', defaultsTo: '30', help: 'txn rate in txn per second')
-    ..addOption('time',
-        abbr: 't', defaultsTo: '100', help: 'time of test in seconds')
+    ..addOption(
+      'rate',
+      abbr: 'r',
+      defaultsTo: '30',
+      help: 'txn rate in txn per second',
+    )
+    ..addOption(
+      'time',
+      abbr: 't',
+      defaultsTo: '100',
+      help: 'time of test in seconds',
+    )
     ..addOption('maxTxnLen', defaultsTo: '4', help: 'max transaction length')
-    ..addFlag('disconnect',
-        defaultsTo: false,
-        negatable: true,
-        help: 'call disconnect/connect API at intervals')
-    ..addOption('interval',
-        abbr: 'i',
-        defaultsTo: '5',
-        help: 'disconnect/connect every interval in seconds')
+    ..addFlag(
+      'disconnect',
+      defaultsTo: false,
+      negatable: true,
+      help: 'call disconnect/connect API at intervals',
+    )
+    ..addOption(
+      'interval',
+      abbr: 'i',
+      defaultsTo: '5',
+      help: 'disconnect/connect every interval in seconds',
+    )
     // http_endpoint
     ..addOption('httpPort', defaultsTo: '8089', help: 'http_endpoint port')
     // logging

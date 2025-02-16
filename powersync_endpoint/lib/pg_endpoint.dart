@@ -17,76 +17,86 @@ class PGEndpoint extends Endpoint {
     final table = switch (op['table'] as String) {
       'lww' => local_pg.Tables.lww,
       'mww' => local_pg.Tables.mww,
-      _ => throw StateError('Invalid table in op: $op')
+      _ => throw StateError('Invalid table in op: $op'),
     };
 
     try {
       // execute the PowerSync transaction in a PostgreSQL transaction
       // errors/throwing in the PostgreSQL transaction reverts it
-      await local_pg.postgreSQL.runTx((tx) async {
-        final valueAsFutures =
-            op['value'].map((Map<String, dynamic> mop) async {
-          final {'f': String f, 'k': int k, 'v': dynamic v} = mop;
-          switch (f) {
-            case 'r':
-              final result =
-                  await tx.execute('SELECT v from ${table.name} where k = $k');
-              final v = result.single // throws if not 1 and only 1 result
-                      .toColumnMap() // friendly map
-                  ['v'];
+      await local_pg.postgreSQL.runTx(
+        (tx) async {
+          final valueAsFutures = op['value'].map((
+            Map<String, dynamic> mop,
+          ) async {
+            final {'f': String f, 'k': int k, 'v': dynamic v} = mop;
+            switch (f) {
+              case 'r':
+                final result = await tx.execute(
+                  'SELECT v from ${table.name} where k = $k',
+                );
+                final v =
+                    result
+                        .single // throws if not 1 and only 1 result
+                        .toColumnMap() // friendly map
+                        ['v'];
 
-              // literal null read is an error, db is pre-seeded
-              if (v == null) {
-                log.severe(
-                    "Unexpected database state, uninitialized read for key: $k', in mop: $mop, for op: $op");
-                exit(127);
-              }
+                // literal null read is an error, db is pre-seeded
+                if (v == null) {
+                  log.severe(
+                    "Unexpected database state, uninitialized read for key: $k', in mop: $mop, for op: $op",
+                  );
+                  exit(127);
+                }
 
-              switch (table) {
-                case local_pg.Tables.lww:
-                  final vStr = v as String;
-                  // v == '' is a null read
-                  if (vStr != '') {
-                    // trim leading space that was created on first INERT/UPDATE
-                    mop['v'] = '[${vStr.trimLeft()}]';
-                  }
-                  break;
+                switch (table) {
+                  case local_pg.Tables.lww:
+                    final vStr = v as String;
+                    // v == '' is a null read
+                    if (vStr != '') {
+                      // trim leading space that was created on first INERT/UPDATE
+                      mop['v'] = '[${vStr.trimLeft()}]';
+                    }
+                    break;
 
-                case local_pg.Tables.mww:
-                  mop['v'] = v as int;
-                  break;
-              }
-              return mop;
+                  case local_pg.Tables.mww:
+                    mop['v'] = v as int;
+                    break;
+                }
+                return mop;
 
-            case 'append':
-              final pg.Result result = switch (table) {
-                local_pg.Tables.lww => await tx.execute('''
+              case 'append':
+                final pg.Result result = switch (table) {
+                  local_pg.Tables.lww => await tx.execute('''
                     INSERT INTO ${table.name} (k,v) VALUES ($k,$v) 
                     ON CONFLICT (k) DO UPDATE SET v = concat_ws(' ',${table.name}.v,'$v')
                     '''),
-                local_pg.Tables.mww => await tx
-                    .execute('UPDATE ${table.name} SET v = $v WHERE k = $k')
-              };
-              if (result.affectedRows != 1) {
-                log.severe(
-                    'Not 1 row affected by append in mop: $mop, with results: $result, for $op');
-                exit(127);
-              }
-              return mop;
+                  local_pg.Tables.mww => await tx.execute(
+                    'UPDATE ${table.name} SET v = $v WHERE k = $k',
+                  ),
+                };
+                if (result.affectedRows != 1) {
+                  log.severe(
+                    'Not 1 row affected by append in mop: $mop, with results: $result, for $op',
+                  );
+                  exit(127);
+                }
+                return mop;
 
-            default:
-              throw StateError('Unexpected f: $f in mop: $mop in op: $op');
+              default:
+                throw StateError('Unexpected f: $f in mop: $mop in op: $op');
+            }
+          });
+
+          // as map() is a lazy Iterable, and it's toElement() is async.
+          // it's necessary to iterate and await so txns are executed and op['value'] updated
+          for (final mop in valueAsFutures) {
+            await mop;
           }
-        });
-
-        // as map() is a lazy Iterable, and it's toElement() is async.
-        // it's necessary to iterate and await so txns are executed and op['value'] updated
-        for (final mop in valueAsFutures) {
-          await mop;
-        }
-      },
-          settings: pg.TransactionSettings(
-              isolationLevel: pg.IsolationLevel.repeatableRead));
+        },
+        settings: pg.TransactionSettings(
+          isolationLevel: pg.IsolationLevel.repeatableRead,
+        ),
+      );
     } on pg.ServerException catch (se) {
       // truly fatal
       if (se.severity == pg.Severity.panic ||
@@ -136,7 +146,7 @@ class PGEndpoint extends Endpoint {
         op['value']['v'] = switch (op['value']['k']) {
           'lww' => await local_pg.selectAllLWW(),
           'mww' => await local_pg.selectAllMWW(),
-          _ => throw StateError("Invalid table value: ${op['value']['k']}")
+          _ => throw StateError("Invalid table value: ${op['value']['k']}"),
         };
         break;
 

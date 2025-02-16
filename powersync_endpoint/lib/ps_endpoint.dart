@@ -25,19 +25,23 @@ class PSEndpoint extends Endpoint {
       op['value'].map((mop) async {
         switch (mop['f']) {
           case 'r':
-            final select = await tx
-                .getOptional('SELECT k,v from $table where k = ?', [mop['k']]);
+            final select = await tx.getOptional(
+              'SELECT k,v from $table where k = ?',
+              [mop['k']],
+            );
             // result row expected as db is pre-seeded
             if (select == null) {
               log.severe(
-                  "Unexpected database state, uninitialized read key ${mop['k']} for op: $op");
+                "Unexpected database state, uninitialized read key ${mop['k']} for op: $op",
+              );
               exit(127);
             }
 
             // literal null read is an error, db is pre-seeded
             if (select['v'] == null) {
               log.severe(
-                  "Literal null read for key: ${mop['k']} in mop: $mop in op: $op");
+                "Literal null read for key: ${mop['k']} in mop: $mop in op: $op",
+              );
               exit(127);
             }
 
@@ -65,18 +69,21 @@ class PSEndpoint extends Endpoint {
             final update = switch (table) {
               // note: creates leading space on first update, upsert isn't supported
               'lww' => await tx.execute(
-                  'UPDATE lww SET v = lww.v || \' \' || ? WHERE k = ? RETURNING *',
-                  [mop['v'], mop['k']]),
+                'UPDATE lww SET v = lww.v || \' \' || ? WHERE k = ? RETURNING *',
+                [mop['v'], mop['k']],
+              ),
               'mww' => await tx.execute(
-                  'UPDATE mww SET v = ? WHERE k = ? RETURNING *',
-                  [mop['v'], mop['k']]),
-              _ => throw StateError('Invalid table value: $table')
+                'UPDATE mww SET v = ? WHERE k = ? RETURNING *',
+                [mop['v'], mop['k']],
+              ),
+              _ => throw StateError('Invalid table value: $table'),
             };
 
             // result set expected as db is pre-seeded
             if (update.isEmpty) {
               log.severe(
-                  "Unexpected database state, uninitialized append key ${mop['k']} for op: $op");
+                "Unexpected database state, uninitialized append key ${mop['k']} for op: $op",
+              );
               exit(127);
             }
 
@@ -107,11 +114,12 @@ class PSEndpoint extends Endpoint {
         final v = {
           'db.closed': closed,
           'db.connected': connected,
-          'db.currentStatus': currentStatus
+          'db.currentStatus': currentStatus,
         };
         if (!connected) {
           log.warning(
-              'expected db.connected to be true after db.connect(): $v');
+            'expected db.connected to be true after db.connect(): $v',
+          );
         }
         op['value']['v'] = v;
         break;
@@ -124,11 +132,12 @@ class PSEndpoint extends Endpoint {
         final v = {
           'db.closed': closed,
           'db.connected': connected,
-          'db.currentStatus': currentStatus
+          'db.currentStatus': currentStatus,
         };
         if (connected) {
           log.warning(
-              'expected db.connected to be false after db.disconnect(): $v');
+            'expected db.connected to be false after db.disconnect(): $v',
+          );
         }
         op['value']['v'] = v;
         break;
@@ -141,7 +150,8 @@ class PSEndpoint extends Endpoint {
       case 'upload-queue-wait':
         while ((await db.getUploadQueueStats()).count != 0) {
           log.info(
-              'still waiting for db.uploadQueueStats.count == 0, currently ${(await db.getUploadQueueStats()).count}...');
+            'still waiting for db.uploadQueueStats.count == 0, currently ${(await db.getUploadQueueStats()).count}...',
+          );
           await futureSleep(1000);
         }
         op['value']['v'] = {'db.uploadQueueStats.count': 'queue-empty'};
@@ -155,7 +165,8 @@ class PSEndpoint extends Endpoint {
         var currentStatus = db.currentStatus;
         while ((currentStatus.downloading) == true && onTry <= maxTries) {
           log.info(
-              'still waiting after try $onTry for db.currentStatus.downloading == false, $currentStatus');
+            'still waiting after try $onTry for db.currentStatus.downloading == false, $currentStatus',
+          );
           await futureSleep(waitPerTry);
           onTry++;
           currentStatus = db.currentStatus;
@@ -165,12 +176,12 @@ class PSEndpoint extends Endpoint {
           op['type'] = newType; // update op now for better error message
           op['value']['v'] = {
             'error': 'Tried ${onTry - 1} times every ${waitPerTry}ms',
-            'db.currentStatus.downloading': currentStatus.downloading
+            'db.currentStatus.downloading': currentStatus.downloading,
           };
           log.warning(op);
         } else {
           op['value']['v'] = {
-            'db.currentStatus.downloading': currentStatus.downloading
+            'db.currentStatus.downloading': currentStatus.downloading,
           };
         }
         break;
@@ -179,7 +190,7 @@ class PSEndpoint extends Endpoint {
         op['value']['v'] = switch (op['value']['k']) {
           'lww' => await selectAllLWW(),
           'mww' => await selectAllMWW(),
-          _ => throw StateError("Invalid table value: ${op['value']['k']}")
+          _ => throw StateError("Invalid table value: ${op['value']['k']}"),
         };
         break;
 

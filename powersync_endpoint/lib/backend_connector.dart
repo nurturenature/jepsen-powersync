@@ -35,7 +35,7 @@ class NoOpConnector extends PowerSyncBackendConnector {
 /// it is normal, and the client's responsibility, to retry serialization errors.
 const _retryablePgErrors = {
   '40001', // serialization_failure
-  '40P01' // deadlock_detected
+  '40P01', // deadlock_detected
 };
 
 // retry/delay strategy
@@ -54,64 +54,75 @@ dynamic _txWithRetries(Tables table, List<CrudEntry> crud) async {
     try {
       // execute the PowerSync transaction in a PostgreSQL transaction
       // throwing in the PostgreSQL transaction reverts it
-      await postgreSQL.runTx((tx) async {
-        for (final crudEntry in crud) {
-          switch (crudEntry.op) {
-            case UpdateType.put:
-              final put = await tx.execute(
+      await postgreSQL.runTx(
+        (tx) async {
+          for (final crudEntry in crud) {
+            switch (crudEntry.op) {
+              case UpdateType.put:
+                final put = await tx.execute(
                   'INSERT INTO ${table.name} (id,k,v) VALUES (\$1,\$2,\$3) RETURNING *',
                   parameters: [
                     crudEntry.id,
                     crudEntry.opData!['k'],
-                    crudEntry.opData!['v']
-                  ]);
-              final row =
-                  put.single; // gets and enforces 1 and only 1 affected row
+                    crudEntry.opData!['v'],
+                  ],
+                );
+                final row =
+                    put.single; // gets and enforces 1 and only 1 affected row
 
-              log.finer(
-                  'uploadData: txn: ${crudEntry.transactionId} put: $row');
-              break;
+                log.finer(
+                  'uploadData: txn: ${crudEntry.transactionId} put: $row',
+                );
+                break;
 
-            case UpdateType.patch:
-              late Result patch;
-              switch (table) {
-                case Tables.lww:
-                  patch = await tx.execute(
-                    'UPDATE ${table.name} SET v = \'${crudEntry.opData!['v']}\' WHERE id = \'${crudEntry.id}\' RETURNING *',
-                  );
-                  break;
+              case UpdateType.patch:
+                late Result patch;
+                switch (table) {
+                  case Tables.lww:
+                    patch = await tx.execute(
+                      'UPDATE ${table.name} SET v = \'${crudEntry.opData!['v']}\' WHERE id = \'${crudEntry.id}\' RETURNING *',
+                    );
+                    break;
 
-                case Tables.mww:
-                  // max write wins, so GREATEST() value of v
-                  final v = crudEntry.opData!['v'] as int;
-                  patch = await tx.execute(
-                      'UPDATE ${table.name} SET v = GREATEST($v, ${table.name}.v) WHERE id = \'${crudEntry.id}\' RETURNING *');
-                  break;
-              }
+                  case Tables.mww:
+                    // max write wins, so GREATEST() value of v
+                    final v = crudEntry.opData!['v'] as int;
+                    patch = await tx.execute(
+                      'UPDATE ${table.name} SET v = GREATEST($v, ${table.name}.v) WHERE id = \'${crudEntry.id}\' RETURNING *',
+                    );
+                    break;
+                }
 
-              final row = patch // result of UPDATE
-                  .single // gets and enforces 1 and only 1 affected row
-                  .toColumnMap(); // pretty Map
-              row.remove('id'); // readability
-              log.finer(
-                  'uploadData: txn: ${crudEntry.transactionId} patch: $row');
-              break;
+                final row =
+                    patch // result of UPDATE
+                        .single // gets and enforces 1 and only 1 affected row
+                        .toColumnMap(); // pretty Map
+                row.remove('id'); // readability
+                log.finer(
+                  'uploadData: txn: ${crudEntry.transactionId} patch: $row',
+                );
+                break;
 
-            case UpdateType.delete:
-              final delete = await tx.execute(
+              case UpdateType.delete:
+                final delete = await tx.execute(
                   'DELETE FROM ${table.name} WHERE id = \$1 RETURNING *',
-                  parameters: [crudEntry.id]);
-              final row =
-                  delete.single; // gets and enforces 1 and only 1 affected row
+                  parameters: [crudEntry.id],
+                );
+                final row =
+                    delete
+                        .single; // gets and enforces 1 and only 1 affected row
 
-              log.finer(
-                  'uploadData: txn: ${crudEntry.transactionId} delete: $row');
-              break;
+                log.finer(
+                  'uploadData: txn: ${crudEntry.transactionId} delete: $row',
+                );
+                break;
+            }
           }
-        }
-      },
-          settings: TransactionSettings(
-              isolationLevel: IsolationLevel.repeatableRead));
+        },
+        settings: TransactionSettings(
+          isolationLevel: IsolationLevel.repeatableRead,
+        ),
+      );
     } on ServerException catch (se) {
       // truly fatal
       if (se.severity == Severity.panic || se.severity == Severity.fatal) {
@@ -121,10 +132,12 @@ dynamic _txWithRetries(Tables table, List<CrudEntry> crud) async {
       // retryable?
       if (_retryablePgErrors.contains(se.code)) {
         log.fine(
-            "Retrying txn: ${crud.first.transactionId} PostgreSQL: ${se.message}");
+          "Retrying txn: ${crud.first.transactionId} PostgreSQL: ${se.message}",
+        );
 
         await futureSleep(
-            _rng.nextInt(_maxRetryDelay - _minRetryDelay + 1) + _minRetryDelay);
+          _rng.nextInt(_maxRetryDelay - _minRetryDelay + 1) + _minRetryDelay,
+        );
 
         continue;
       }
@@ -132,7 +145,7 @@ dynamic _txWithRetries(Tables table, List<CrudEntry> crud) async {
       // not retryable, recoverable
       return [
         'error',
-        'Unrecoverable ServerException, severity: ${se.severity}, code: ${se.code}, ServerException: $se'
+        'Unrecoverable ServerException, severity: ${se.severity}, code: ${se.code}, ServerException: $se',
       ];
     } catch (ex) {
       // TODO: some exceptions, such as connection failures should be thrown for PowerSync to catch and then retry
@@ -185,9 +198,11 @@ class CrudTransactionConnector extends PowerSyncBackendConnector {
   @override
   Future<void> uploadData(PowerSyncDatabase database) async {
     // eagerly process all available PowerSync transactions
-    for (CrudTransaction? crudTransaction = await db.getNextCrudTransaction();
-        crudTransaction != null;
-        crudTransaction = await db.getNextCrudTransaction()) {
+    for (
+      CrudTransaction? crudTransaction = await db.getNextCrudTransaction();
+      crudTransaction != null;
+      crudTransaction = await db.getNextCrudTransaction()
+    ) {
       switch (await _txWithRetries(table, crudTransaction.crud)) {
         case 'ok':
           await crudTransaction.complete();
@@ -195,7 +210,8 @@ class CrudTransactionConnector extends PowerSyncBackendConnector {
 
         case ['error', final String cause]:
           log.severe(
-              'Unable to process transaction: $crudTransaction, cause: $cause');
+            'Unable to process transaction: $crudTransaction, cause: $cause',
+          );
           exit(127);
 
         case final unknown:

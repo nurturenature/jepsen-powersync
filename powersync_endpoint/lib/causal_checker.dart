@@ -11,8 +11,9 @@ class CausalChecker {
     _clientStates = {};
     // clientNum 0 reserved for pseudo client PG
     for (var clientNum = 0; clientNum <= _numClients; clientNum++) {
-      _clientStates
-          .addEntries([MapEntry(clientNum, List.filled(_numKeys, -1))]);
+      _clientStates.addEntries([
+        MapEntry(clientNum, List.filled(_numKeys, -1)),
+      ]);
     }
     _mwWfrStates = {};
   }
@@ -24,7 +25,7 @@ class CausalChecker {
       'f': String f,
       'value': List<Map<String, dynamic>> value,
       'table': String table,
-      'clientNum': int clientNum
+      'clientNum': int clientNum,
     } = op;
 
     // ok for PostgreSQL, client 0, to have an error op, e.g. concurrent access
@@ -46,7 +47,8 @@ class CausalChecker {
           if (v != -1 && _mwWfrStates[(k, v)] == null) {
             debug();
             log.severe(
-                'reading a k/v: $k/$v that was never written in op: $op');
+              'reading a k/v: $k/$v that was never written in op: $op',
+            );
             return false;
           }
 
@@ -55,7 +57,8 @@ class CausalChecker {
           if (v < _clientStates[clientNum]![k]) {
             debug();
             log.severe(
-                'value of read k/v: $k/$v is less than expected value: ${_clientStates[clientNum]![k]} in op: $op');
+              'value of read k/v: $k/$v is less than expected value: ${_clientStates[clientNum]![k]} in op: $op',
+            );
             return false;
           } else {
             // update client state with current read value
@@ -82,7 +85,8 @@ class CausalChecker {
           if (_mwWfrStates[(k, v)] != null) {
             debug();
             log.severe(
-                'writing a k/v: $k/$v that was already written in op: $op');
+              'writing a k/v: $k/$v that was already written in op: $op',
+            );
             return false;
           }
 
@@ -91,7 +95,8 @@ class CausalChecker {
           if (v <= _clientStates[clientNum]![k]) {
             debug();
             log.severe(
-                'value of write: $v is less than or equal previous value: ${_clientStates[clientNum]![k]} in op: $op');
+              'value of write: $v is less than or equal previous value: ${_clientStates[clientNum]![k]} in op: $op',
+            );
             return false;
           } else {
             // update client state with current write value
@@ -101,8 +106,10 @@ class CausalChecker {
           // monotonic writes, read your writes, writes follow reads
           //   - any future reads of this write must also include all of current client state
           //   - store current client state for this write
-          _mwWfrStates[(k, v)] =
-              List.from(_clientStates[clientNum]!, growable: false);
+          _mwWfrStates[(k, v)] = List.from(
+            _clientStates[clientNum]!,
+            growable: false,
+          );
           break;
 
         default:

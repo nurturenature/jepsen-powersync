@@ -22,14 +22,14 @@ Future<void> initDb(pg.Tables table, String sqlite3Path) async {
     pg.Tables.lww => PowerSyncDatabase(schema: schemaLWW, path: sqlite3Path),
     pg.Tables.mww => PowerSyncDatabase(schema: schemaMWW, path: sqlite3Path),
   };
-  log.info("Created db, schemas: ${db.schema.tables.map((table) => {
-        table.name:
-            table.columns.map((column) => '${column.name} ${column.type.name}')
-      })}, path: $sqlite3Path");
+  log.info(
+    "Created db, schemas: ${db.schema.tables.map((table) => {table.name: table.columns.map((column) => '${column.name} ${column.type.name}')})}, path: $sqlite3Path",
+  );
 
   await db.initialize();
   log.info(
-      'db initialized, runtimeType: ${db.runtimeType}, status: ${db.currentStatus}');
+    'db initialized, runtimeType: ${db.runtimeType}, status: ${db.currentStatus}',
+  );
 
   connector = CrudTransactionConnector(table, db);
 
@@ -47,7 +47,7 @@ Future<void> initDb(pg.Tables table, String sqlite3Path) async {
   // PostgreSQL is source of truth, explicitly initialized at app startup
   final Map<int, dynamic> pgTable = switch (table) {
     pg.Tables.lww => await pg.selectAllLWW(),
-    pg.Tables.mww => await pg.selectAllMWW()
+    pg.Tables.mww => await pg.selectAllMWW(),
   };
   // get currentStatus first to show incorrect lastSyncedAt: hasSynced
   var currentStatus = db.currentStatus;
@@ -110,7 +110,8 @@ void _logSyncStatus(PowerSyncDatabase db) {
     if (!syncStatus.connected &&
         (syncStatus.downloading || syncStatus.uploading)) {
       log.warning(
-          'syncStatus.connected is false yet uploading|downloading: $syncStatus');
+        'syncStatus.connected is false yet uploading|downloading: $syncStatus',
+      );
     }
     if ((syncStatus.hasSynced == false && syncStatus.lastSyncedAt != null) ||
         (syncStatus.hasSynced == true && syncStatus.lastSyncedAt == null)) {
@@ -128,12 +129,14 @@ void _logSyncStatus(PowerSyncDatabase db) {
       // ignorable
       if (_ignorableUploadError(syncStatus.uploadError!)) {
         log.info(
-            'ignorable upload error in statusStream: ${syncStatus.uploadError}');
+          'ignorable upload error in statusStream: ${syncStatus.uploadError}',
+        );
         return;
       }
       // unexpected
       log.severe(
-          'unexpected upload error in statusStream: ${syncStatus.uploadError}');
+        'unexpected upload error in statusStream: ${syncStatus.uploadError}',
+      );
       exit(127);
     }
 
@@ -142,12 +145,14 @@ void _logSyncStatus(PowerSyncDatabase db) {
       // ignorable
       if (_ignorableDownloadError(syncStatus.downloadError!)) {
         log.info(
-            'ignorable download error in statusStream: ${syncStatus.downloadError}');
+          'ignorable download error in statusStream: ${syncStatus.downloadError}',
+        );
         return;
       }
       // unexpected
       log.severe(
-          'unexpected download error in statusStream: ${syncStatus.downloadError}');
+        'unexpected download error in statusStream: ${syncStatus.downloadError}',
+      );
       exit(127);
     }
 
@@ -165,14 +170,20 @@ void _logUpdates(PowerSyncDatabase db) {
 
 /// Select all rows from lww table and return {k: v}.
 Future<Map<int, String>> selectAllLWW() async {
-  return Map.fromEntries((await db.getAll('SELECT k,v FROM lww ORDER BY k;'))
-      .map((row) => MapEntry(row['k'], row['v'])));
+  return Map.fromEntries(
+    (await db.getAll(
+      'SELECT k,v FROM lww ORDER BY k;',
+    )).map((row) => MapEntry(row['k'], row['v'])),
+  );
 }
 
 /// Select all rows from mww table and return {k: v}.
 Future<Map<int, int>> selectAllMWW() async {
-  return Map.fromEntries((await db.getAll('SELECT k,v FROM mww ORDER BY k;'))
-      .map((row) => MapEntry(row['k'], row['v'])));
+  return Map.fromEntries(
+    (await db.getAll(
+      'SELECT k,v FROM mww ORDER BY k;',
+    )).map((row) => MapEntry(row['k'], row['v'])),
+  );
 }
 
 // can this upload error be ignored?
@@ -185,9 +196,11 @@ bool _ignorableUploadError(Object ex) {
   // exposed by disconnect-connect nemesis
   if (ex is http.ClientException &&
       (ex.message.startsWith(
-              'Connection closed before full header was received') ||
-          ex.message
-              .startsWith('HTTP request failed. Client is already closed.'))) {
+            'Connection closed before full header was received',
+          ) ||
+          ex.message.startsWith(
+            'HTTP request failed. Client is already closed.',
+          ))) {
     return true;
   }
 

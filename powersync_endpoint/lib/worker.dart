@@ -28,14 +28,22 @@ class Worker {
   // consistency checker instance variables
   final _readConsistency = ReadConsistency();
 
-  Worker._(this._clientNum, this._txnResponses, this._txnRequests,
-      this._apiResponses, this._apiRequests) {
+  Worker._(
+    this._clientNum,
+    this._txnResponses,
+    this._txnRequests,
+    this._apiResponses,
+    this._apiRequests,
+  ) {
     _txnResponses.listen(_handleTxnResponsesFromIsolate);
     _apiResponses.listen(_handleApiResponsesFromIsolate);
   }
 
   static Future<Worker> spawn(
-      pg.Tables table, int clientNum, Endpoint endpoint) async {
+    pg.Tables table,
+    int clientNum,
+    Endpoint endpoint,
+  ) async {
     // Create a txn receive port and its initial message handler to receive the send port, e.g. a txn connection
     final initTxnReceivePort = RawReceivePort();
     final txnConnection = Completer<(ReceivePort, SendPort)>.sync();
@@ -60,17 +68,14 @@ class Worker {
 
     // Spawn the isolate.
     try {
-      await Isolate.spawn(
-          _startRemoteIsolate,
-          (
-            table,
-            clientNum,
-            args,
-            initTxnReceivePort.sendPort,
-            initApiReceivePort.sendPort,
-            endpoint
-          ),
-          debugName: 'ps-$clientNum');
+      await Isolate.spawn(_startRemoteIsolate, (
+        table,
+        clientNum,
+        args,
+        initTxnReceivePort.sendPort,
+        initApiReceivePort.sendPort,
+        endpoint,
+      ), debugName: 'ps-$clientNum');
     } on Object {
       initTxnReceivePort.close();
       initApiReceivePort.close();
@@ -84,7 +89,12 @@ class Worker {
         await apiConnection.future;
 
     return Worker._(
-        clientNum, txnReceivePort, txnSendPort, apiReceivePort, apiSendPort);
+      clientNum,
+      txnReceivePort,
+      txnSendPort,
+      apiReceivePort,
+      apiSendPort,
+    );
   }
 
   static Future<void> _startRemoteIsolate(message) async {
@@ -94,15 +104,16 @@ class Worker {
       Map<String, dynamic> mainArgs,
       SendPort txnSendPort,
       SendPort apiSendPort,
-      Endpoint endpoint
-    ) = message as (
-      pg.Tables,
-      int,
-      Map<String, dynamic>,
-      SendPort,
-      SendPort,
-      Endpoint
-    );
+      Endpoint endpoint,
+    ) = message
+            as (
+              pg.Tables,
+              int,
+              Map<String, dynamic>,
+              SendPort,
+              SendPort,
+              Endpoint,
+            );
 
     // initialize worker environment, state
     args = mainArgs; // args must be set first in Isolate
@@ -110,7 +121,9 @@ class Worker {
 
     // initialize PostgreSQL
     await pg.init(
-        table, false); // database table was initialized in main Isolate
+      table,
+      false,
+    ); // database table was initialized in main Isolate
     log.info('PostgreSQL connection initialized, connection: ${pg.postgreSQL}');
 
     // initialize PowerSync db
@@ -131,7 +144,10 @@ class Worker {
   }
 
   static void _handleTxnRequestsToIsolate(
-      ReceivePort receivePort, SendPort sendPort, Endpoint endpoint) {
+    ReceivePort receivePort,
+    SendPort sendPort,
+    Endpoint endpoint,
+  ) {
     // listen for commands sent to the Isolate
     receivePort.listen((message) async {
       // shutdown?
@@ -174,18 +190,21 @@ class Worker {
       value // List of {f: k: v:}
           .where((mop) => mop['f'] == 'r') // only reads
           .forEach((mop) {
-        final k = mop['k'] as int;
-        final v = mop['v'] as String?;
-        if (_readConsistency.suspiciousRead(k, v)) {
-          log.severe('ERROR: suspicious read: $mop, for $op');
-          exit(127);
-        }
-      });
+            final k = mop['k'] as int;
+            final v = mop['v'] as String?;
+            if (_readConsistency.suspiciousRead(k, v)) {
+              log.severe('ERROR: suspicious read: $mop, for $op');
+              exit(127);
+            }
+          });
     }
   }
 
   static void _handleApiRequestsToIsolate(
-      ReceivePort receivePort, SendPort sendPort, Endpoint endpoint) {
+    ReceivePort receivePort,
+    SendPort sendPort,
+    Endpoint endpoint,
+  ) {
     // listen for commands sent to the Isolate
     receivePort.listen((message) async {
       // shutdown?
@@ -243,7 +262,8 @@ class Worker {
     // must not be closed
     if (_apisClosed) {
       throw StateError(
-          'APIs already closed! clientNum: $_clientNum, api: $api');
+        'APIs already closed! clientNum: $_clientNum, api: $api',
+      );
     }
 
     // insure ordering, request/response id's match

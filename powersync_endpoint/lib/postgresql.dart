@@ -12,15 +12,17 @@ enum Tables { lww, mww }
 
 Future<void> init(Tables table, bool initData) async {
   final endpoint = Endpoint(
-      host: args['PG_DATABASE_HOST']!,
-      port: args['PG_DATABASE_PORT']!,
-      database: args['PG_DATABASE_NAME']!,
-      username: args['PG_DATABASE_USER']!,
-      password: args['PG_DATABASE_PASSWORD']!);
+    host: args['PG_DATABASE_HOST']!,
+    port: args['PG_DATABASE_PORT']!,
+    database: args['PG_DATABASE_NAME']!,
+    username: args['PG_DATABASE_USER']!,
+    password: args['PG_DATABASE_PASSWORD']!,
+  );
   final settings = ConnectionSettings(sslMode: SslMode.disable);
 
   log.config(
-      'connecting to PostgreSQL @ ${endpoint.host}:${endpoint.port}/${endpoint.database} as ${endpoint.username}/${endpoint.password} with socket: ${endpoint.isUnixSocket}');
+    'connecting to PostgreSQL @ ${endpoint.host}:${endpoint.port}/${endpoint.database} as ${endpoint.username}/${endpoint.password} with socket: ${endpoint.isUnixSocket}',
+  );
 
   postgreSQL = await Connection.open(endpoint, settings: settings);
 
@@ -54,13 +56,16 @@ Future<void> _initDataLWW() async {
   await postgreSQL.execute('DELETE FROM lww;');
 
   // initialize all k,v in a single transaction so all values are replicated/synced as a whole
-  await postgreSQL.runTx((tx) async {
-    for (var key = 0; key < args['keys']; key++) {
-      await tx.execute("INSERT INTO lww (k,v) VALUES ($key,'');");
-    }
-  },
-      settings:
-          TransactionSettings(isolationLevel: IsolationLevel.repeatableRead));
+  await postgreSQL.runTx(
+    (tx) async {
+      for (var key = 0; key < args['keys']; key++) {
+        await tx.execute("INSERT INTO lww (k,v) VALUES ($key,'');");
+      }
+    },
+    settings: TransactionSettings(
+      isolationLevel: IsolationLevel.repeatableRead,
+    ),
+  );
 }
 
 // start test from a known mww state
@@ -79,30 +84,35 @@ Future<void> _initDataMWW() async {
   await postgreSQL.execute('DELETE FROM mww;');
 
   // initialize all id,k,v in a single transaction so all values are replicated/synced as a whole
-  await postgreSQL.runTx((tx) async {
-    for (var key = 0; key < args['keys']; key++) {
-      await tx.execute("INSERT INTO mww (id,k,v) VALUES ('$key',$key,-1);");
-    }
-  },
-      settings:
-          TransactionSettings(isolationLevel: IsolationLevel.repeatableRead));
+  await postgreSQL.runTx(
+    (tx) async {
+      for (var key = 0; key < args['keys']; key++) {
+        await tx.execute("INSERT INTO mww (id,k,v) VALUES ('$key',$key,-1);");
+      }
+    },
+    settings: TransactionSettings(
+      isolationLevel: IsolationLevel.repeatableRead,
+    ),
+  );
 }
 
 Future<Map<int, String>> selectAllLWW() async {
   final Map<int, String> response = {};
   response.addEntries(
-      (await postgreSQL.execute('SELECT k,v FROM lww ORDER BY k;'))
-          .map((resultRow) => resultRow.toColumnMap())
-          .map((row) => MapEntry(row['k'], row['v'])));
+    (await postgreSQL.execute('SELECT k,v FROM lww ORDER BY k;'))
+        .map((resultRow) => resultRow.toColumnMap())
+        .map((row) => MapEntry(row['k'], row['v'])),
+  );
   return response;
 }
 
 Future<Map<int, int>> selectAllMWW() async {
   final Map<int, int> response = {};
   response.addEntries(
-      (await postgreSQL.execute('SELECT k,v FROM mww ORDER BY k;'))
-          .map((resultRow) => resultRow.toColumnMap())
-          .map((row) => MapEntry(row['k'], row['v'])));
+    (await postgreSQL.execute('SELECT k,v FROM mww ORDER BY k;'))
+        .map((resultRow) => resultRow.toColumnMap())
+        .map((row) => MapEntry(row['k'], row['v'])),
+  );
   return response;
 }
 

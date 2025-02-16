@@ -13,22 +13,22 @@ void main() {
       'type': 'ok',
       'f': 'txn',
       'table': 'mww',
-      'clientNum': 1
+      'clientNum': 1,
     };
 
     // invalid read of unwritten value
     baseOp.addAll({
       'value': [
-        {'f': 'r', 'k': 0, 'v': 0}
-      ]
+        {'f': 'r', 'k': 0, 'v': 0},
+      ],
     });
     expect(causalChecker.checkOp(baseOp), equals(false));
 
     // valid null read
     baseOp.addAll({
       'value': [
-        {'f': 'r', 'k': 0, 'v': -1}
-      ]
+        {'f': 'r', 'k': 0, 'v': -1},
+      ],
     });
     expect(causalChecker.checkOp(baseOp), equals(true));
 
@@ -37,8 +37,8 @@ void main() {
       'value': [
         {'f': 'r', 'k': 0, 'v': -1},
         {'f': 'append', 'k': 0, 'v': 0},
-        {'f': 'r', 'k': 0, 'v': 0}
-      ]
+        {'f': 'r', 'k': 0, 'v': 0},
+      ],
     });
     expect(causalChecker.checkOp(baseOp), equals(true));
 
@@ -46,14 +46,14 @@ void main() {
     baseOp.addAll({
       'value': [
         {'f': 'r', 'k': 0, 'v': 0},
-        {'f': 'append', 'k': 0, 'v': 1}
-      ]
+        {'f': 'append', 'k': 0, 'v': 1},
+      ],
     });
     expect(causalChecker.checkOp(baseOp), equals(true));
     baseOp.addAll({
       'value': [
-        {'f': 'r', 'k': 0, 'v': 1}
-      ]
+        {'f': 'r', 'k': 0, 'v': 1},
+      ],
     });
     expect(causalChecker.checkOp(baseOp), equals(true));
 
@@ -62,14 +62,14 @@ void main() {
       'value': [
         {'f': 'r', 'k': 0, 'v': 1},
         {'f': 'append', 'k': 0, 'v': 2},
-        {'f': 'r', 'k': 0, 'v': 2}
-      ]
+        {'f': 'r', 'k': 0, 'v': 2},
+      ],
     });
     expect(causalChecker.checkOp(baseOp), equals(true));
     baseOp.addAll({
       'value': [
-        {'f': 'r', 'k': 0, 'v': 1}
-      ]
+        {'f': 'r', 'k': 0, 'v': 1},
+      ],
     });
     expect(causalChecker.checkOp(baseOp), equals(false));
 
@@ -79,16 +79,16 @@ void main() {
       'value': [
         {'f': 'r', 'k': 0, 'v': 2},
         {'f': 'append', 'k': 1, 'v': 0},
-        {'f': 'r', 'k': 1, 'v': 0}
-      ]
+        {'f': 'r', 'k': 1, 'v': 0},
+      ],
     });
     expect(causalChecker.checkOp(baseOp), equals(true));
     baseOp.addAll({
       'clientNum': 3,
       'value': [
         {'f': 'r', 'k': 1, 'v': 0},
-        {'f': 'r', 'k': 0, 'v': 1}
-      ]
+        {'f': 'r', 'k': 0, 'v': 1},
+      ],
     });
     expect(causalChecker.checkOp(baseOp), equals(false));
 
@@ -97,24 +97,24 @@ void main() {
       'clientNum': 1,
       'value': [
         {'f': 'append', 'k': 2, 'v': 0},
-        {'f': 'r', 'k': 2, 'v': 0}
-      ]
+        {'f': 'r', 'k': 2, 'v': 0},
+      ],
     });
     expect(causalChecker.checkOp(baseOp), equals(true));
     baseOp.addAll({
       'clientNum': 2,
       'value': [
         {'f': 'r', 'k': 2, 'v': 0},
-        {'f': 'append', 'k': 3, 'v': 0}
-      ]
+        {'f': 'append', 'k': 3, 'v': 0},
+      ],
     });
     expect(causalChecker.checkOp(baseOp), equals(true));
     baseOp.addAll({
       'clientNum': 3,
       'value': [
         {'f': 'r', 'k': 3, 'v': 0},
-        {'f': 'r', 'k': 2, 'v': 0}
-      ]
+        {'f': 'r', 'k': 2, 'v': 0},
+      ],
     });
     expect(causalChecker.checkOp(baseOp), equals(true));
   });

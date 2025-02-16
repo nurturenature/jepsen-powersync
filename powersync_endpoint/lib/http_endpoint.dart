@@ -57,18 +57,24 @@ Future<Response> _powersync(Request req, String action) async {
       break;
 
     case 'upload-queue-count':
-      response = (await _pse
-          .powersyncApi(_pse.uploadQueueCountMessage()))['value']['v'];
+      response =
+          (await _pse.powersyncApi(
+            _pse.uploadQueueCountMessage(),
+          ))['value']['v'];
       break;
 
     case 'upload-queue-wait':
-      response = (await _pse
-          .powersyncApi(_pse.uploadQueueWaitMessage()))['value']['v'];
+      response =
+          (await _pse.powersyncApi(
+            _pse.uploadQueueWaitMessage(),
+          ))['value']['v'];
       break;
 
     case 'downloading-wait':
-      response = (await _pse
-          .powersyncApi(_pse.downloadingWaitMessage()))['value']['v'];
+      response =
+          (await _pse.powersyncApi(
+            _pse.downloadingWaitMessage(),
+          ))['value']['v'];
       break;
 
     default:
@@ -82,13 +88,15 @@ Future<Response> _powersync(Request req, String action) async {
   return Response.ok(resStr);
 }
 
-final _router = Router()
-  ..post('/sql-txn', _sqlTxn)
-  ..get('/powersync/<action>', _powersync);
+final _router =
+    Router()
+      ..post('/sql-txn', _sqlTxn)
+      ..get('/powersync/<action>', _powersync);
 
 // configure a pipeline that logs requests
-final handler =
-    Pipeline().addMiddleware(logRequests()).addHandler(_router.call);
+final handler = Pipeline()
+    .addMiddleware(logRequests())
+    .addHandler(_router.call);
 
 Future<void> initEndpoint() async {
   endpoint = await serve(handler, _ip, _port);

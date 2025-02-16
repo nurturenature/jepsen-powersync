@@ -26,17 +26,20 @@ void main(List<String> arguments) async {
   final table = switch (args['table']) {
     'lww' => pg.Tables.lww,
     'mww' => pg.Tables.mww,
-    _ => throw StateError("Invalid table arg ${args['table']}")
+    _ => throw StateError("Invalid table arg ${args['table']}"),
   };
 
   // initialize PostgreSQL
   await pg.init(table, true);
   log.config(
-      'PostgreSQL connection and database initialized, connection: ${pg.postgreSQL}');
-  log.config('PostgreSQL table: ${table.name} ${switch (table) {
-    pg.Tables.lww => await pg.selectAllLWW(),
-    pg.Tables.mww => await pg.selectAllMWW()
-  }}');
+    'PostgreSQL connection and database initialized, connection: ${pg.postgreSQL}',
+  );
+  log.config(
+    'PostgreSQL table: ${table.name} ${switch (table) {
+      pg.Tables.lww => await pg.selectAllLWW(),
+      pg.Tables.mww => await pg.selectAllMWW(),
+    }}',
+  );
 
   // create a set of worker clients
   log.info('creating ${args["clients"]} clients');
@@ -68,8 +71,9 @@ void main(List<String> arguments) async {
   late StreamSubscription<ep.ConnectionStates> disconnectConnectSubscription;
   if (args['disconnect']) {
     log.info('starting stream of disconnect/connect messages...');
-    disconnectConnectSubscription =
-        disconnectConnectStream().listen((connectionStateMessage) async {
+    disconnectConnectSubscription = disconnectConnectStream().listen((
+      connectionStateMessage,
+    ) async {
       late Set<Worker> affectedClients;
       late Map<String, dynamic> disconnectConnectMessage;
       switch (connectionStateMessage) {
@@ -84,21 +88,21 @@ void main(List<String> arguments) async {
       }
 
       log.info(
-          '$connectionStateMessage\'ing clients: ${affectedClients.map((client) => client.getClientNum())}');
+        '$connectionStateMessage\'ing clients: ${affectedClients.map((client) => client.getClientNum())}',
+      );
 
       final List<Future<Map>> apiFutures = [];
       for (Worker client in affectedClients) {
-        apiFutures.add(
-          client.executeApi(disconnectConnectMessage),
-        );
+        apiFutures.add(client.executeApi(disconnectConnectMessage));
       }
       await apiFutures.wait;
 
       // upload queue count for debugging
       final List<Future<Map>> uploadQueueCountFutures = [];
       for (Worker client in affectedClients) {
-        uploadQueueCountFutures
-            .add(client.executeApi(_pse.uploadQueueCountMessage()));
+        uploadQueueCountFutures.add(
+          client.executeApi(_pse.uploadQueueCountMessage()),
+        );
       }
       await uploadQueueCountFutures.wait;
     });
@@ -107,92 +111,100 @@ void main(List<String> arguments) async {
   // a Stream of sql txn messages
   log.info('starting stream of sql transactions...');
   final sqlTxnStream = Stream<Map<String, dynamic>>
-          // sent every tps rate
-          .periodic(
-          Duration(milliseconds: (1000 / args['rate']).floor()),
-          // using reads/appends against random keys with a sequential value
-          (value) => _pse.rndTxnMessage(table, value))
-      // for a total # of txns
-      .take(args['time'] * args['rate']);
+  // sent every tps rate
+  .periodic(
+    Duration(milliseconds: (1000 / args['rate']).floor()),
+    // using reads/appends against random keys with a sequential value
+    (value) => _pse.rndTxnMessage(table, value),
+  )
+  // for a total # of txns
+  .take(args['time'] * args['rate']);
 
   // each sql txn message from the Stream is individually sent to a random client
-  sqlTxnStream.listen((sqlTxnMessage) async {
-    final op = (await clients.random().executeTxn(sqlTxnMessage))
-        as Map<String, dynamic>;
-    if (!causalChecker.checkOp(op)) {
-      log.severe('Causal Consistency check failed for op: $op');
-      exit(127);
-    }
+  sqlTxnStream
+      .listen((sqlTxnMessage) async {
+        final op =
+            (await clients.random().executeTxn(sqlTxnMessage))
+                as Map<String, dynamic>;
+        if (!causalChecker.checkOp(op)) {
+          log.severe('Causal Consistency check failed for op: $op');
+          exit(127);
+        }
 
-    // TODO: always check PG?
-    _causalCheckPg(causalChecker);
-  }).onDone(() async {
-    // stop disconnecting/connection
-    if (args['disconnect']) {
-      await disconnectConnectSubscription.cancel();
-    }
+        // TODO: always check PG?
+        _causalCheckPg(causalChecker);
+      })
+      .onDone(() async {
+        // stop disconnecting/connection
+        if (args['disconnect']) {
+          await disconnectConnectSubscription.cancel();
+        }
 
-    // let txns/apis catch up, TODO: why necessary?
-    await utils.futureSleep(1000);
+        // let txns/apis catch up, TODO: why necessary?
+        await utils.futureSleep(1000);
 
-    // insure all clients connected
-    if (args['disconnect']) {
-      log.info('insuring all clients are connected');
-      final List<Future> connectingClients = [];
-      for (Worker client in clients) {
-        connectingClients.add(client.executeApi(_pse.connectMessage()));
-      }
-      await connectingClients.wait;
-    }
+        // insure all clients connected
+        if (args['disconnect']) {
+          log.info('insuring all clients are connected');
+          final List<Future> connectingClients = [];
+          for (Worker client in clients) {
+            connectingClients.add(client.executeApi(_pse.connectMessage()));
+          }
+          await connectingClients.wait;
+        }
 
-    // quiesce
-    log.info('quiesce for 3 seconds...');
-    await utils.futureSleep(3000);
+        // quiesce
+        log.info('quiesce for 3 seconds...');
+        await utils.futureSleep(3000);
 
-    // wait for upload queue to be empty
-    log.info('wait for upload queue to be empty in clients');
-    final List<Future> uploadQueueFutures = [];
-    for (Worker client in clients) {
-      uploadQueueFutures.addAll([
-        client.executeApi(_pse.uploadQueueCountMessage()),
-        client.executeApi(_pse.uploadQueueWaitMessage())
-      ]);
-    }
-    await uploadQueueFutures.wait;
+        // wait for upload queue to be empty
+        log.info('wait for upload queue to be empty in clients');
+        final List<Future> uploadQueueFutures = [];
+        for (Worker client in clients) {
+          uploadQueueFutures.addAll([
+            client.executeApi(_pse.uploadQueueCountMessage()),
+            client.executeApi(_pse.uploadQueueWaitMessage()),
+          ]);
+        }
+        await uploadQueueFutures.wait;
 
-    // wait for downloading to be false
-    log.info('wait for downloading to be false in clients');
-    final List<Future> downloadingWaits = [];
-    for (Worker client in clients) {
-      downloadingWaits.add(client.executeApi(_pse.downloadingWaitMessage()));
-    }
-    await downloadingWaits.wait;
+        // wait for downloading to be false
+        log.info('wait for downloading to be false in clients');
+        final List<Future> downloadingWaits = [];
+        for (Worker client in clients) {
+          downloadingWaits.add(
+            client.executeApi(_pse.downloadingWaitMessage()),
+          );
+        }
+        await downloadingWaits.wait;
 
-    log.info('check for strong convergence in final reads');
-    await _checkStrongConvergence(table, clients);
+        log.info('check for strong convergence in final reads');
+        await _checkStrongConvergence(table, clients);
 
-    // close all client txn/api ports
-    for (Worker client in clients) {
-      client.closeTxns();
-      client.closeApis();
-    }
+        // close all client txn/api ports
+        for (Worker client in clients) {
+          client.closeTxns();
+          client.closeApis();
+        }
 
-    // done with PostgreSQL
-    await pg.close();
-  });
+        // done with PostgreSQL
+        await pg.close();
+      });
 }
 
 /// Do a final read of all keys on PostgreSQL and all clients.
 /// Treat PostgreSQL as the source of truth and look for differences with each client.
 /// Any differences are errors.
 Future<void> _checkStrongConvergence(
-    pg.Tables table, Set<Worker> clients) async {
+  pg.Tables table,
+  Set<Worker> clients,
+) async {
   // {pg: {k: v}    k/v for any diffs in any ps-#
   //  ps-#: {k: v}}  k/v for this ps-# diff than pg
   final Map<String, Map<int, dynamic>> divergent = SplayTreeMap();
   final Map<int, dynamic> finalPgRead = switch (table) {
     pg.Tables.lww => await pg.selectAllLWW(),
-    pg.Tables.mww => await pg.selectAllMWW()
+    pg.Tables.mww => await pg.selectAllMWW(),
   };
   for (Worker client in clients) {
     final Map<int, dynamic> finalPsRead =
@@ -201,14 +213,10 @@ Future<void> _checkStrongConvergence(
       final pgV = finalPgRead[k]!;
       final psV = finalPsRead[k]!;
       if (pgV != psV) {
-        divergent.update(
-          'pg',
-          (inner) {
-            inner.addAll({k: pgV});
-            return inner;
-          },
-          ifAbsent: () => SplayTreeMap.from({k: pgV}),
-        );
+        divergent.update('pg', (inner) {
+          inner.addAll({k: pgV});
+          return inner;
+        }, ifAbsent: () => SplayTreeMap.from({k: pgV}));
         divergent.update('ps-${client.getClientNum()}', (inner) {
           inner.addAll({k: psV});
           return inner;
@@ -247,7 +255,7 @@ Future<void> _causalCheckPg(CausalChecker causalChecker) async {
     'f': 'txn',
     'value': opValue,
     'table': 'mww',
-    'clientNum': 0
+    'clientNum': 0,
   };
 
   if (!causalChecker.checkOp(op)) {
