@@ -202,6 +202,8 @@ void main(List<String> arguments) async {
           client.closeTxns();
           client.closeApis();
         }
+        pgClient.closeTxns();
+        pgClient.closeApis();
 
         // done with PostgreSQL
         await pg.close();
