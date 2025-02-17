@@ -19,6 +19,9 @@ class PSEndpoint extends Endpoint {
     assert(op['f'] == 'txn');
     assert(op['value'].length >= 1);
 
+    // augment op with client type
+    op['clientType'] = 'ps';
+
     final table = op['table']! as String;
 
     await db.writeTransaction((tx) async {
@@ -102,6 +105,9 @@ class PSEndpoint extends Endpoint {
     assert(op['type'] == 'invoke');
     assert(op['f'] == 'api');
     assert(op['value'] != null);
+
+    // augment op with client type
+    op['clientType'] = 'ps';
 
     String newType = 'ok';
 

@@ -11,6 +11,9 @@ class PGEndpoint extends Endpoint {
     assert(op['f'] == 'txn');
     assert(op['value'].length >= 1);
 
+    // augment op with client type
+    op['clientType'] = 'pg';
+
     String newType = 'ok'; // assume ok
 
     // convert table as String to enum
@@ -120,6 +123,9 @@ class PGEndpoint extends Endpoint {
     assert(op['type'] == 'invoke');
     assert(op['f'] == 'api');
     assert(op['value'] != null);
+
+    // augment op with client type
+    op['clientType'] = 'pg';
 
     switch (op['value']['f']) {
       case 'connect':

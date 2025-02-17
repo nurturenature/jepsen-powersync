@@ -76,7 +76,22 @@ abstract class Endpoint {
       'type': 'invoke',
       'f': 'api',
       'value': {'f': 'select-all', 'k': table.name, 'v': <sqlite3.Row>{}},
+      'table': table.name,
     });
+  }
+
+  Map<String, dynamic> selectAllResultToOpResult(Map<String, dynamic> op) {
+    final Iterable<Map<String, dynamic>> value = (op['value']['v']
+            as Map<int, int>)
+        .entries
+        .map((MapEntry<int, int> kv) {
+          return {'f': 'r', 'k': kv.key, 'v': kv.value};
+        });
+
+    op['f'] = 'txn';
+    op['value'] = value.toList(growable: false);
+
+    return op;
   }
 
   Map<String, dynamic> uploadQueueCountMessage() {

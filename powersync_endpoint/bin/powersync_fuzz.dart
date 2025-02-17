@@ -48,9 +48,14 @@ void main(List<String> arguments) async {
     clientFutures.add(Worker.spawn(table, clientNum, pse.PSEndpoint()));
   }
   Set<Worker> clients = Set.from(await clientFutures.wait);
-  // include a PostgreSQL client?
+
+  // will use a PostgreSQL client to check for Causal Consistency
+  final Worker pgClient = await Worker.spawn(table, 0, pge.PGEndpoint());
+
+  // include PostgreSQL client in pool of Workers?
   if (args['postgresql']) {
-    clients.add(await Worker.spawn(table, 0, pge.PGEndpoint()));
+    args['clients']++;
+    clients.add(await Worker.spawn(table, args['clients'], pge.PGEndpoint()));
   }
 
   // create a causal consistency checker
@@ -131,8 +136,19 @@ void main(List<String> arguments) async {
           exit(2);
         }
 
-        // TODO: always check PG?
-        _causalCheckPg(causalChecker);
+        // TODO: check PostgreSQL after every non pg txn?
+        if (op['clientType'] != 'pg') {
+          final pgOp =
+              (await pgClient.executeApi(_pse.selectAllMessage(table)))
+                  as Map<String, dynamic>;
+          _pse.selectAllResultToOpResult(pgOp);
+          if (!causalChecker.checkOp(pgOp)) {
+            log.severe(
+              'Causal Consistency check, PostgreSQL read all after every txn, failed for op: $pgOp',
+            );
+            exit(3);
+          }
+        }
       })
       .onDone(() async {
         // stop disconnecting/connection
@@ -239,27 +255,5 @@ Future<void> _checkStrongConvergence(
     }
     log.severe(':(');
     exit(1);
-  }
-}
-
-// read all k/v from PG and check for Causal Consistency
-// assume we're pseudo clientNum 0
-Future<void> _causalCheckPg(CausalChecker causalChecker) async {
-  final allKV = await pg.selectAllMWW();
-  final List<Map<String, dynamic>> opValue = [];
-  for (final kv in allKV.entries) {
-    opValue.add({'f': 'r', 'k': kv.key, 'v': kv.value});
-  }
-  final op = {
-    'type': 'ok',
-    'f': 'txn',
-    'value': opValue,
-    'table': 'mww',
-    'clientNum': 0,
-  };
-
-  if (!causalChecker.checkOp(op)) {
-    log.severe('Failed checking PG for Causal Consistency!');
-    exit(3);
   }
 }

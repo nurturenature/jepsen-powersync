@@ -25,12 +25,13 @@ class CausalChecker {
       'f': String f,
       'value': List<Map<String, dynamic>> value,
       'table': String table,
+      'clientType': String clientType,
       'clientNum': int clientNum,
     } = op;
 
-    // ok for PostgreSQL, client 0, to have an error op, e.g. concurrent access
+    // ok for PostgreSQL, clientType pg, to have an error op, e.g. concurrent access
     // if so, it's a no-op re updating any state
-    if (clientNum == 0 && type == 'error') {
+    if (clientType == 'pg' && type == 'error') {
       return true;
     }
 
