@@ -194,7 +194,7 @@ class Worker {
             final v = mop['v'] as String?;
             if (_readConsistency.suspiciousRead(k, v)) {
               log.severe('ERROR: suspicious read: $mop, for $op');
-              exit(127);
+              exit(2);
             }
           });
     }

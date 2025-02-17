@@ -128,7 +128,7 @@ void main(List<String> arguments) async {
                 as Map<String, dynamic>;
         if (!causalChecker.checkOp(op)) {
           log.severe('Causal Consistency check failed for op: $op');
-          exit(127);
+          exit(2);
         }
 
         // TODO: always check PG?
@@ -238,7 +238,7 @@ Future<void> _checkStrongConvergence(
       }
     }
     log.severe(':(');
-    exit(127);
+    exit(1);
   }
 }
 
@@ -260,6 +260,6 @@ Future<void> _causalCheckPg(CausalChecker causalChecker) async {
 
   if (!causalChecker.checkOp(op)) {
     log.severe('Failed checking PG for Causal Consistency!');
-    exit(127);
+    exit(3);
   }
 }

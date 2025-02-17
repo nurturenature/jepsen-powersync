@@ -27,7 +27,7 @@ class NoOpConnector extends PowerSyncBackendConnector {
   Future<void> uploadData(PowerSyncDatabase database) async {
     log.severe('localOnly:true should never uploadData!');
 
-    exit(127);
+    exit(100);
   }
 }
 
@@ -212,11 +212,11 @@ class CrudTransactionConnector extends PowerSyncBackendConnector {
           log.severe(
             'Unable to process transaction: $crudTransaction, cause: $cause',
           );
-          exit(127);
+          exit(30);
 
         case final unknown:
           log.severe('Invalid transaction result: $unknown');
-          exit(127);
+          exit(100);
       }
     }
   }

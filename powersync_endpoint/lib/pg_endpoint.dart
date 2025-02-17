@@ -45,7 +45,7 @@ class PGEndpoint extends Endpoint {
                   log.severe(
                     "Unexpected database state, uninitialized read for key: $k', in mop: $mop, for op: $op",
                   );
-                  exit(127);
+                  exit(11);
                 }
 
                 switch (table) {
@@ -78,7 +78,7 @@ class PGEndpoint extends Endpoint {
                   log.severe(
                     'Not 1 row affected by append in mop: $mop, with results: $result, for $op',
                   );
-                  exit(127);
+                  exit(11);
                 }
                 return mop;
 
@@ -102,7 +102,7 @@ class PGEndpoint extends Endpoint {
       if (se.severity == pg.Severity.panic ||
           se.severity == pg.Severity.fatal) {
         log.severe('Fatal error from Postgres: ${se.message}');
-        exit(127);
+        exit(21);
       }
 
       // no retry, just fail transaction, likely concurrent access or deadlock
@@ -152,7 +152,7 @@ class PGEndpoint extends Endpoint {
 
       default:
         log.severe('Unknown powersyncApi request: $op');
-        exit(127);
+        exit(100);
     }
 
     op['type'] = 'ok';

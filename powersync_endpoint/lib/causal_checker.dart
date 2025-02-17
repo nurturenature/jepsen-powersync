@@ -45,9 +45,9 @@ class CausalChecker {
         case 'r':
           // must read a null, -1, or a value that was written
           if (v != -1 && _mwWfrStates[(k, v)] == null) {
-            debug();
+            debug(k, [v]);
             log.severe(
-              'reading a k/v: $k/$v that was never written in op: $op',
+              '{k: $k, v: $v} was never written, yet reading it in op: $op',
             );
             return false;
           }
@@ -55,9 +55,9 @@ class CausalChecker {
           // monotonic reads, monotonic writes, read your writes, writes follow reads
           //   - read value must be >= prev value
           if (v < _clientStates[clientNum]![k]) {
-            debug();
+            debug(k, [v, _clientStates[clientNum]![k]]);
             log.severe(
-              'value of read k/v: $k/$v is less than expected value: ${_clientStates[clientNum]![k]} in op: $op',
+              'read of {k: $k, v: $v} is less than expected read of {k: $k, v: ${_clientStates[clientNum]![k]}} in op: $op',
             );
             return false;
           } else {
@@ -83,9 +83,9 @@ class CausalChecker {
         case 'append':
           // writes must be unique
           if (_mwWfrStates[(k, v)] != null) {
-            debug();
+            debug(k, [v]);
             log.severe(
-              'writing a k/v: $k/$v that was already written in op: $op',
+              '{k: $k, v: $v} was already written yet trying to write it in op: $op',
             );
             return false;
           }
@@ -93,9 +93,9 @@ class CausalChecker {
           // monotonic reads, monotonic writes, read your writes, writes follow reads
           //   - write value must be > prev value
           if (v <= _clientStates[clientNum]![k]) {
-            debug();
+            debug(k, [v, _clientStates[clientNum]![k]]);
             log.severe(
-              'value of write: $v is less than or equal previous value: ${_clientStates[clientNum]![k]} in op: $op',
+              'write of {k: $k, v: $v} is less than or equal to previous write of {k: $k, v: ${_clientStates[clientNum]![k]}} in op: $op',
             );
             return false;
           } else {
@@ -120,15 +120,15 @@ class CausalChecker {
     return true;
   }
 
-  void debug() {
-    log.info('causal client states:');
+  void debug(int k, Iterable<int> vs) {
+    log.info('CausalChecker client states:');
     for (var clientNum = 0; clientNum <= _numClients; clientNum++) {
-      log.info('\t$clientNum: ${_clientStates[clientNum]}');
+      log.info('\tclient $clientNum: ${_clientStates[clientNum]}');
     }
 
-    log.info('causal mr/wfr states:');
-    for (final kv in _mwWfrStates.keys) {
-      log.info('\t$kv: ${_mwWfrStates[kv]}');
+    log.info('CausalChecker Monotonic Read/Write Follows Reads states:');
+    for (final v in vs) {
+      log.info('\t{k: $k, v: $v}: ${_mwWfrStates[(k, v)]}');
     }
   }
 }

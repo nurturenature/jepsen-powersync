@@ -34,7 +34,7 @@ class PSEndpoint extends Endpoint {
               log.severe(
                 "Unexpected database state, uninitialized read key ${mop['k']} for op: $op",
               );
-              exit(127);
+              exit(10);
             }
 
             // literal null read is an error, db is pre-seeded
@@ -42,7 +42,7 @@ class PSEndpoint extends Endpoint {
               log.severe(
                 "Literal null read for key: ${mop['k']} in mop: $mop in op: $op",
               );
-              exit(127);
+              exit(10);
             }
 
             switch (table) {
@@ -84,7 +84,7 @@ class PSEndpoint extends Endpoint {
               log.severe(
                 "Unexpected database state, uninitialized append key ${mop['k']} for op: $op",
               );
-              exit(127);
+              exit(10);
             }
 
             return mop;
@@ -196,7 +196,7 @@ class PSEndpoint extends Endpoint {
 
       default:
         log.severe('Unknown powersyncApi request: $op');
-        exit(127);
+        exit(100);
     }
 
     op['type'] = newType;

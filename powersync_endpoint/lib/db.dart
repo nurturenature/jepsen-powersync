@@ -137,7 +137,7 @@ void _logSyncStatus(PowerSyncDatabase db) {
       log.severe(
         'unexpected upload error in statusStream: ${syncStatus.uploadError}',
       );
-      exit(127);
+      exit(40);
     }
 
     // download error
@@ -153,7 +153,7 @@ void _logSyncStatus(PowerSyncDatabase db) {
       log.severe(
         'unexpected download error in statusStream: ${syncStatus.downloadError}',
       );
-      exit(127);
+      exit(41);
     }
 
     // WTF?

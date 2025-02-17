@@ -79,7 +79,7 @@ Future<Response> _powersync(Request req, String action) async {
 
     default:
       log.severe('Unknown /powersync request: $req');
-      exit(127);
+      exit(100);
   }
 
   log.fine('api response: $action $response');
