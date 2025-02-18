@@ -84,7 +84,7 @@ jobs:
       test-title: ${{ matrix.clients}}c-${{ matrix.rate }}tps-${{ matrix.time }}s-${{ matrix.postgresql }}-${{ matrix.disconnect }}
       POWERSYNC_IMAGE_TAG: ${{ inputs.powersync-image-tag }}
 
-    steps:  
+    steps:
       - name: Checkout jepsen-powersync
         uses: actions/checkout@v4
       
@@ -95,6 +95,7 @@ jobs:
           ./docker-compose-up.sh
 
       - name: ${{ env.test-title }}
+        timeout-minutes: 15
         run: |
           cd $GITHUB_WORKSPACE/docker
           ./powersync-fuzz-run.sh ./powersync_fuzz                    \
