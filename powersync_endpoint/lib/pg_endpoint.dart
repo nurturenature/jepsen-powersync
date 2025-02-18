@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:postgres/postgres.dart' as pg;
+import 'args.dart';
 import 'endpoint.dart';
 import 'log.dart';
 import 'postgresql.dart' as local_pg;
@@ -31,7 +32,7 @@ class PGEndpoint extends Endpoint {
           final valueAsFutures = op['value'].map((
             Map<String, dynamic> mop,
           ) async {
-            final {'f': String f, 'k': int k, 'v': dynamic v} = mop;
+            final {'f': String f, 'k': dynamic k, 'v': dynamic v} = mop;
             switch (f) {
               case 'r':
                 final result = await tx.execute(
@@ -83,6 +84,47 @@ class PGEndpoint extends Endpoint {
                   );
                   exit(11);
                 }
+                return mop;
+
+              case 'read-all':
+                final select = await tx.execute(
+                  'SELECT k,v from mww ORDER BY k;',
+                );
+
+                // db is pre-seeded so all keys expected in result when reading
+                if (select.length != args['keys']) {
+                  log.severe(
+                    'invalid select: $select for mop: $mop in op: $op',
+                  );
+                  exit(11);
+                }
+
+                // return mop['v'] as a {k: v} map containing all read k/v
+                mop['v'] = Map.fromEntries(
+                  select
+                      .map((resultRow) => resultRow.toColumnMap())
+                      .map((row) => MapEntry(row['k'], row['v'])),
+                );
+
+                return mop;
+
+              case 'write-some':
+                final Map<int, int> writeSome = mop['v'];
+                pg.Result update;
+                for (final kv in writeSome.entries) {
+                  update = await tx.execute(
+                    "UPDATE mww SET v = ${kv.value} WHERE k = ${kv.key} RETURNING *;",
+                  );
+
+                  // db is pre-seeded so 1 and only 1 result when updating
+                  if (update.length != 1) {
+                    log.severe(
+                      'invalid update: $update for key: ${kv.key} in mop: $mop in op: $op',
+                    );
+                    exit(11);
+                  }
+                }
+
                 return mop;
 
               default:

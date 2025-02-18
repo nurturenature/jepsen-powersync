@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:powersync/sqlite3.dart';
+import 'args.dart';
 import 'db.dart';
 import 'endpoint.dart';
 import 'log.dart';
@@ -25,7 +27,7 @@ class PSEndpoint extends Endpoint {
     final table = op['table']! as String;
 
     await db.writeTransaction((tx) async {
-      op['value'].map((mop) async {
+      final valueAsFutures = op['value'].map((mop) async {
         switch (mop['f']) {
           case 'r':
             final select = await tx.getOptional(
@@ -91,8 +93,52 @@ class PSEndpoint extends Endpoint {
             }
 
             return mop;
+
+          case 'read-all':
+            final select = await tx.getAll('SELECT k,v FROM mww ORDER BY k;');
+
+            // db is pre-seeded so all keys expected in result when reading
+            if (select.length != args['keys']) {
+              log.severe('invalid select: $select for mop: $mop in op: $op');
+              exit(10);
+            }
+
+            // return mop['v'] as a {k: v} map containing all read k/v
+            mop['v'] = Map.fromEntries(
+              select.map((row) => MapEntry(row['k'] as int, row['v'] as int)),
+            );
+
+            return mop;
+
+          case 'write-some':
+            final Map<int, int> writeSome = mop['v'];
+            ResultSet update;
+            for (final kv in writeSome.entries) {
+              update = await tx.execute(
+                "UPDATE mww SET v = ${kv.value} WHERE k = ${kv.key} RETURNING *;",
+              );
+
+              // db is pre-seeded so 1 and only 1 result when updating
+              if (update.length != 1) {
+                log.severe(
+                  'invalid update: $update for key: ${kv.key} in mop: $mop in op: $op',
+                );
+                exit(10);
+              }
+            }
+
+            return mop;
+
+          default:
+            throw StateError('invalid f: ${mop['f']} in mop: $mop in op: $op');
         }
-      }).toList();
+      });
+
+      // as map() is a lazy Iterable, and it's toElement() is async.
+      // it's necessary to iterate and await so txns are executed and op['value'] updated
+      for (final mop in valueAsFutures) {
+        await mop;
+      }
     });
 
     op['type'] = 'ok';

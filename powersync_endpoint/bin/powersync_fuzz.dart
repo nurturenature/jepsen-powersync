@@ -49,13 +49,9 @@ void main(List<String> arguments) async {
   }
   Set<Worker> clients = Set.from(await clientFutures.wait);
 
-  // will use a PostgreSQL client to check for Causal Consistency
-  final Worker pgClient = await Worker.spawn(table, 0, pge.PGEndpoint());
-
   // include PostgreSQL client in pool of Workers?
   if (args['postgresql']) {
-    args['clients']++;
-    clients.add(await Worker.spawn(table, args['clients'], pge.PGEndpoint()));
+    clients.add(await Worker.spawn(table, 0, pge.PGEndpoint()));
   }
 
   // create a causal consistency checker
@@ -120,7 +116,7 @@ void main(List<String> arguments) async {
   .periodic(
     Duration(milliseconds: (1000 / args['rate']).floor()),
     // using reads/appends against random keys with a sequential value
-    (value) => _pse.rndTxnMessage(table, value),
+    (value) => _pse.readAllWriteSomeTxnMessage(args['maxTxnLen'], value),
   )
   // for a total # of txns
   .take(args['time'] * args['rate']);
@@ -134,20 +130,6 @@ void main(List<String> arguments) async {
         if (!causalChecker.checkOp(op)) {
           log.severe('Causal Consistency check failed for op: $op');
           exit(2);
-        }
-
-        // TODO: check PostgreSQL after every non pg txn?
-        if (op['clientType'] != 'pg') {
-          final pgOp =
-              (await pgClient.executeApi(_pse.selectAllMessage(table)))
-                  as Map<String, dynamic>;
-          _pse.selectAllResultToOpResult(pgOp);
-          if (!causalChecker.checkOp(pgOp)) {
-            log.severe(
-              'Causal Consistency check, PostgreSQL read all after every txn, failed for op: $pgOp',
-            );
-            exit(3);
-          }
         }
       })
       .onDone(() async {
@@ -202,8 +184,6 @@ void main(List<String> arguments) async {
           client.closeTxns();
           client.closeApis();
         }
-        pgClient.closeTxns();
-        pgClient.closeApis();
 
         // done with PostgreSQL
         await pg.close();

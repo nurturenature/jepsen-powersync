@@ -20,6 +20,26 @@ abstract class Endpoint {
   /// api endpoint for connect/disconnect, upload-queue-count/upload-queue-wait, and select-all
   Future<Map> powersyncApi(Map op);
 
+  /// returns a transaction message that:
+  ///   - reads all key/values
+  ///   - writes `value` to `count` random keys
+  Map<String, dynamic> readAllWriteSomeTxnMessage(int count, int value) {
+    // {k: v} map of k/v to write
+    final writeSome = Map.fromEntries(
+      allKeys.getRandom(count).map((k) => MapEntry(k, value)),
+    );
+
+    return Map.of({
+      'type': 'invoke',
+      'f': 'txn',
+      'value': [
+        {'f': 'read-all', 'k': -1, 'v': <Map<int, int>>{}},
+        {'f': 'write-some', 'k': -1, 'v': writeSome},
+      ],
+      'table': 'mww',
+    });
+  }
+
   Map<String, dynamic> rndTxnMessage(pg.Tables table, int count) {
     return Map.of({
       'type': 'invoke',
