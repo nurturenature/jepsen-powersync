@@ -109,11 +109,12 @@ class PGEndpoint extends Endpoint {
                 return mop;
 
               case 'write-some':
-                final Map<int, int> writeSome = mop['v'];
+                // create a new Map to iterate over so we can modify the mop['v'] Map
+                final Map<int, int> writeSome = Map.of(mop['v']);
                 pg.Result update;
                 for (final kv in writeSome.entries) {
                   update = await tx.execute(
-                    "UPDATE mww SET v = ${kv.value} WHERE k = ${kv.key} RETURNING *;",
+                    "UPDATE mww SET v = GREATEST(${kv.value}, mww.v) WHERE k = ${kv.key} RETURNING *;",
                   );
 
                   // db is pre-seeded so 1 and only 1 result when updating
@@ -122,6 +123,11 @@ class PGEndpoint extends Endpoint {
                       'invalid update: $update for key: ${kv.key} in mop: $mop in op: $op',
                     );
                     exit(11);
+                  }
+
+                  // if another process wrote a greater value our write doesn't count
+                  if (update.single.toColumnMap()['v'] > kv.value) {
+                    mop['v'].remove([kv.key]);
                   }
                 }
 
