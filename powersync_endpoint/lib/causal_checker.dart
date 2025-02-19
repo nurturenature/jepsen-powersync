@@ -45,20 +45,28 @@ class CausalChecker {
     for (final {'f': String f, 'v': dynamic v} in value) {
       switch (f) {
         case 'read-all':
-          // check each read k/v in mop['v'] map
+          // check each read k/v
+          var readErrors = false;
           for (final kv in v.entries) {
             if (!_checkSingleRead(clientNum, kv.key, kv.value, op)) {
-              return false;
+              readErrors = true;
             }
+          }
+          if (readErrors) {
+            return false;
           }
           break;
 
         case 'write-some':
-          // check each k/v written
+          // check each write k/v
+          var writeErrors = false;
           for (final MapEntry kv in v.entries) {
             if (!_checkSingleWrite(clientNum, kv.key, kv.value, op)) {
-              return false;
+              writeErrors = true;
             }
+          }
+          if (writeErrors) {
+            return false;
           }
           break;
 
@@ -73,18 +81,18 @@ class CausalChecker {
   bool _checkSingleRead(int clientNum, int k, int v, Map<String, dynamic> op) {
     // must read a null, -1, or a value that was written
     if (v != -1 && _mwWfrStates[(k, v)] == null) {
+      log.severe('{$k: $v} was never written, yet reading it in op: $op');
       debug(k, [v]);
-      log.severe('{k: $k, v: $v} was never written, yet reading it in op: $op');
       return false;
     }
 
     // monotonic reads, monotonic writes, read your writes, writes follow reads
     //   - read value must be >= prev value
     if (v < _clientStates[clientNum]![k]) {
-      debug(k, [v, _clientStates[clientNum]![k]]);
       log.severe(
-        'read of {k: $k, v: $v} is less than expected read of {k: $k, v: ${_clientStates[clientNum]![k]}} in op: $op',
+        'read of {$k: $v} is less than expected read of {$k: ${_clientStates[clientNum]![k]}} in op: $op',
       );
+      debug(k, [v, _clientStates[clientNum]![k]]);
       return false;
     } else {
       // update client state with current read value
@@ -113,20 +121,20 @@ class CausalChecker {
   bool _checkSingleWrite(int clientNum, int k, int v, Map<String, dynamic> op) {
     // writes must be unique
     if (_mwWfrStates[(k, v)] != null) {
-      debug(k, [v]);
       log.severe(
-        '{k: $k, v: $v} was already written yet trying to write it in op: $op',
+        '{$k: $v} was already written yet trying to write it in op: $op',
       );
+      debug(k, [v]);
       return false;
     }
 
     // monotonic reads, monotonic writes, read your writes, writes follow reads
     //   - write value must be > prev value
     if (v <= _clientStates[clientNum]![k]) {
-      debug(k, [v, _clientStates[clientNum]![k]]);
       log.severe(
-        'write of {k: $k, v: $v} is less than or equal to previous write of {k: $k, v: ${_clientStates[clientNum]![k]}} in op: $op',
+        'write of {$k: $v} is less than or equal to previous write of {$k: ${_clientStates[clientNum]![k]}} in op: $op',
       );
+      debug(k, [v, _clientStates[clientNum]![k]]);
       return false;
     } else {
       // update client state with current write value
@@ -147,12 +155,18 @@ class CausalChecker {
   void debug(int k, Iterable<int> vs) {
     log.info('CausalChecker client states:');
     for (var clientNum = 0; clientNum <= _numClients; clientNum++) {
-      log.info('\tclient $clientNum: ${_clientStates[clientNum]}');
+      // only log client if its state for k is in vs
+      final v = _clientStates[clientNum]![k];
+      if (vs.contains(v)) {
+        log.info(
+          '\t{$k: $v} in client $clientNum: ${_clientStates[clientNum]}',
+        );
+      }
     }
 
     log.info('CausalChecker Monotonic Read/Write Follows Reads states:');
     for (final v in vs) {
-      log.info('\t{k: $k, v: $v}: ${_mwWfrStates[(k, v)]}');
+      log.info('\t{$k: $v}: ${_mwWfrStates[(k, v)]}');
     }
   }
 }

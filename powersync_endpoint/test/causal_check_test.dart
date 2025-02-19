@@ -17,6 +17,7 @@ void main() {
       'clientNum': 1,
     };
 
+    // read of unwritten value
     causalChecker = CausalChecker(args['clients'], args['keys']);
     final Map<String, dynamic> readOfUnwritten = Map.from(baseOp);
     readOfUnwritten.addAll({
@@ -28,7 +29,30 @@ void main() {
         },
       ],
     });
-
     expect(causalChecker.checkOp(readOfUnwritten), false);
+
+    // not reading your own writes
+    causalChecker = CausalChecker(args['clients'], args['keys']);
+    final Map<String, dynamic> failReadYourWrites = Map.from(baseOp);
+    failReadYourWrites.addAll({
+      'value': [
+        {
+          'f': 'write-some',
+          'k': -1,
+          'v': {0: 0, 1: 0},
+        },
+      ],
+    });
+    expect(causalChecker.checkOp(failReadYourWrites), true);
+    failReadYourWrites.addAll({
+      'value': [
+        {
+          'f': 'read-all',
+          'k': -1,
+          'v': {0: -1, 1: -1},
+        },
+      ],
+    });
+    expect(causalChecker.checkOp(failReadYourWrites), false);
   });
 }
