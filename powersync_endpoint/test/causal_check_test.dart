@@ -31,6 +31,30 @@ void main() {
     });
     expect(causalChecker.checkOp(readOfUnwritten), false);
 
+    // reading your own writes
+    causalChecker = CausalChecker(args['clients'], args['keys']);
+    final Map<String, dynamic> readYourWrites = Map.from(baseOp);
+    readYourWrites.addAll({
+      'value': [
+        {
+          'f': 'write-some',
+          'k': -1,
+          'v': {0: 0, 1: 0},
+        },
+      ],
+    });
+    expect(causalChecker.checkOp(readYourWrites), true);
+    readYourWrites.addAll({
+      'value': [
+        {
+          'f': 'read-all',
+          'k': -1,
+          'v': {0: 0, 1: 0, 2: -1},
+        },
+      ],
+    });
+    expect(causalChecker.checkOp(readYourWrites), true);
+
     // not reading your own writes
     causalChecker = CausalChecker(args['clients'], args['keys']);
     final Map<String, dynamic> failReadYourWrites = Map.from(baseOp);
@@ -49,10 +73,94 @@ void main() {
         {
           'f': 'read-all',
           'k': -1,
-          'v': {0: -1, 1: -1},
+          'v': {0: 0, 1: -1, 2: -1},
         },
       ],
     });
     expect(causalChecker.checkOp(failReadYourWrites), false);
+
+    // writes follow reads
+    causalChecker = CausalChecker(args['clients'], args['keys']);
+    final Map<String, dynamic> writesFollowReads = Map.from(baseOp);
+    writesFollowReads.addAll({
+      'clientNum': 1,
+      'value': [
+        {
+          'f': 'write-some',
+          'k': -1,
+          'v': {0: 0, 1: 0},
+        },
+      ],
+    });
+    expect(causalChecker.checkOp(writesFollowReads), true);
+    writesFollowReads.addAll({
+      'clientNum': 2,
+      'value': [
+        {
+          'f': 'read-all',
+          'k': -1,
+          'v': {0: 0, 1: 0, 2: -1},
+        },
+        {
+          'f': 'write-some',
+          'k': -1,
+          'v': {2: 0},
+        },
+      ],
+    });
+    expect(causalChecker.checkOp(writesFollowReads), true);
+    writesFollowReads.addAll({
+      'clientNum': 3,
+      'value': [
+        {
+          'f': 'read-all',
+          'k': -1,
+          'v': {0: 0, 1: 0, 2: 0},
+        },
+      ],
+    });
+    expect(causalChecker.checkOp(writesFollowReads), true);
+
+    // not writes follow reads
+    causalChecker = CausalChecker(args['clients'], args['keys']);
+    final Map<String, dynamic> failWritesFollowReads = Map.from(baseOp);
+    failWritesFollowReads.addAll({
+      'clientNum': 1,
+      'value': [
+        {
+          'f': 'write-some',
+          'k': -1,
+          'v': {0: 0, 1: 0},
+        },
+      ],
+    });
+    expect(causalChecker.checkOp(failWritesFollowReads), true);
+    failWritesFollowReads.addAll({
+      'clientNum': 2,
+      'value': [
+        {
+          'f': 'read-all',
+          'k': -1,
+          'v': {0: 0, 1: 0, 2: -1},
+        },
+        {
+          'f': 'write-some',
+          'k': -1,
+          'v': {2: 0},
+        },
+      ],
+    });
+    expect(causalChecker.checkOp(failWritesFollowReads), true);
+    failWritesFollowReads.addAll({
+      'clientNum': 3,
+      'value': [
+        {
+          'f': 'read-all',
+          'k': -1,
+          'v': {0: -1, 1: 0, 2: 0},
+        },
+      ],
+    });
+    expect(causalChecker.checkOp(failWritesFollowReads), false);
   });
 }

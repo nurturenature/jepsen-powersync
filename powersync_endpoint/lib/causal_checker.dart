@@ -18,7 +18,8 @@ class CausalChecker {
     _mwWfrStates = {};
   }
 
-  // check if op has valid reads/writes
+  /// Check if op has valid reads/writes.
+  /// Update client and mw/wfr state.
   bool checkOp(Map<String, dynamic> op) {
     final {
       'type': String type,
@@ -29,8 +30,9 @@ class CausalChecker {
       'clientNum': int clientNum,
     } = op;
 
+    final clientState = _clientStates[clientNum]!;
+
     // ok for PostgreSQL, clientType pg, to have an error op, e.g. concurrent access
-    // if so, it's a no-op re updating any state
     if (clientType == 'pg' && type == 'error') {
       log.info('CausalChecker ignoring PostgreSQL error op: $op');
       return true;
@@ -45,29 +47,42 @@ class CausalChecker {
     for (final {'f': String f, 'v': dynamic v} in value) {
       switch (f) {
         case 'read-all':
+          // transactions are atomic and repeatable read
+          //   - update client state with mw/wfr state for all reads
+          //   - before checking individual reads
+          _updateClientStateWithReadMwWfrState(clientState, v);
+
           // check each read k/v
           var readErrors = false;
-          for (final kv in v.entries) {
-            if (!_checkSingleRead(clientNum, kv.key, kv.value, op)) {
+          for (final MapEntry<int, int> kv in v.entries) {
+            if (!_checkSingleRead(clientState, kv.key, kv.value, op)) {
               readErrors = true;
             }
+
+            // update client state with current read value
+            clientState[kv.key] = kv.value;
           }
           if (readErrors) {
             return false;
           }
+
           break;
 
         case 'write-some':
           // check each write k/v
           var writeErrors = false;
           for (final MapEntry kv in v.entries) {
-            if (!_checkSingleWrite(clientNum, kv.key, kv.value, op)) {
+            if (!_checkSingleWrite(clientState, kv.key, kv.value, op)) {
               writeErrors = true;
             }
           }
           if (writeErrors) {
             return false;
           }
+
+          // update state to include these writes
+          _updateClientAndMwWfrStatesWithClientWrites(clientState, v);
+
           break;
 
         default:
@@ -78,9 +93,15 @@ class CausalChecker {
     return true;
   }
 
-  bool _checkSingleRead(int clientNum, int k, int v, Map<String, dynamic> op) {
+  // only checks, does not update state
+  bool _checkSingleRead(
+    List<int> clientState,
+    int k,
+    int v,
+    Map<String, dynamic> op,
+  ) {
     // must read a null, -1, or a value that was written
-    if (v != -1 && _mwWfrStates[(k, v)] == null) {
+    if (v != -1 && !_mwWfrStates.containsKey((k, v))) {
       log.severe('{$k: $v} was never written, yet reading it in op: $op');
       debug(k, [v]);
       return false;
@@ -88,39 +109,26 @@ class CausalChecker {
 
     // monotonic reads, monotonic writes, read your writes, writes follow reads
     //   - read value must be >= prev value
-    if (v < _clientStates[clientNum]![k]) {
+    if (v < clientState[k]) {
       log.severe(
-        'read of {$k: $v} is less than expected read of {$k: ${_clientStates[clientNum]![k]}} in op: $op',
+        'read of {$k: $v} is less than expected read of {$k: ${clientState[k]}} in op: $op',
       );
-      debug(k, [v, _clientStates[clientNum]![k]]);
+      debug(k, [v, clientState[k]]);
       return false;
-    } else {
-      // update client state with current read value
-      _clientStates[clientNum]![k] = v;
-    }
-
-    // reading a null, -1, is a no-op
-    if (v == -1) {
-      return true;
-    }
-
-    // monotonic writes, writes follow reads
-    //   - clients now have to read at least the state at the time of the write that was read
-    //   - update client state
-    //     - with state at time of write that was read
-    //     - if mr/wfr state > client state
-    for (var onK = 0; onK < _numKeys; onK++) {
-      if (_clientStates[clientNum]![onK] < _mwWfrStates[(k, v)]![onK]) {
-        _clientStates[clientNum]![onK] = _mwWfrStates[(k, v)]![onK];
-      }
     }
 
     return true;
   }
 
-  bool _checkSingleWrite(int clientNum, int k, int v, Map<String, dynamic> op) {
+  // only checks, does not update state
+  bool _checkSingleWrite(
+    List<int> clientState,
+    int k,
+    int v,
+    Map<String, dynamic> op,
+  ) {
     // writes must be unique
-    if (_mwWfrStates[(k, v)] != null) {
+    if (_mwWfrStates.containsKey((k, v))) {
       log.severe(
         '{$k: $v} was already written yet trying to write it in op: $op',
       );
@@ -130,28 +138,73 @@ class CausalChecker {
 
     // monotonic reads, monotonic writes, read your writes, writes follow reads
     //   - write value must be > prev value
-    if (v <= _clientStates[clientNum]![k]) {
+    if (v <= clientState[k]) {
       log.severe(
-        'write of {$k: $v} is less than or equal to previous write of {$k: ${_clientStates[clientNum]![k]}} in op: $op',
+        'write of {$k: $v} is less than or equal to previous client state of {$k: ${clientState[k]}} in op: $op',
       );
-      debug(k, [v, _clientStates[clientNum]![k]]);
+      debug(k, [v, clientState[k]]);
       return false;
-    } else {
-      // update client state with current write value
-      _clientStates[clientNum]![k] = v;
     }
-
-    // monotonic writes, read your writes, writes follow reads
-    //   - any future reads of this write must also include all of current client state
-    //   - store current client state for this write
-    _mwWfrStates[(k, v)] = List.from(
-      _clientStates[clientNum]!,
-      growable: false,
-    );
 
     return true;
   }
 
+  // transactions are atomic and repeatable read
+  //   - so the mw/wfr state for each read must be reflected in the entire transaction
+  //   - so add mw/wfr state for all the reads to the client state
+  // only updates, does not check state for errors
+  void _updateClientStateWithReadMwWfrState(
+    List<int> clientState,
+    Map<int, int> reads,
+  ) {
+    for (final readKv in reads.entries) {
+      // a null, -1, read is a no-op
+      if (readKv.value == -1) {
+        continue;
+      }
+
+      final mwWfrState = _mwWfrStates[(readKv.key, readKv.value)];
+
+      // read an unwritten value?
+      if (mwWfrState == null) {
+        continue;
+      }
+
+      // test each mw/wfr value for this read against the client
+      for (var k = 0; k < _numKeys; k++) {
+        if (mwWfrState[k] > clientState[k]) {
+          clientState[k] = mwWfrState[k];
+        }
+      }
+    }
+  }
+
+  // monotonic writes, read your writes, writes follow reads
+  //   - any future reads of this write must also include all of current client state
+  //   - update and store current client state for this write
+  // only updates, does not check state for errors
+  void _updateClientAndMwWfrStatesWithClientWrites(
+    List<int> clientState,
+    Map<int, int> writes,
+  ) {
+    // transactions are atomic
+    //   - so update client state with all writes
+    //   - before updating mw/wfr states
+    for (final writeKv in writes.entries) {
+      clientState[writeKv.key] = writeKv.value;
+    }
+
+    // all mw/wfr for these writes have the same immutable client state
+    final List<int> newClientState = List.unmodifiable(clientState);
+
+    // update mw/wfr states
+    for (final writeKv in writes.entries) {
+      _mwWfrStates[(writeKv.key, writeKv.value)] = newClientState;
+    }
+  }
+
+  // log clients that have {k: v} in their state
+  // log mw/wfr states that were a {k: v} write
   void debug(int k, Iterable<int> vs) {
     log.info('CausalChecker client states:');
     for (var clientNum = 0; clientNum <= _numClients; clientNum++) {
