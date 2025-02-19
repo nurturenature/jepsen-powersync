@@ -1,0 +1,15 @@
+name: fuzz-non-monotonic-reads
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fuzz-non-monotonic-reads:
+    uses: nurturenature/jepsen-powersync/.github/workflows/run-powersync-fuzz-tests.yml@main
+    with:
+      postgresql: >
+        [ '--postgresql' ]
+      disconnect: >
+        [ '--disconnect' ]
+      repeat: >
+        [ '1', '2', '3' ]

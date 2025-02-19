@@ -28,6 +28,11 @@ on:
         type: string
         required: true
         default: "[ '--no-disconnect', '--disconnect' ]"
+      repeat:
+        description: 'unused value to repeat test matrix (as JSON)'
+        type: string
+        required: true
+        default: "[ '1' ]"
       powersync-image-tag:
         description: PowerSync Image Tag
         type: string
@@ -61,6 +66,11 @@ on:
         type: string
         required: false
         default: "[ '--no-disconnect', '--disconnect' ]"
+      repeat:
+        description: 'unused matrix value to repeat test matrix (as JSON)'
+        type: string
+        required: false
+        default: "[ '1' ]"
       powersync-image-tag:
         description: PowerSync Image Tag
         type: string
@@ -79,9 +89,10 @@ jobs:
         time:       ${{ fromJSON(inputs.times) }}
         postgresql: ${{ fromJSON(inputs.postgresql) }}
         disconnect: ${{ fromJSON(inputs.disconnect) }}      
+        repeat:     ${{ fromJSON(inputs.repeat) }}      
 
     env:
-      test-title: ${{ matrix.clients}}c-${{ matrix.rate }}tps-${{ matrix.time }}s-${{ matrix.postgresql }}-${{ matrix.disconnect }}
+      test-title: ${{ matrix.clients}}c-${{ matrix.rate }}tps-${{ matrix.time }}s-${{ matrix.postgresql }}-${{ matrix.disconnect }}-${{ matrix.repeat }}
       POWERSYNC_IMAGE_TAG: ${{ inputs.powersync-image-tag }}
 
     steps:
