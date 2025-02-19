@@ -127,7 +127,7 @@ class PGEndpoint extends Endpoint {
 
                   // if another process wrote a greater value our write doesn't count
                   if (update.single.toColumnMap()['v'] > kv.value) {
-                    mop['v'].remove([kv.key]);
+                    mop['v'].remove(kv.key);
                   }
                 }
 
