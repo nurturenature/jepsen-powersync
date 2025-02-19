@@ -1,0 +1,53 @@
+name: powersync-fuzz
+
+x-defaults: &defaults
+  privileged: true
+  cap_add:
+    - ALL
+  cgroup: host
+  tty: true
+  stop_signal: SIGRTMIN+3
+  tmpfs:
+    - /run:size=100M
+    - /run/lock:size=100M
+  volumes:
+    - /sys/fs/cgroup:/sys/fs/cgroup:rw
+  networks:
+    - powersync-fuzz
+  healthcheck:
+    test: ["CMD-SHELL", "systemctl", "is-system-running"]
+    interval: 1s
+    timeout: 1s
+    retries: 3
+    start_period: 3s
+
+x-node: &default-node
+  <<: *defaults
+  image: powersync-fuzz-node
+  depends_on:
+    powersync:
+      condition: service_healthy
+
+networks:
+  powersync-fuzz:
+
+services:
+  pg-db:
+    networks:
+      - powersync-fuzz
+
+  mongo:
+    networks:
+      - powersync-fuzz
+  mongo-rs-init:
+    networks:
+      - powersync-fuzz
+
+  powersync:
+    networks:
+      - powersync-fuzz
+
+  powersync-fuzz-node:
+    <<: *default-node
+    container_name: powersync-fuzz-node
+    hostname: powersync-fuzz-node

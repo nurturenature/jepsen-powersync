@@ -2,7 +2,7 @@ services:
   setup:
     depends_on:
       powersync:
-        condition: service_started
+        condition: service_healthy
 
   pg-db:
     networks:

@@ -1,7 +1,5 @@
-# Include syntax requires Docker compose > 2.20.3
-# https://docs.docker.com/compose/release-notes/#2203
 include:
-  # Creates a standard Postgress instance
+  # Creates a standard PostgreSQL instance
   - path: postgres-compose.yaml
 
   # Creates the internal MongoDB replica set
@@ -13,8 +11,12 @@ services:
     container_name: powersync
     hostname: powersync
     depends_on:
-      - mongo
-      - pg-db
+      mongo:
+        condition: service_started
+      pg-db:
+        condition: service_healthy
+
+    restart: unless-stopped
     image: journeyapps/powersync-service:${POWERSYNC_IMAGE_TAG:-latest}
     # The unified service runs an API server and replication worker in the same container.
     # These services can be executed in different containers by using individual entry commands e.g.
@@ -23,7 +25,7 @@ services:
     # Start only the replication worker with
     #   command: ['start', '-r', 'sync']
 
-    # Migations occur automatically by default. Default migrations can be disabled in `powersync.yaml`:
+    # Migrations occur automatically by default. Default migrations can be disabled in `powersync.yaml`:
     #  migrations:
     #   disable_auto_migration: true
     #
@@ -79,6 +81,18 @@ services:
       # PS_JWK_N:
       # PS_JWK_E:
       # PS_JWK_KID:
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:${PS_PORT}/probes/liveness').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 1s
+      retries: 15
 
     ports:
       - ${PS_PORT}:${PS_PORT}
