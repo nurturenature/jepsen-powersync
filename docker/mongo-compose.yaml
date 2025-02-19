@@ -10,6 +10,11 @@ services:
       - 27017:27017
     volumes:
       - mongo_storage:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "'db.ping'"]
+      interval: 5s
+      timeout: 1s
+      retries: 5
 
   # Initializes the MongoDB replica set. This service will not usually be actively running
   mongo-rs-init:
@@ -17,7 +22,8 @@ services:
     hostname: mongo-rs-init
     image: mongo:7.0
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     restart: on-failure
     entrypoint:
       - bash

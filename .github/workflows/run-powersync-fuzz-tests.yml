@@ -114,7 +114,7 @@ jobs:
           docker logs pg-db         &> $GITHUB_WORKSPACE/artifacts/pg-db.log         || echo "no docker logs" > $GITHUB_WORKSPACE/artifacts/pg-db.log
           docker logs mongo         &> $GITHUB_WORKSPACE/artifacts/mongo.log         || echo "no docker logs" > $GITHUB_WORKSPACE/artifacts/mongo.log
           docker logs mongo-rs-init &> $GITHUB_WORKSPACE/artifacts/mongo-rs-init.log || echo "no docker logs" > $GITHUB_WORKSPACE/artifacts/mongo-rs-init.log
-          docker cp jepsen-n1:/jepsen/jepsen-powersync/powersync_endpoint/powersync_fuzz.log $GITHUB_WORKSPACE/artifacts
+          docker cp powersync-fuzz-node:/jepsen/jepsen-powersync/powersync_endpoint/powersync_fuzz.log $GITHUB_WORKSPACE/artifacts
 
       - name: 'PowerSync Fuzz Test Artifacts: powersync_fuzz.log'
         if: ${{ always() }}
