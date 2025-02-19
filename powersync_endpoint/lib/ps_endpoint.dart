@@ -99,7 +99,10 @@ class PSEndpoint extends Endpoint {
 
             // db is pre-seeded so all keys expected in result when reading
             if (select.length != args['keys']) {
-              log.severe('invalid select: $select for mop: $mop in op: $op');
+              op['type'] = 'error';
+              log.severe(
+                'invalid SELECT, tx.getAll(), ResultSet: $select for mop: $mop in op: $op',
+              );
               exit(10);
             }
 
