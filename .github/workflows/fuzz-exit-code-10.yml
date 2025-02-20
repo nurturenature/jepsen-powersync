@@ -1,0 +1,21 @@
+name: fuzz-exit-code-10
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fuzz-exit-code-10:
+    uses: nurturenature/jepsen-powersync/.github/workflows/run-powersync-fuzz-tests.yml@main
+    with:
+      clients: >
+        [ '5', '10' ]
+      rates: >
+        [ '30', '40' ]
+      times: >
+        [ '100', '200', '300' ]
+      postgresql: >
+        [ '--postgresql' ]
+      disconnect: >
+        [ '--disconnect' ]
+      repeat: >
+        [ '1', '2', '3', '4', '5', '6', '7', '8' ]
