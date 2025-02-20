@@ -89,7 +89,7 @@ void main(List<String> arguments) async {
       }
 
       log.info(
-        '$connectionStateMessage\'ing clients: ${affectedClients.map((client) => client.getClientNum())}',
+        '$connectionStateMessage\'ing clients: ${affectedClients.map((client) => client.clientNum)}',
       );
 
       final List<Future<Map>> apiFutures = [];
@@ -215,7 +215,7 @@ Future<void> _checkStrongConvergence(
           inner.addAll({k: pgV});
           return inner;
         }, ifAbsent: () => SplayTreeMap.from({k: pgV}));
-        divergent.update('ps-${client.getClientNum()}', (inner) {
+        divergent.update('ps-${client.clientNum}', (inner) {
           inner.addAll({k: psV});
           return inner;
         }, ifAbsent: () => SplayTreeMap.from({k: psV}));

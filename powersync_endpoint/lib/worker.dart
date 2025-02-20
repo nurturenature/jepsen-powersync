@@ -9,7 +9,7 @@ import 'package:powersync_endpoint/postgresql.dart' as pg;
 import 'package:powersync_endpoint/utils.dart';
 
 class Worker {
-  final int _clientNum;
+  final int clientNum;
 
   // transaction instance variables
   final SendPort _txnRequests;
@@ -29,7 +29,7 @@ class Worker {
   final _readConsistency = ReadConsistency();
 
   Worker._(
-    this._clientNum,
+    this.clientNum,
     this._txnResponses,
     this._txnRequests,
     this._apiResponses,
@@ -251,7 +251,7 @@ class Worker {
     _activeTxnRequests[id] = completer;
 
     // augment message with meta data re client and state
-    txn.addAll({'clientNum': _clientNum, 'id': id});
+    txn.addAll({'clientNum': clientNum, 'id': id});
 
     // send txn request to isolate, await and return txn response
     _txnRequests.send((id, txn));
@@ -261,9 +261,7 @@ class Worker {
   Future<Map> executeApi(Map<String, dynamic> api) async {
     // must not be closed
     if (_apisClosed) {
-      throw StateError(
-        'APIs already closed! clientNum: $_clientNum, api: $api',
-      );
+      throw StateError('APIs already closed! clientNum: $clientNum, api: $api');
     }
 
     // insure ordering, request/response id's match
@@ -272,7 +270,7 @@ class Worker {
     _activeApiRequests[id] = completer;
 
     // augment message with meta data re client and state
-    api.addAll({'clientNum': _clientNum, 'id': id});
+    api.addAll({'clientNum': clientNum, 'id': id});
 
     // send api request to isolate, await and return api response
     _apiRequests.send((id, api));
@@ -293,9 +291,5 @@ class Worker {
       _apiRequests.send('shutdown');
       if (_activeApiRequests.isEmpty) _apiResponses.close();
     }
-  }
-
-  int getClientNum() {
-    return _clientNum;
   }
 }
