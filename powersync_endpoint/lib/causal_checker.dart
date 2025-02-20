@@ -44,17 +44,19 @@ class CausalChecker {
     }
 
     // act on each mop, read/write, in value
-    for (final {'f': String f, 'v': dynamic v} in value) {
-      switch (f) {
+    for (final mop in value) {
+      switch (mop['f']) {
         case 'read-all':
+          final reads = mop['v'] as Map<int, int>;
+
           // transactions are atomic and repeatable read
           //   - update client state with mw/wfr state for all reads
           //   - before checking individual reads
-          _updateClientStateWithReadMwWfrState(clientState, v);
+          _updateClientStateWithReadMwWfrState(clientState, reads);
 
           // check each read k/v
           var readErrors = false;
-          for (final MapEntry<int, int> kv in v.entries) {
+          for (final kv in reads.entries) {
             if (!_checkSingleRead(clientState, kv.key, kv.value, op)) {
               readErrors = true;
             }
@@ -69,9 +71,11 @@ class CausalChecker {
           break;
 
         case 'write-some':
+          final writes = mop['v'] as Map<int, int>;
+
           // check each write k/v
           var writeErrors = false;
-          for (final MapEntry kv in v.entries) {
+          for (final kv in writes.entries) {
             if (!_checkSingleWrite(clientState, kv.key, kv.value, op)) {
               writeErrors = true;
             }
@@ -81,12 +85,14 @@ class CausalChecker {
           }
 
           // update state to include these writes
-          _updateClientAndMwWfrStatesWithClientWrites(clientState, v);
+          _updateClientAndMwWfrStatesWithClientWrites(clientState, writes);
 
           break;
 
         default:
-          throw StateError('Invalid f: $f, in value: $value, in op: $op');
+          throw StateError(
+            'Invalid f: ${mop['f']} in value: $value in mop: $mop in op: $op',
+          );
       }
     }
 

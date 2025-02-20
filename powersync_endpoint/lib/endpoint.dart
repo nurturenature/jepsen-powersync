@@ -24,8 +24,11 @@ abstract class Endpoint {
   ///   - reads all key/values
   ///   - writes `value` to `count` random keys
   Map<String, dynamic> readAllWriteSomeTxnMessage(int count, int value) {
+    // placeholder Map for correct typing
+    final Map<int, int> reads = {};
+
     // {k: v} map of k/v to write
-    final writeSome = Map.fromEntries(
+    final writes = Map.fromEntries(
       allKeys.getRandom(count).map((k) => MapEntry(k, value)),
     );
 
@@ -33,8 +36,8 @@ abstract class Endpoint {
       'type': 'invoke',
       'f': 'txn',
       'value': [
-        {'f': 'read-all', 'k': -1, 'v': <Map<int, int>>{}},
-        {'f': 'write-some', 'k': -1, 'v': writeSome},
+        {'f': 'read-all', 'k': -1, 'v': reads},
+        {'f': 'write-some', 'k': -1, 'v': writes},
       ],
       'table': 'mww',
     });

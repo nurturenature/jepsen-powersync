@@ -103,7 +103,7 @@ class PGEndpoint extends Endpoint {
                 mop['v'] = Map.fromEntries(
                   select
                       .map((resultRow) => resultRow.toColumnMap())
-                      .map((row) => MapEntry(row['k'], row['v'])),
+                      .map((row) => MapEntry(row['k'] as int, row['v'] as int)),
                 );
 
                 return mop;
