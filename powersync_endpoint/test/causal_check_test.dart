@@ -31,6 +31,30 @@ void main() {
     });
     expect(causalChecker.checkOp(readOfUnwritten), false);
 
+    // duplicate write
+    causalChecker = CausalChecker(args['clients'], args['keys']);
+    final Map<String, dynamic> duplicateWrite = Map.from(baseOp);
+    duplicateWrite.addAll({
+      'value': [
+        {
+          'f': 'write-some',
+          'k': -1,
+          'v': {1: 0},
+        },
+      ],
+    });
+    expect(causalChecker.checkOp(duplicateWrite), true);
+    duplicateWrite.addAll({
+      'value': [
+        {
+          'f': 'write-some',
+          'k': -1,
+          'v': {0: 0, 1: 0},
+        },
+      ],
+    });
+    expect(causalChecker.checkOp(duplicateWrite), false);
+
     // reading your own writes
     causalChecker = CausalChecker(args['clients'], args['keys']);
     final Map<String, dynamic> readYourWrites = Map.from(baseOp);
@@ -78,6 +102,64 @@ void main() {
       ],
     });
     expect(causalChecker.checkOp(failReadYourWrites), false);
+
+    // monotonic writes
+    causalChecker = CausalChecker(args['clients'], args['keys']);
+    final Map<String, dynamic> monotonicWrites = Map.from(baseOp);
+    monotonicWrites.addAll({
+      'clientNum': 1,
+      'value': [
+        {
+          'f': 'write-some',
+          'k': -1,
+          'v': {0: 0},
+        },
+      ],
+    });
+    expect(causalChecker.checkOp(monotonicWrites), true);
+    monotonicWrites.addAll({
+      'clientNum': 1,
+      'value': [
+        {
+          'f': 'write-some',
+          'k': -1,
+          'v': {0: 1, 1: 0},
+        },
+      ],
+    });
+    monotonicWrites.addAll({
+      'clientNum': 1,
+      'value': [
+        {
+          'f': 'write-some',
+          'k': -1,
+          'v': {0: 2, 1: 1, 2: 0},
+        },
+      ],
+    });
+    expect(causalChecker.checkOp(monotonicWrites), true);
+    monotonicWrites.addAll({
+      'clientNum': 2,
+      'value': [
+        {
+          'f': 'read-all',
+          'k': -1,
+          'v': {0: 2, 1: 1, 2: 0},
+        },
+      ],
+    });
+    expect(causalChecker.checkOp(monotonicWrites), true);
+    monotonicWrites.addAll({
+      'clientNum': 2,
+      'value': [
+        {
+          'f': 'read-all',
+          'k': -1,
+          'v': {0: 1, 1: 0, 2: -1},
+        },
+      ],
+    });
+    expect(causalChecker.checkOp(monotonicWrites), false);
 
     // writes follow reads
     causalChecker = CausalChecker(args['clients'], args['keys']);
