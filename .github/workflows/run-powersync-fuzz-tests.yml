@@ -45,9 +45,9 @@ on:
         default: latest
       timeout-minutes:
         description: Fuzz step timeout in minutes
-        type: number
+        type: string
         required: true
-        default: 6
+        default: '6'
        
   workflow_call:
     inputs:
@@ -93,9 +93,9 @@ on:
         default: latest
       timeout-minutes:
         description: Fuzz step timeout in minutes
-        type: number
+        type: string
         required: false
-        default: 6
+        default: '6'
 
 
 jobs:
