@@ -128,7 +128,7 @@ jobs:
           ./powersync-fuzz-up.sh
 
       - name: ${{ env.test-title }}
-        timeout-minutes: ${{ inputs.timeout-minutes }}
+        timeout-minutes: 6
         run: |
           cd $GITHUB_WORKSPACE/docker
           ./powersync-fuzz-run.sh ./powersync_fuzz                 \
