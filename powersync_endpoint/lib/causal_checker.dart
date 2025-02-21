@@ -55,17 +55,13 @@ class CausalChecker {
           _updateClientStateWithReadMwWfrState(clientState, reads);
 
           // check each read k/v
-          var readErrors = false;
           for (final kv in reads.entries) {
             if (!_checkSingleRead(clientState, kv.key, kv.value, op)) {
-              readErrors = true;
+              return false;
             }
 
             // update client state with current read value
             clientState[kv.key] = kv.value;
-          }
-          if (readErrors) {
-            return false;
           }
 
           break;
@@ -74,14 +70,10 @@ class CausalChecker {
           final writes = mop['v'] as Map<int, int>;
 
           // check each write k/v
-          var writeErrors = false;
           for (final kv in writes.entries) {
             if (!_checkSingleWrite(clientState, kv.key, kv.value, op)) {
-              writeErrors = true;
+              return false;
             }
-          }
-          if (writeErrors) {
-            return false;
           }
 
           // update state to include these writes

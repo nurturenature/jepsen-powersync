@@ -67,11 +67,12 @@ dynamic _txWithRetries(Tables table, List<CrudEntry> crud) async {
                     crudEntry.opData!['v'],
                   ],
                 );
-                final row =
-                    put.single; // gets and enforces 1 and only 1 affected row
-
+                final {'k': int k, 'v': int v} =
+                    put
+                        .single // gets and enforces 1 and only 1 affected row
+                        .toColumnMap();
                 log.finer(
-                  'uploadData: txn: ${crudEntry.transactionId} put: $row',
+                  'uploadData: txn: ${crudEntry.transactionId} put: {$k: $v}',
                 );
                 break;
 
@@ -93,13 +94,12 @@ dynamic _txWithRetries(Tables table, List<CrudEntry> crud) async {
                     break;
                 }
 
-                final row =
+                final {'k': int k, 'v': int v} =
                     patch // result of UPDATE
                         .single // gets and enforces 1 and only 1 affected row
                         .toColumnMap(); // pretty Map
-                row.remove('id'); // readability
                 log.finer(
-                  'uploadData: txn: ${crudEntry.transactionId} patch: $row',
+                  'uploadData: txn: ${crudEntry.transactionId} patch: {$k: $v}',
                 );
                 break;
 
@@ -108,12 +108,12 @@ dynamic _txWithRetries(Tables table, List<CrudEntry> crud) async {
                   'DELETE FROM ${table.name} WHERE id = \$1 RETURNING *',
                   parameters: [crudEntry.id],
                 );
-                final row =
+                final {'k': int k, 'v': int v} =
                     delete
-                        .single; // gets and enforces 1 and only 1 affected row
-
+                        .single // gets and enforces 1 and only 1 affected row
+                        .toColumnMap();
                 log.finer(
-                  'uploadData: txn: ${crudEntry.transactionId} delete: $row',
+                  'uploadData: txn: ${crudEntry.transactionId} delete: {$k: $v}',
                 );
                 break;
             }
