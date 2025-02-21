@@ -62,7 +62,7 @@ void main(List<String> arguments) async {
   Stream<ep.ConnectionStates> disconnectConnectStream() async* {
     final maxInterval = args['interval'] * 1000 * 2; // in ms
     while (true) {
-      await utils.futureSleep(_rng.nextInt(maxInterval));
+      await utils.futureSleep(_rng.nextInt(maxInterval + 1));
       yield connectionState.flipFlop();
     }
   }
@@ -79,7 +79,9 @@ void main(List<String> arguments) async {
       late Map<String, dynamic> disconnectConnectMessage;
       switch (connectionStateMessage) {
         case ep.ConnectionStates.disconnected:
-          affectedClients = clients.getRandom((clients.length / 2).ceil());
+          // act on 0 to all clients
+          final int numRandomClients = _rng.nextInt(clients.length + 1);
+          affectedClients = clients.getRandom(numRandomClients);
           disconnectConnectMessage = _pse.disconnectMessage();
           break;
         case ep.ConnectionStates.connected:
