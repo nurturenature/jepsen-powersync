@@ -28,6 +28,11 @@ on:
         type: string
         required: true
         default: "[ '--no-disconnect', '--disconnect' ]"
+      interval:
+        description: 'Interval for disconnect/connect (as JSON)'
+        type: string
+        required: true
+        default: "[ '3', '5', '10' ]"
       repeat:
         description: 'unused value to repeat test matrix (as JSON)'
         type: string
@@ -66,6 +71,11 @@ on:
         type: string
         required: false
         default: "[ '--no-disconnect', '--disconnect' ]"
+      interval:
+        description: 'Interval for disconnect/connect (as JSON)'
+        type: string
+        required: false
+        default: "[ '3', '5', '10' ]"
       repeat:
         description: 'unused matrix value to repeat test matrix (as JSON)'
         type: string
@@ -88,11 +98,12 @@ jobs:
         rate:       ${{ fromJSON(inputs.rates) }}
         time:       ${{ fromJSON(inputs.times) }}
         postgresql: ${{ fromJSON(inputs.postgresql) }}
-        disconnect: ${{ fromJSON(inputs.disconnect) }}      
-        repeat:     ${{ fromJSON(inputs.repeat) }}      
+        disconnect: ${{ fromJSON(inputs.disconnect) }}
+        interval:   ${{ fromJson(inputs.interval) }}
+        repeat:     ${{ fromJSON(inputs.repeat) }}
 
     env:
-      test-title: ${{ matrix.clients}}c-${{ matrix.rate }}tps-${{ matrix.time }}s-${{ matrix.postgresql }}-${{ matrix.disconnect }}-${{ matrix.repeat }}
+      test-title: ${{ matrix.clients}}c-${{ matrix.rate }}tps-${{ matrix.time }}s-${{ matrix.postgresql }}-${{ matrix.disconnect }}-${{ matrix.interval }}s-${{ matrix.repeat }}
       POWERSYNC_IMAGE_TAG: ${{ inputs.powersync-image-tag }}
 
     steps:
@@ -106,17 +117,18 @@ jobs:
           ./powersync-fuzz-up.sh
 
       - name: ${{ env.test-title }}
-        timeout-minutes: 15
+        timeout-minutes: 10
         run: |
           cd $GITHUB_WORKSPACE/docker
-          ./powersync-fuzz-run.sh ./powersync_fuzz                    \
-                                  --table mww                         \
-                                  --clients ${{ matrix.clients }}     \
-                                  --rate ${{ matrix.rate }}           \
-                                  --time ${{ matrix.time }}           \
-                                  ${{ matrix.postgresql }}            \
-                                  ${{ matrix.disconnect }}
-                                   
+          ./powersync-fuzz-run.sh ./powersync_fuzz                 \
+                                  --table mww                      \
+                                  --clients ${{ matrix.clients }}  \
+                                  --rate ${{ matrix.rate }}        \
+                                  --time ${{ matrix.time }}        \
+                                  ${{ matrix.postgresql }}         \
+                                  ${{ matrix.disconnect }}         \
+                                  --interval ${{ matrix.interval}}
+
       - name: PowerSync Fuzz, Service, PostgreSQL, and Mongo Logs
         if: ${{ always() }}
         run: |
