@@ -1,19 +1,16 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
-import 'dart:math';
 import 'package:list_utilities/list_utilities.dart';
 import 'package:powersync_endpoint/args.dart';
 import 'package:powersync_endpoint/causal_checker.dart';
-import 'package:powersync_endpoint/endpoint.dart' as ep;
 import 'package:powersync_endpoint/log.dart';
+import 'package:powersync_endpoint/nemesis.dart';
 import 'package:powersync_endpoint/postgresql.dart' as pg;
 import 'package:powersync_endpoint/pg_endpoint.dart' as pge;
 import 'package:powersync_endpoint/ps_endpoint.dart' as pse;
 import 'package:powersync_endpoint/utils.dart' as utils;
 import 'package:powersync_endpoint/worker.dart';
-
-final _rng = Random();
 
 final _pse = pse.PSEndpoint();
 
@@ -57,59 +54,9 @@ void main(List<String> arguments) async {
   // create a causal consistency checker
   final causalChecker = CausalChecker(args['clients'], args['keys']);
 
-  // Stream of disconnect/connect messages
-  final ep.ConnectionState connectionState = ep.ConnectionState();
-  Stream<ep.ConnectionStates> disconnectConnectStream() async* {
-    final maxInterval = args['interval'] * 1000 * 2; // in ms
-    while (true) {
-      await utils.futureSleep(_rng.nextInt(maxInterval + 1));
-      yield connectionState.flipFlop();
-    }
-  }
-
-  // each disconnect message from the Stream is individually sent to a random majority of clients
-  // each connect message from the Stream is individually sent to all clients
-  late StreamSubscription<ep.ConnectionStates> disconnectConnectSubscription;
-  if (args['disconnect']) {
-    log.info('starting stream of disconnect/connect messages...');
-    disconnectConnectSubscription = disconnectConnectStream().listen((
-      connectionStateMessage,
-    ) async {
-      late Set<Worker> affectedClients;
-      late Map<String, dynamic> disconnectConnectMessage;
-      switch (connectionStateMessage) {
-        case ep.ConnectionStates.disconnected:
-          // act on 0 to all clients
-          final int numRandomClients = _rng.nextInt(clients.length + 1);
-          affectedClients = clients.getRandom(numRandomClients);
-          disconnectConnectMessage = _pse.disconnectMessage();
-          break;
-        case ep.ConnectionStates.connected:
-          affectedClients = clients;
-          disconnectConnectMessage = _pse.connectMessage();
-          break;
-      }
-
-      log.info(
-        '$connectionStateMessage\'ing clients: ${affectedClients.map((client) => client.clientNum)}',
-      );
-
-      final List<Future<Map>> apiFutures = [];
-      for (Worker client in affectedClients) {
-        apiFutures.add(client.executeApi(disconnectConnectMessage));
-      }
-      await apiFutures.wait;
-
-      // upload queue count for debugging
-      final List<Future<Map>> uploadQueueCountFutures = [];
-      for (Worker client in affectedClients) {
-        uploadQueueCountFutures.add(
-          client.executeApi(_pse.uploadQueueCountMessage()),
-        );
-      }
-      await uploadQueueCountFutures.wait;
-    });
-  }
+  // nemesis to disconnect/connect Workers from PowerSync service
+  final nemesis = Nemesis(args, clients);
+  nemesis.start();
 
   // a Stream of sql txn messages
   log.info('starting stream of sql transactions...');
@@ -135,23 +82,8 @@ void main(List<String> arguments) async {
         }
       })
       .onDone(() async {
-        // stop disconnecting/connection
-        if (args['disconnect']) {
-          await disconnectConnectSubscription.cancel();
-        }
-
-        // let txns/apis catch up, TODO: why necessary?
-        await utils.futureSleep(1000);
-
-        // insure all clients connected
-        if (args['disconnect']) {
-          log.info('insuring all clients are connected');
-          final List<Future> connectingClients = [];
-          for (Worker client in clients) {
-            connectingClients.add(client.executeApi(_pse.connectMessage()));
-          }
-          await connectingClients.wait;
-        }
+        // stop disconnected/connected nemesis
+        await nemesis.stop();
 
         // quiesce
         log.info('quiesce for 3 seconds...');
