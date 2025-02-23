@@ -233,6 +233,19 @@ bool _ignorableDownloadError(Object ex) {
     return true;
   }
 
+  // exposed by partition nemesis
+  if (ex is http.ClientException &&
+      ex.message.startsWith(
+        'Connection closed before full header was received',
+      )) {
+    return true;
+  }
+
+  // exposed by nemesis
+  if (ex is http.ClientException && ex.message.startsWith('Broken pipe')) {
+    return true;
+  }
+
   // exposed by disconnect-connect nemesis
   if (ex is SyncResponseException &&
       ex.statusCode == 401 &&
