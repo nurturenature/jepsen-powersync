@@ -215,6 +215,13 @@ bool _ignorableUploadError(Object ex) {
     return true;
   }
 
+  // exposed by nemesis
+  if (ex is SyncResponseException &&
+      ex.statusCode == 408 &&
+      ex.description.startsWith('Request Timeout')) {
+    return true;
+  }
+
   // exposed by disconnect-connect nemesis
   if (ex is SyncResponseException &&
       ex.statusCode == 429 &&
