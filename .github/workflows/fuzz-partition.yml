@@ -1,10 +1,10 @@
-name: fuzz-non-monotonic-reads
+name: fuzz-partition
 
 on:
   workflow_dispatch:
 
 jobs:
-  fuzz-non-monotonic-reads:
+  fuzz-partition:
     uses: nurturenature/jepsen-powersync/.github/workflows/run-powersync-fuzz-tests.yml@main
     with:
       postgresql: >
