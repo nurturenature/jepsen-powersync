@@ -1,10 +1,10 @@
-name: fuzz-partition
+name: fuzz-disconnect
 
 on:
   workflow_dispatch:
 
 jobs:
-  fuzz-partition:
+  fuzz-disconnect:
     uses: nurturenature/jepsen-powersync/.github/workflows/run-powersync-fuzz-tests.yml@main
     with:
       clients: >
@@ -16,9 +16,9 @@ jobs:
       postgresql: >
         [ '--postgresql', '--no-postgresql' ]
       disconnect: >
-        [ '--no-disconnect' ]
+        [ '--disconnect' ]
       partition: >
-        [ '--partition' ]
+        [ '--no-partition' ]
       interval: >
         [ '3', '5' ]
       repeat: >
