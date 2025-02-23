@@ -1,19 +1,25 @@
-name: fuzz-partition
+name: fuzz-no-fault
 
 on:
   workflow_dispatch:
 
 jobs:
-  fuzz-partition:
+  fuzz-no-fault:
     uses: nurturenature/jepsen-powersync/.github/workflows/run-powersync-fuzz-tests.yml@main
     with:
+      clients: >
+        [ '5', '10']
+      rates: >
+        [ '10', '20', '30', '40', '50']
+      times: >
+        [ '100', '200', '300', '400', '500' ]
       postgresql: >
         [ '--postgresql', '--no-postgresql' ]
       disconnect: >
         [ '--no-disconnect' ]
       partition: >
-        [ '--partition' ]
+        [ '--no-partition' ]
       interval: >
-        [ '3', '5' ]
+        [ '5' ]
       repeat: >
         [ '1', '2' ]
