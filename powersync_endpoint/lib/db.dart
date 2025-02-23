@@ -209,6 +209,12 @@ bool _ignorableUploadError(Object ex) {
     return true;
   }
 
+  // exposed by partition nemesis
+  if (ex is http.ClientException &&
+      ex.message.startsWith('Connection reset by peer')) {
+    return true;
+  }
+
   // exposed by disconnect-connect nemesis
   if (ex is SyncResponseException &&
       ex.statusCode == 429 &&
