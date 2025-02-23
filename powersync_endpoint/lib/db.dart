@@ -193,25 +193,17 @@ bool _ignorableUploadError(Object ex) {
     return true;
   }
 
-  // exposed by disconnect-connect nemesis
+  // exposed by nemesis
   if (ex is http.ClientException &&
       (ex.message.startsWith(
             'Connection closed before full header was received',
           ) ||
           ex.message.startsWith(
             'HTTP request failed. Client is already closed.',
-          ))) {
-    return true;
-  }
-
-  // exposed by partition nemesis
-  if (ex is http.ClientException && ex.message.startsWith('Broken pipe')) {
-    return true;
-  }
-
-  // exposed by partition nemesis
-  if (ex is http.ClientException &&
-      ex.message.startsWith('Connection reset by peer')) {
+          ) ||
+          ex.message.startsWith('Broken pipe') ||
+          ex.message.startsWith('Connection reset by peer') ||
+          ex.message.contains('Connection timed out'))) {
     return true;
   }
 
