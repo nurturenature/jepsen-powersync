@@ -207,6 +207,14 @@ bool _ignorableUploadError(Object ex) {
     return true;
   }
 
+  // exposed by nemesis
+  if (ex is Exception &&
+      ex.toString().contains(
+        'ClientException with SocketException: Connection timed out (OS Error: Connection timed out, errno = 110)',
+      )) {
+    return true;
+  }
+
   // exposed by disconnect-connect nemesis
   if (ex is SyncResponseException &&
       ex.statusCode == 429 &&
