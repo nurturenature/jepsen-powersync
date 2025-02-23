@@ -8,11 +8,11 @@ jobs:
     uses: nurturenature/jepsen-powersync/.github/workflows/run-powersync-fuzz-tests.yml@main
     with:
       postgresql: >
-        [ '--postgresql' ]
+        [ '--postgresql', 'no-postgresql' ]
       disconnect: >
-        [ '--disconnect' ]
+        [ '--no-disconnect' ]
       partition: >
-        [ '--no-partition' ]
+        [ '--partition' ]
       interval: >
         [ '3', '5' ]
       repeat: >

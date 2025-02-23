@@ -28,8 +28,9 @@ void parseArgs(List<String> arguments) {
     args['rate'] = int.parse(results.option('rate')!);
     args['time'] = int.parse(results.option('time')!);
     args['maxTxnLen'] = int.parse(results.option('maxTxnLen')!);
-    // disconnect/connect
+    // nemeses
     args['disconnect'] = results.flag('disconnect');
+    args['partition'] = results.flag('partition');
     args['interval'] = int.parse(results.option('interval')!);
     // http_endpoint
     args['httpPort'] = int.parse(results.option('httpPort')!);
@@ -96,13 +97,19 @@ ArgParser _buildParser() {
       'disconnect',
       defaultsTo: false,
       negatable: true,
-      help: 'call disconnect/connect API at intervals',
+      help: 'call disconnect/connect API at interval',
+    )
+    ..addFlag(
+      'partition',
+      defaultsTo: false,
+      negatable: true,
+      help: 'partition Workers from PowerSync Service at interval',
     )
     ..addOption(
       'interval',
       abbr: 'i',
       defaultsTo: '5',
-      help: 'disconnect/connect every interval in seconds',
+      help: 'invoke nemeses every 0 <= random <= interval * 2 seconds',
     )
     // http_endpoint
     ..addOption('httpPort', defaultsTo: '8089', help: 'http_endpoint port')

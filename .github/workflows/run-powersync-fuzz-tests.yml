@@ -28,11 +28,16 @@ on:
         type: string
         required: true
         default: "[ '--no-disconnect', '--disconnect' ]"
+      partition:
+        description: '--[no-]partition (as JSON)'
+        type: string
+        required: true
+        default: "[ '--no-partition', '--partition' ]"
       interval:
         description: 'Interval for disconnect/connect (as JSON)'
         type: string
         required: true
-        default: "[ '3', '5' ]"
+        default: "[ '5' ]"
       repeat:
         description: 'unused value to repeat test matrix (as JSON)'
         type: string
@@ -76,11 +81,16 @@ on:
         type: string
         required: false
         default: "[ '--no-disconnect', '--disconnect' ]"
+      partition:
+        description: '--[no-]partition (as JSON)'
+        type: string
+        required: false
+        default: "[ '--no-partition', '--partition' ]"
       interval:
         description: 'Interval for disconnect/connect (as JSON)'
         type: string
         required: false
-        default: "[ '3', '5' ]"
+        default: "[ '5' ]"
       repeat:
         description: 'unused matrix value to repeat test matrix (as JSON)'
         type: string
@@ -110,11 +120,12 @@ jobs:
         time:       ${{ fromJSON(inputs.times) }}
         postgresql: ${{ fromJSON(inputs.postgresql) }}
         disconnect: ${{ fromJSON(inputs.disconnect) }}
+        partition:  ${{ fromJSON(inputs.partition) }}
         interval:   ${{ fromJson(inputs.interval) }}
         repeat:     ${{ fromJSON(inputs.repeat) }}
 
     env:
-      test-title: ${{ matrix.clients}}c-${{ matrix.rate }}tps-${{ matrix.time }}s-${{ matrix.postgresql }}-${{ matrix.disconnect }}-${{ matrix.interval }}s-${{ matrix.repeat }}
+      test-title: ${{ matrix.clients}}c-${{ matrix.rate }}tps-${{ matrix.time }}s-${{ matrix.postgresql }}-${{ matrix.disconnect }}-${{ matrix.partition }}-${{ matrix.interval }}s-${{ matrix.repeat }}
       POWERSYNC_IMAGE_TAG: ${{ inputs.powersync-image-tag }}
 
     steps:
@@ -138,6 +149,7 @@ jobs:
                                   --time ${{ matrix.time }}        \
                                   ${{ matrix.postgresql }}         \
                                   ${{ matrix.disconnect }}         \
+                                  ${{ matrix.partition }}          \
                                   --interval ${{ matrix.interval}}
 
       - name: PowerSync Fuzz, Service, PostgreSQL, and Mongo Logs

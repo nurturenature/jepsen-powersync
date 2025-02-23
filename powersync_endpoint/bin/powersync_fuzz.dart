@@ -54,7 +54,7 @@ void main(List<String> arguments) async {
   // create a causal consistency checker
   final causalChecker = CausalChecker(args['clients'], args['keys']);
 
-  // nemesis to disconnect/connect Workers from PowerSync service
+  // nemesis to disconnect/connect, partition, Workers from PowerSync service
   final nemesis = Nemesis(args, clients);
   nemesis.start();
 
@@ -82,7 +82,7 @@ void main(List<String> arguments) async {
         }
       })
       .onDone(() async {
-        // stop disconnected/connected nemesis
+        // stop disconnect/connect, partition, nemeses
         await nemesis.stop();
 
         // quiesce
