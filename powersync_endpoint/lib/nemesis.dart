@@ -8,11 +8,14 @@ import 'utils.dart' as utils;
 import 'worker.dart';
 
 /// Fault injection.
-/// Disconnect, connect Workers from PowerSync Service:
+/// Disconnect, connect, Workers from PowerSync Service:
 ///   - --disconnect, db.disconnect()/connect
 ///   - --interval, 0 <= random <= 2 * interval
 /// Partition Workers from PowerSync Service:
 ///   - --partition, random inbound or outbound or bidirectional
+///   - --interval, 0 <= random <= 2 * interval
+/// Pause, resume, Worker Isolates:
+///   - --pause, Isolate.pause()/resume()
 ///   - --interval, 0 <= random <= 2 * interval
 class Nemesis {
   final Set<Worker> _clients;
@@ -33,6 +36,12 @@ class Nemesis {
   late final Stream<PartitionStates> Function() _partitionStream;
   late final StreamSubscription<PartitionStates> _partitionSubscription;
 
+  // pause/resume
+  late final bool _pause;
+  final PauseState _pauseState = PauseState();
+  late final Stream<PauseStates> Function() _pauseStream;
+  late final StreamSubscription<PauseStates> _pauseSubscription;
+
   // Endpoint knows what messages to send
   final pse.PSEndpoint _pse = pse.PSEndpoint();
 
@@ -42,6 +51,7 @@ class Nemesis {
   Nemesis(Map<String, dynamic> args, this._clients) {
     _disconnect = args['disconnect'] as bool;
     _partition = args['partition'] as bool;
+    _pause = args['pause'] as bool;
     _interval = args['interval'] as int;
     _maxInterval = _interval * 1000 * 2;
 
@@ -62,18 +72,29 @@ class Nemesis {
         yield _partitionState.flipFlop();
       }
     };
+
+    // Stream of PauseStates, flip flops between running and paused
+    // Stream will not emit messages until listened to
+    _pauseStream = () async* {
+      while (true) {
+        await utils.futureSleep(_rng.nextInt(_maxInterval + 1));
+        yield _pauseState.flipFlop();
+      }
+    };
   }
 
   /// start injecting faults
   void start() {
     if (_disconnect) _startDisconnect();
     if (_partition) _startPartition();
+    if (_pause) _startPause();
   }
 
   /// stop injecting faults
   Future<void> stop() async {
     if (_disconnect) await _stopDisconnect();
     if (_partition) await _stopPartition();
+    if (_pause) await _stopPause();
   }
 
   // start injecting disconnect/connect
@@ -168,6 +189,53 @@ class Nemesis {
     await Partition.partition(powerSyncHost, PartitionStates.none);
 
     log.info('nemesis: partition: ${PartitionStates.none.name}');
+  }
+
+  // start injecting pause/resume
+  void _startPause() {
+    log.info(
+      'nemesis: pause/resume: start listening to stream of pause/resume messages',
+    );
+
+    _pauseSubscription = _pauseStream().listen((pauseMessage) {
+      final Set<Worker> affectedClients;
+      switch (pauseMessage) {
+        case PauseStates.paused:
+          // act on 0 to all clients
+          final int numRandomClients = _rng.nextInt(_clients.length + 1);
+          affectedClients = _clients.getRandom(numRandomClients);
+          break;
+        case PauseStates.running:
+          affectedClients = _clients;
+          break;
+      }
+
+      for (Worker client in affectedClients) {
+        Pause.pauseOrResume(client, pauseMessage);
+      }
+
+      log.info(
+        'nemesis: pause/resume: ${pauseMessage.name}: clients: ${affectedClients.map((client) => client.clientNum)}',
+      );
+    });
+  }
+
+  // stop injecting pause/resume
+  Future<void> _stopPause() async {
+    // stop Stream of pause/resume messages
+    await _pauseSubscription.cancel();
+
+    // let apis catch up
+    await utils.futureSleep(1000);
+
+    // insure all clients are running
+    for (Worker client in _clients) {
+      Pause.pauseOrResume(client, PauseStates.running);
+    }
+
+    log.info(
+      'nemesis: pause/resume: ${PauseStates.running.name}: clients: all',
+    );
   }
 }
 
@@ -301,6 +369,41 @@ class Partition {
       return true;
     } else {
       return false;
+    }
+  }
+}
+
+/// Pause/resume
+
+enum PauseStates { running, paused }
+
+/// Maintains the pause state.
+/// Flip flops between running and paused.
+class PauseState {
+  PauseStates _state = PauseStates.running;
+
+  // Flip flop the current state.
+  PauseStates flipFlop() {
+    _state = switch (_state) {
+      PauseStates.running => PauseStates.paused,
+      PauseStates.paused => PauseStates.running,
+    };
+
+    return _state;
+  }
+}
+
+/// Static pause or resume function.
+class Pause {
+  /// Pause or resume client per pauseType
+  static void pauseOrResume(Worker client, PauseStates pauseType) {
+    switch (pauseType) {
+      case PauseStates.running:
+        client.resumeIsolate();
+        break;
+      case PauseStates.paused:
+        client.pauseIsolate();
+        break;
     }
   }
 }

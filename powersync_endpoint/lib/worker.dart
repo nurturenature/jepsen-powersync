@@ -9,6 +9,9 @@ import 'package:powersync_endpoint/postgresql.dart' as pg;
 import 'package:powersync_endpoint/utils.dart';
 
 class Worker {
+  final Isolate _isolate;
+  Capability? _resumeCapability;
+
   final int clientNum;
 
   // transaction instance variables
@@ -29,6 +32,7 @@ class Worker {
   final _readConsistency = ReadConsistency();
 
   Worker._(
+    this._isolate,
     this.clientNum,
     this._txnResponses,
     this._txnRequests,
@@ -67,8 +71,9 @@ class Worker {
     };
 
     // Spawn the isolate.
+    final Isolate isolate;
     try {
-      await Isolate.spawn(_startRemoteIsolate, (
+      isolate = await Isolate.spawn(_startRemoteIsolate, (
         table,
         clientNum,
         args,
@@ -89,6 +94,7 @@ class Worker {
         await apiConnection.future;
 
     return Worker._(
+      isolate,
       clientNum,
       txnReceivePort,
       txnSendPort,
@@ -291,5 +297,28 @@ class Worker {
       _apiRequests.send('shutdown');
       if (_activeApiRequests.isEmpty) _apiResponses.close();
     }
+  }
+
+  /// Pauses this client isolate.
+  /// Error to try and pause an already paused client isolate.
+  void pauseIsolate() {
+    if (_resumeCapability != null) {
+      throw StateError(
+        'Trying to pause client $clientNum which is an already paused isolate!',
+      );
+    }
+
+    _resumeCapability = _isolate.pause();
+  }
+
+  /// Resume this client isolate.
+  /// Requests to resume an unpaused client isolate are ignored.
+  void resumeIsolate() {
+    if (_resumeCapability == null) {
+      return;
+    }
+
+    _isolate.resume(_resumeCapability!);
+    _resumeCapability = null;
   }
 }

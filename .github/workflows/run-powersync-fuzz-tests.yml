@@ -33,6 +33,11 @@ on:
         type: string
         required: true
         default: "[ '--no-partition', '--partition' ]"
+      pause:
+        description: '--[no-]pause (as JSON)'
+        type: string
+        required: true
+        default: "[ '--no-pause' ]"
       interval:
         description: 'Interval for disconnect/connect (as JSON)'
         type: string
@@ -86,6 +91,11 @@ on:
         type: string
         required: false
         default: "[ '--no-partition', '--partition' ]"
+      pause:
+        description: '--[no-]pause (as JSON)'
+        type: string
+        required: false
+        default: "[ '--no-pause' ]"
       interval:
         description: 'Interval for disconnect/connect (as JSON)'
         type: string
@@ -121,11 +131,12 @@ jobs:
         postgresql: ${{ fromJSON(inputs.postgresql) }}
         disconnect: ${{ fromJSON(inputs.disconnect) }}
         partition:  ${{ fromJSON(inputs.partition) }}
+        pause:      ${{ fromJSON(inputs.pause) }}
         interval:   ${{ fromJson(inputs.interval) }}
         repeat:     ${{ fromJSON(inputs.repeat) }}
 
     env:
-      test-title: ${{ matrix.clients}}c-${{ matrix.rate }}tps-${{ matrix.time }}s-${{ matrix.postgresql }}-${{ matrix.disconnect }}-${{ matrix.partition }}-${{ matrix.interval }}s-${{ matrix.repeat }}
+      test-title: ${{ matrix.clients}}c-${{ matrix.rate }}tps-${{ matrix.time }}s-${{ matrix.postgresql }}-${{ matrix.disconnect }}-${{ matrix.partition }}-${{ matrix.pause }}-${{ matrix.interval }}s-${{ matrix.repeat }}
       POWERSYNC_IMAGE_TAG: ${{ inputs.powersync-image-tag }}
 
     steps:
@@ -150,6 +161,7 @@ jobs:
                                   ${{ matrix.postgresql }}         \
                                   ${{ matrix.disconnect }}         \
                                   ${{ matrix.partition }}          \
+                                  ${{ matrix.pause }}              \
                                   --interval ${{ matrix.interval}}
 
       - name: PowerSync Fuzz, Service, PostgreSQL, and Mongo Logs

@@ -31,6 +31,7 @@ void parseArgs(List<String> arguments) {
     // nemeses
     args['disconnect'] = results.flag('disconnect');
     args['partition'] = results.flag('partition');
+    args['pause'] = results.flag('pause');
     args['interval'] = int.parse(results.option('interval')!);
     // http_endpoint
     args['httpPort'] = int.parse(results.option('httpPort')!);
@@ -104,6 +105,12 @@ ArgParser _buildParser() {
       defaultsTo: false,
       negatable: true,
       help: 'partition Workers from PowerSync Service at interval',
+    )
+    ..addFlag(
+      'pause',
+      defaultsTo: false,
+      negatable: true,
+      help: 'pause/resume client Worker Isolates at interval',
     )
     ..addOption(
       'interval',
