@@ -120,8 +120,8 @@
        (map #(- % 1))
        (into #{})))
 
-(defn powersync
-  "A PowerSync workload."
+(defn ps-rw-pg-rw
+  "A PowerSync read/write, PostgreSQL read/write workload."
   [{:keys [rate time-limit] :as opts}]
   (let [opts (-> opts
                  (merge causal-opts/causal-opts) ; TODO: confirm consistent overriding by causal-opts
@@ -144,14 +144,14 @@
                        {:causal-consistency    (adya/checker opts)
                         :strong-convergence    (strong-convergence/final-reads (assoc opts :directory "strong-convergence"))})}))
 
-(defn powersync+
+(defn ps-rw-pg-fr
   "A PowerSync workload with PostgreSQL included in final reads."
   [{:keys [nodes postgres-nodes] :as opts}]
   (let [_            (assert (seq postgres-nodes))
         nodes        (into #{} nodes)
         ps-nodes     (set/difference nodes postgres-nodes)
         ps-processes (nodes->processes ps-nodes)
-        ps-workload  (powersync opts)]
+        ps-workload  (ps-rw-pg-rw opts)]
 
     (merge
      ps-workload
@@ -163,7 +163,7 @@
 (defn convergence
   "A PowerSync workload that only checks for strong convergence."
   [opts]
-  (merge (powersync opts)
+  (merge (ps-rw-pg-rw opts)
          {:checker (checker/compose
                     {:strong-convergence (strong-convergence/final-reads (assoc opts :directory "strong-convergence"))})}))
 
@@ -171,7 +171,7 @@
   "A PowerSync workload that only checks for strong convergence,
    with PostgreSQL included in final reads."
   [opts]
-  (merge (powersync+ opts)
+  (merge (ps-rw-pg-fr opts)
          {:checker (checker/compose
                     {:strong-convergence (strong-convergence/final-reads (assoc opts :directory "strong-convergence"))})}))
 
@@ -179,7 +179,7 @@
   "A single client PowerSync workload."
   [opts]
   (merge
-   (powersync opts)
+   (ps-rw-pg-rw opts)
    {:checker (checker/compose
               {:strict-serializable (list-append-checker (assoc opts :consistency-models [:strict-serializable]))
                :strong-convergence  (strong-convergence/final-reads (assoc opts :directory "strong-convergence"))})}))
@@ -194,7 +194,7 @@
         pg-processes (nodes->processes postgres-nodes)]
 
     (merge
-     (powersync opts)
+     (ps-rw-pg-rw opts)
      {:generator (gen/mix
                   [; PostgreSQL
                    (gen/on-threads pg-processes
@@ -217,7 +217,7 @@
         pg-processes (nodes->processes postgres-nodes)]
 
     (merge
-     (powersync opts)
+     (ps-rw-pg-rw opts)
      {:generator (gen/mix
                   [; PostgreSQL
                    (gen/on-threads pg-processes
@@ -236,7 +236,7 @@
         pg-processes (nodes->processes postgres-nodes)]
 
     (merge
-     (powersync opts)
+     (ps-rw-pg-rw opts)
      {:generator (gen/mix
                   [; PostgreSQL - read only
                    (->> (read-generator opts)

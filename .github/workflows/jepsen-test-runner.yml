@@ -1,4 +1,4 @@
-name: Run Jepsen Tests
+name: Jepsen Tests Runner
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ on:
         description: Workloads (as JSON)
         type: string
         required: false
-        default: "[ 'powersync' ]"
+        default: "[ 'ps-rw-pg-rw' ]"
       nemeses:
         description: 'Nemeses (as JSON)'
         type: string
@@ -40,7 +40,7 @@ on:
         description: 'Workloads (as JSON)'
         type: string
         required: false
-        default: "[ 'powersync' ]"
+        default: "[ 'ps-rw-pg-rw' ]"
       nemeses:
         description: 'Nemeses (as JSON)'
         type: string

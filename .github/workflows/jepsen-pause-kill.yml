@@ -1,0 +1,11 @@
+name: jepsen-pause-kill
+
+on:
+  workflow_dispatch:
+
+jobs:
+  jepsen-pause-kill:
+    uses: nurturenature/jepsen-powersync/.github/workflows/jepsen-test-runner.yml@main
+    with:
+      nemeses: >
+        [ 'pause', 'kill' ]

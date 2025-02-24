@@ -1,0 +1,11 @@
+name: jepsen-ps-rw-pg-rw
+
+on:
+  workflow_dispatch:
+
+jobs:
+  jepsen-ps-rw-pg-rw:
+    uses: nurturenature/jepsen-powersync/.github/workflows/jepsen-test-runner.yml@main
+    with:
+      workloads: >
+        [ 'ps-rw-pg-rw' ]

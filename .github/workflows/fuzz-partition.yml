@@ -5,7 +5,7 @@ on:
 
 jobs:
   fuzz-partition:
-    uses: nurturenature/jepsen-powersync/.github/workflows/run-powersync-fuzz-tests.yml@main
+    uses: nurturenature/jepsen-powersync/.github/workflows/fuzz-test-runner.yml@main
     with:
       clients: >
         [ '5', '10' ]

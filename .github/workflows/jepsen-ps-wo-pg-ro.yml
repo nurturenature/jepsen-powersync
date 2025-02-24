@@ -1,14 +1,14 @@
-name: ps-ro-pg-wo
+name: jepsen-ps-wo-pg-ro
 
 on:
   workflow_dispatch:
 
 jobs:
-  ps-ro-pg-wo:
-    uses: nurturenature/jepsen-powersync/.github/workflows/run-jepsen-tests.yml@main
+  jepsen-ps-wo-pg-ro:
+    uses: nurturenature/jepsen-powersync/.github/workflows/jepsen-test-runner.yml@main
     with:
       workloads: >
-        [ 'ps-ro-pg-wo' ]
+        [ 'ps-wo-pg-ro' ]
       nemeses: >
         [ 'none' ]
       rates: >

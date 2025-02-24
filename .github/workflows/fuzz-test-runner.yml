@@ -1,4 +1,4 @@
-name: Run Powersync Fuzz Tests
+name: Fuzz Test Runner
 
 on:
   workflow_dispatch:

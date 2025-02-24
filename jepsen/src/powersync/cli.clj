@@ -19,8 +19,8 @@
 (def workloads
   "A map of workload names to functions that take CLI options and return
   workload maps."
-  {:powersync          workload/powersync
-   :powersync+         workload/powersync+
+  {:ps-rw-pg-rw        workload/ps-rw-pg-rw
+   :ps-rw-pg-fr        workload/ps-rw-pg-fr
    :powersync-single   workload/powersync-single
    :ps-ro-pg-wo        workload/ps-ro-pg-wo
    :ps-wo-pg-ro        workload/ps-wo-pg-ro

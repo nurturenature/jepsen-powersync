@@ -1,0 +1,11 @@
+name: jepsen-partition
+
+on:
+  workflow_dispatch:
+
+jobs:
+  jepsen-partition:
+    uses: nurturenature/jepsen-powersync/.github/workflows/jepsen-test-runner.yml@main
+    with:
+      nemeses: >
+        [ 'partition-sync' ]

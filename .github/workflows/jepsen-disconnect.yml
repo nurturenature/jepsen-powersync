@@ -1,0 +1,11 @@
+name: jepsen-disconnect
+
+on:
+  workflow_dispatch:
+
+jobs:
+  jepsen-disconnect:
+    uses: nurturenature/jepsen-powersync/.github/workflows/jepsen-test-runner.yml@main
+    with:
+      nemeses: >
+        [ 'disconnect-connect,upload-queue' ]
