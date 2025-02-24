@@ -1,10 +1,10 @@
-name: fuzz-pause
+name: fuzz-pause-resume
 
 on:
   workflow_dispatch:
 
 jobs:
-  fuzz-pause:
+  fuzz-pause-resume:
     uses: nurturenature/jepsen-powersync/.github/workflows/run-powersync-fuzz-tests.yml@main
     with:
       clients: >
