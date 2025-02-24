@@ -210,12 +210,15 @@ class Nemesis {
           break;
       }
 
+      Set<int> affectedClientNums = {};
       for (Worker client in affectedClients) {
-        Pause.pauseOrResume(client, pauseMessage);
+        if (Pause.pauseOrResume(client, pauseMessage)) {
+          affectedClientNums.add(client.clientNum);
+        }
       }
 
       log.info(
-        'nemesis: pause/resume: ${pauseMessage.name}: clients: ${affectedClients.map((client) => client.clientNum)}',
+        'nemesis: pause/resume: ${pauseMessage.name}: clients: $affectedClientNums',
       );
     });
   }
@@ -229,12 +232,15 @@ class Nemesis {
     await utils.futureSleep(1000);
 
     // insure all clients are running
+    Set<int> affectedClientNums = {};
     for (Worker client in _clients) {
-      Pause.pauseOrResume(client, PauseStates.running);
+      if (Pause.pauseOrResume(client, PauseStates.running)) {
+        affectedClientNums.add(client.clientNum);
+      }
     }
 
     log.info(
-      'nemesis: pause/resume: ${PauseStates.running.name}: clients: all',
+      'nemesis: pause/resume: ${PauseStates.running.name}: clients: $affectedClientNums',
     );
   }
 }
@@ -396,14 +402,13 @@ class PauseState {
 /// Static pause or resume function.
 class Pause {
   /// Pause or resume client per pauseType
-  static void pauseOrResume(Worker client, PauseStates pauseType) {
+  static bool pauseOrResume(Worker client, PauseStates pauseType) {
     switch (pauseType) {
       case PauseStates.running:
-        client.resumeIsolate();
-        break;
+        return client.resumeIsolate();
+
       case PauseStates.paused:
-        client.pauseIsolate();
-        break;
+        return client.pauseIsolate();
     }
   }
 }

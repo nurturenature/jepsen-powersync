@@ -299,26 +299,34 @@ class Worker {
     }
   }
 
-  /// Pauses this client isolate.
+  /// Pauses this client isolate if there are no active transaction requests pending.
   /// Error to try and pause an already paused client isolate.
-  void pauseIsolate() {
+  bool pauseIsolate() {
     if (_resumeCapability != null) {
       throw StateError(
         'Trying to pause client $clientNum which is an already paused isolate!',
       );
     }
 
+    if (_activeTxnRequests.isNotEmpty) {
+      return false;
+    }
+
     _resumeCapability = _isolate.pause();
+
+    return true;
   }
 
   /// Resume this client isolate.
   /// Requests to resume an unpaused client isolate are ignored.
-  void resumeIsolate() {
+  bool resumeIsolate() {
     if (_resumeCapability == null) {
-      return;
+      return true;
     }
 
     _isolate.resume(_resumeCapability!);
     _resumeCapability = null;
+
+    return true;
   }
 }
