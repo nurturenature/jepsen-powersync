@@ -60,7 +60,7 @@ void main(List<String> arguments) async {
 
   // a Stream of sql txn messages
   log.info('starting stream of sql transactions...');
-  final sqlTxnStream = Stream<Map<String, dynamic>>
+  final sqlTxnStream = Stream<SplayTreeMap<String, dynamic>>
   // sent every tps rate
   .periodic(
     Duration(milliseconds: (1000 / args['rate']).floor()),
@@ -75,7 +75,7 @@ void main(List<String> arguments) async {
       .listen((sqlTxnMessage) async {
         final op =
             (await clients.random().executeTxn(sqlTxnMessage))
-                as Map<String, dynamic>;
+                as SplayTreeMap<String, dynamic>;
         if (!causalChecker.checkOp(op)) {
           log.severe('Causal Consistency check failed for op: $op');
           exit(2);

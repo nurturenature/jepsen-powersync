@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:math';
 import 'package:list_utilities/list_utilities.dart';
 import 'package:powersync/sqlite3.dart' as sqlite3;
@@ -23,7 +24,10 @@ abstract class Endpoint {
   /// returns a transaction message that:
   ///   - reads all key/values
   ///   - writes `value` to `count` random keys
-  Map<String, dynamic> readAllWriteSomeTxnMessage(int count, int value) {
+  SplayTreeMap<String, dynamic> readAllWriteSomeTxnMessage(
+    int count,
+    int value,
+  ) {
     // placeholder Map for correct typing
     final Map<int, int> reads = {};
 
@@ -32,7 +36,7 @@ abstract class Endpoint {
       allKeys.getRandom(count).map((k) => MapEntry(k, value)),
     );
 
-    return Map.of({
+    return SplayTreeMap.of({
       'type': 'invoke',
       'f': 'txn',
       'value': [
