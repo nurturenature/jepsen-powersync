@@ -33,11 +33,12 @@ WORKDIR /app
 COPY pubspec.* ./
 RUN dart pub get
 
+# app is responsible for getting native lib
+COPY download-powersync-sqlite-core.sh ./
+RUN ./download-powersync-sqlite-core.sh
+
 # copy app source code
 COPY ./ ./
-
-# app is responsible for getting native lib
-RUN ./download-powersync-sqlite-core.sh
 
 # compile apps to standalone binaries
 RUN ./compile-http.sh
