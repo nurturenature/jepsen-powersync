@@ -17,7 +17,7 @@ class Worker {
   // transaction instance variables
   final SendPort _txnRequests;
   final ReceivePort _txnResponses;
-  final Map<int, Completer<Object?>> _activeTxnRequests = {};
+  final Map<int, Completer<Object?>> activeTxnRequests = {};
   int _txnCounter = 0;
   bool _txnsClosed = false;
 
@@ -179,7 +179,7 @@ class Worker {
 
   void _handleTxnResponsesFromIsolate(dynamic message) {
     final (int id, Object? response) = message as (int, Object?);
-    final completer = _activeTxnRequests.remove(id)!;
+    final completer = activeTxnRequests.remove(id)!;
 
     if (response is RemoteError) {
       completer.completeError(response);
@@ -187,7 +187,7 @@ class Worker {
       completer.complete(response);
     }
 
-    if (_txnsClosed && _activeTxnRequests.isEmpty) _txnResponses.close();
+    if (_txnsClosed && activeTxnRequests.isEmpty) _txnResponses.close();
 
     // check lww reads for consistency
     final op = response as Map<String, dynamic>;
@@ -254,7 +254,7 @@ class Worker {
     // insure ordering, request/response id's match
     final completer = Completer<Object?>.sync();
     final id = _txnCounter++;
-    _activeTxnRequests[id] = completer;
+    activeTxnRequests[id] = completer;
 
     // augment message with meta data re client and state
     txn.addAll({'clientNum': clientNum, 'id': id});
@@ -287,7 +287,7 @@ class Worker {
     if (!_txnsClosed) {
       _txnsClosed = true;
       _txnRequests.send('shutdown');
-      if (_activeTxnRequests.isEmpty) _txnResponses.close();
+      if (activeTxnRequests.isEmpty) _txnResponses.close();
     }
   }
 
@@ -308,7 +308,7 @@ class Worker {
       );
     }
 
-    if (_activeTxnRequests.isNotEmpty) {
+    if (activeTxnRequests.isNotEmpty) {
       return false;
     }
 
@@ -326,6 +326,17 @@ class Worker {
 
     _isolate.resume(_resumeCapability!);
     _resumeCapability = null;
+
+    return true;
+  }
+
+  /// Kill this client isolate.
+  bool killIsolate() {
+    if (_isolate.terminateCapability == null) {
+      return false;
+    }
+
+    _isolate.kill(priority: Isolate.immediate);
 
     return true;
   }

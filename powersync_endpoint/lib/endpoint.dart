@@ -98,6 +98,14 @@ abstract class Endpoint {
     });
   }
 
+  SplayTreeMap<String, dynamic> closeMessage() {
+    return SplayTreeMap.of({
+      'type': 'invoke',
+      'f': 'api',
+      'value': {'f': 'close', 'v': {}},
+    });
+  }
+
   Map<String, dynamic> selectAllMessage(pg.Tables table) {
     return Map.of({
       'type': 'invoke',

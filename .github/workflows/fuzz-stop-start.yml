@@ -1,0 +1,29 @@
+name: fuzz-stop-start
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fuzz-stop-start:
+    uses: nurturenature/jepsen-powersync/.github/workflows/fuzz-test-runner.yml@main
+    with:
+      clients: >
+        [ '5', '10' ]
+      rates: >
+        [ '10', '20', '30', '40' ]
+      times: >
+        [ '100', '200', '300' ]
+      postgresql: >
+        [ '--postgresql', '--no-postgresql' ]
+      disconnect: >
+        [ '--no-disconnect' ]
+      stop: >
+        [ '--stop' ]
+      partition: >
+        [ '--no-partition' ]
+      pause: >
+        [ '--pause' ]
+      interval: >
+        [ '3', '5' ]
+      repeat: >
+        [ '1', '2' ]

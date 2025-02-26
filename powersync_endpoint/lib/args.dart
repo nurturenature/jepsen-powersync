@@ -30,6 +30,7 @@ void parseArgs(List<String> arguments) {
     args['maxTxnLen'] = int.parse(results.option('maxTxnLen')!);
     // nemeses
     args['disconnect'] = results.flag('disconnect');
+    args['stop'] = results.flag('stop');
     args['partition'] = results.flag('partition');
     args['pause'] = results.flag('pause');
     args['interval'] = int.parse(results.option('interval')!);
@@ -99,6 +100,12 @@ ArgParser _buildParser() {
       defaultsTo: false,
       negatable: true,
       help: 'call disconnect/connect API at interval',
+    )
+    ..addFlag(
+      'stop',
+      defaultsTo: false,
+      negatable: true,
+      help: 'stop/start Workers at interval',
     )
     ..addFlag(
       'partition',

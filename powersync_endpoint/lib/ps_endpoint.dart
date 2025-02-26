@@ -197,6 +197,24 @@ class PSEndpoint extends Endpoint {
         op['value']['v'] = v;
         break;
 
+      case 'close':
+        await db.close();
+        final closed = db.closed;
+        final connected = db.connected;
+        final currentStatus = db.currentStatus;
+        final v = {
+          'db.closed': closed,
+          'db.connected': connected,
+          'db.currentStatus': currentStatus,
+        };
+        if (!closed || connected) {
+          log.warning(
+            'expected db.closed to be true and db.connected to be false after db.close(): $v',
+          );
+        }
+        op['value']['v'] = v;
+        break;
+
       case 'upload-queue-count':
         final uploadQueueCount = (await db.getUploadQueueStats()).count;
         op['value']['v'] = {'db.uploadQueueStats.count': uploadQueueCount};

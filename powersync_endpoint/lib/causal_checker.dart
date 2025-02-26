@@ -1,5 +1,9 @@
 import 'log.dart';
 
+// TODO: add a possible writes state
+//  - txn requests may be interrupted by a nemesis before the txn response is sent or received
+//  - check/maintain state as part of checking for the read of an unwritten value
+
 /// Check a key/value, Max Write Wins, database
 class CausalChecker {
   late final int _numClients;

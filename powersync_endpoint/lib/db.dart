@@ -43,32 +43,38 @@ Future<void> initDb(pg.Tables table, String sqlite3Path) async {
   await db.waitForFirstSync();
   log.info('db first sync completed, status: ${db.currentStatus}');
 
-  // insure complete db.waitForFirstSync()
+  // insure local db is complete, i.e. has all the keys
   // PostgreSQL is source of truth, explicitly initialized at app startup
-  final Map<int, dynamic> pgTable = switch (table) {
-    pg.Tables.lww => await pg.selectAllLWW(),
-    pg.Tables.mww => await pg.selectAllMWW(),
-  };
-  // get currentStatus first to show incorrect lastSyncedAt: hasSynced
+  final Set<int> pgKeys = Set.from(
+    (switch (table) {
+      pg.Tables.lww => await pg.selectAllLWW(),
+      pg.Tables.mww => await pg.selectAllMWW(),
+    }).keys,
+  );
   var currentStatus = db.currentStatus;
-  Map<int, dynamic> psTable = switch (table) {
-    pg.Tables.lww => await selectAllLWW(),
-    pg.Tables.mww => await selectAllMWW(),
-  };
-  var diffs = utils.mapDiff('pg', pgTable, 'ps', psTable);
-  while (diffs.isNotEmpty) {
-    log.info('db.waitForFirstSync incomplete: $diffs');
+  Set<int> psKeys = Set.from(
+    (switch (table) {
+      pg.Tables.lww => await selectAllLWW(),
+      pg.Tables.mww => await selectAllMWW(),
+    }).keys,
+  );
+  while (!psKeys.containsAll(pgKeys)) {
+    log.info(
+      'db.waitForFirstSync incomplete, missing keys: ${pgKeys.difference(psKeys)}',
+    );
     log.info('\twith currentStatus: $currentStatus');
 
     // sleep and try again
     await utils.futureSleep(100);
     currentStatus = db.currentStatus;
-    psTable = switch (table) {
-      pg.Tables.lww => await selectAllLWW(),
-      pg.Tables.mww => await selectAllMWW(),
-    };
-    diffs = utils.mapDiff('pg', pgTable, 'ps', psTable);
+    psKeys = Set.from(
+      (switch (table) {
+        pg.Tables.lww => await selectAllLWW(),
+        pg.Tables.mww => await selectAllMWW(),
+      }).keys,
+    );
   }
+  log.info('db first sync confirmed, all keys present: $psKeys');
 
   // log PowerSync status changes
   _logSyncStatus(db);

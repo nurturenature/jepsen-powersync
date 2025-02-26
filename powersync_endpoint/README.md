@@ -30,3 +30,12 @@ Library code is in `lib/`.
 41 - unknown download error in SyncStatus
 
 100 - invalid state due to coding error
+
+### Nemesis Behavior
+
+#### --stop
+
+Isolate is killed immediately, do not wait for next event loop opportunity.
+```dart
+Isolate.kill(priority: Isolate.immediate);
+```
