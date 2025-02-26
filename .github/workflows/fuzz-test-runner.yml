@@ -53,11 +53,6 @@ on:
         type: string
         required: true
         default: "[ '1' ]"
-      powersync-image-tag:
-        description: PowerSync Image Tag
-        type: string
-        required: true
-        default: latest
        
   workflow_call:
     inputs:
@@ -111,11 +106,6 @@ on:
         type: string
         required: false
         default: "[ '1' ]"
-      powersync-image-tag:
-        description: PowerSync Image Tag
-        type: string
-        required: false
-        default: latest
 
 jobs:
   tests:
@@ -137,7 +127,7 @@ jobs:
 
     env:
       test-title: ${{ matrix.clients}}c-${{ matrix.rate }}tps-${{ matrix.time }}s-${{ matrix.postgresql }}-${{ matrix.disconnect }}-${{ matrix.stop }}-${{ matrix.partition }}-${{ matrix.pause }}-${{ matrix.interval }}s-${{ matrix.repeat }}
-      POWERSYNC_IMAGE_TAG: ${{ inputs.powersync-image-tag }}
+      POWERSYNC_IMAGE_TAG: latest
 
     steps:
       - name: Checkout jepsen-powersync
