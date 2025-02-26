@@ -214,21 +214,27 @@ class Nemesis {
           break;
       }
 
-      // act on clients
-      final Set<int> affectedClientNums = {};
-      for (int clientNum in actOnClientNums) {
-        if (await StopStart.stopOrStart(
-          _clients,
-          clientNum,
-          stopStartMessage,
-          _pse,
-        )) {
-          affectedClientNums.add(clientNum);
+      // act on clients in parallel
+      final List<Future<bool>> affectedClientFutures = [];
+      final List<int> affectedClientNums = [];
+      for (final clientNum in actOnClientNums) {
+        affectedClientFutures.add(
+          StopStart.stopOrStart(_clients, clientNum, stopStartMessage, _pse),
+        );
+        affectedClientNums.add(clientNum);
+      }
+
+      // find client nums that were actually acted on
+      Set<int> actuallyAffectedClientNums = {};
+      for (final (index, result)
+          in (await affectedClientFutures.wait).indexed) {
+        if (result) {
+          actuallyAffectedClientNums.add(affectedClientNums[index]);
         }
       }
 
       log.info(
-        'nemesis: stop/start: ${stopStartMessage.name}: clients: $affectedClientNums',
+        'nemesis: stop/start: ${stopStartMessage.name}: clients: $actuallyAffectedClientNums',
       );
     });
   }
@@ -241,22 +247,32 @@ class Nemesis {
     // let apis catch up
     await utils.futureSleep(1000);
 
-    // insure all clients are started
-    Set<int> affectedClientNums = {};
+    // insure all clients are started, act on clients in parallel
+    final List<Future<bool>> affectedClientFutures = [];
+    final List<int> affectedClientNums = [];
     for (final clientNum in _allClientNums) {
       // conditionally, not in _clients, start new client as clientNum
-      if (await StopStart.stopOrStart(
-        _clients,
-        clientNum,
-        StopStartStates.started,
-        _pse,
-      )) {
-        affectedClientNums.add(clientNum);
+      affectedClientFutures.add(
+        StopStart.stopOrStart(
+          _clients,
+          clientNum,
+          StopStartStates.started,
+          _pse,
+        ),
+      );
+      affectedClientNums.add(clientNum);
+    }
+
+    // find client nums that were actually started
+    Set<int> actuallyAffectedClientNums = {};
+    for (final (index, result) in (await affectedClientFutures.wait).indexed) {
+      if (result) {
+        actuallyAffectedClientNums.add(affectedClientNums[index]);
       }
     }
 
     log.info(
-      'nemesis: stop/start: ${StopStartStates.started.name}: clients: $affectedClientNums',
+      'nemesis: stop/start: ${StopStartStates.started.name}: clients: $actuallyAffectedClientNums',
     );
   }
 
