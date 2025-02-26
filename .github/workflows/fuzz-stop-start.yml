@@ -22,7 +22,7 @@ jobs:
       partition: >
         [ '--no-partition' ]
       pause: >
-        [ '--pause' ]
+        [ '--no-pause' ]
       interval: >
         [ '3', '5' ]
       repeat: >
