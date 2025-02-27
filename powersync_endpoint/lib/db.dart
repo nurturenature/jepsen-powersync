@@ -261,16 +261,13 @@ bool _ignorableDownloadError(Object ex) {
     return true;
   }
 
-  // exposed by partition nemesis
-  if (ex is http.ClientException &&
-      ex.message.startsWith(
-        'Connection closed before full header was received',
-      )) {
-    return true;
-  }
-
   // exposed by nemesis
-  if (ex is http.ClientException && ex.message.startsWith('Broken pipe')) {
+  if (ex is http.ClientException &&
+      (ex.message.startsWith(
+            'Connection closed before full header was received',
+          ) ||
+          ex.message.startsWith('Broken pipe') ||
+          ex.message.startsWith('Connection reset by peer'))) {
     return true;
   }
 
