@@ -2,11 +2,20 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:io';
 import 'package:list_utilities/list_utilities.dart';
+import 'package:synchronized/synchronized.dart';
 import 'log.dart';
 import 'postgresql.dart' as pg;
 import 'ps_endpoint.dart' as pse;
 import 'utils.dart' as utils;
 import 'worker.dart';
+
+// synchronize generation of nemesis stream events and their actual execution in the stream subscription
+// prevents overlapping of start/stop, flip flopped, states
+enum Nemeses { disconnect, stop, kill, partition, pause }
+
+final _locks = Map.fromEntries(
+  Nemeses.values.map((nemesis) => MapEntry(nemesis, Lock())),
+);
 
 /// Fault injection.
 /// Disconnect, connect, Workers from PowerSync Service:
@@ -88,7 +97,11 @@ class Nemesis {
     _disconnectConnectStream = () async* {
       while (true) {
         await utils.futureSleep(_rng.nextInt(_maxInterval + 1));
-        yield _connectionState.flipFlop();
+        yield await _locks[Nemeses.disconnect]!.synchronized<ConnectionStates>(
+          () {
+            return _connectionState.flipFlop();
+          },
+        );
       }
     };
 
@@ -97,7 +110,9 @@ class Nemesis {
     _stopStartStream = () async* {
       while (true) {
         await utils.futureSleep(_rng.nextInt(_maxInterval + 1));
-        yield _stopStartState.flipFlop();
+        yield await _locks[Nemeses.stop]!.synchronized<StopStartStates>(() {
+          return _stopStartState.flipFlop();
+        });
       }
     };
 
@@ -106,7 +121,9 @@ class Nemesis {
     _killStartStream = () async* {
       while (true) {
         await utils.futureSleep(_rng.nextInt(_maxInterval + 1));
-        yield _killStartState.flipFlop();
+        yield await _locks[Nemeses.kill]!.synchronized<KillStartStates>(() {
+          return _killStartState.flipFlop();
+        });
       }
     };
 
@@ -115,7 +132,11 @@ class Nemesis {
     _partitionStream = () async* {
       while (true) {
         await utils.futureSleep(_rng.nextInt(_maxInterval + 1));
-        yield _partitionState.flipFlop();
+        yield await _locks[Nemeses.partition]!.synchronized<PartitionStates>(
+          () {
+            return _partitionState.flipFlop();
+          },
+        );
       }
     };
 
@@ -124,7 +145,9 @@ class Nemesis {
     _pauseStream = () async* {
       while (true) {
         await utils.futureSleep(_rng.nextInt(_maxInterval + 1));
-        yield _pauseState.flipFlop();
+        yield await _locks[Nemeses.pause]!.synchronized<PauseStates>(() {
+          return _pauseState.flipFlop();
+        });
       }
     };
   }
@@ -156,39 +179,41 @@ class Nemesis {
     _disconnectConnectSubscription = _disconnectConnectStream().listen((
       connectionStateMessage,
     ) async {
-      late final Set<Worker> affectedClients;
-      late final Map<String, dynamic> disconnectConnectMessage;
-      switch (connectionStateMessage) {
-        case ConnectionStates.disconnected:
-          // act on 0 to all clients
-          final int numRandomClients = _rng.nextInt(_clients.length + 1);
-          affectedClients = _clients.getRandom(numRandomClients);
-          disconnectConnectMessage = _pse.disconnectMessage();
-          break;
-        case ConnectionStates.connected:
-          affectedClients = _clients;
-          disconnectConnectMessage = _pse.connectMessage();
-          break;
-      }
+      await _locks[Nemeses.disconnect]!.synchronized(() async {
+        late final Set<Worker> affectedClients;
+        late final Map<String, dynamic> disconnectConnectMessage;
+        switch (connectionStateMessage) {
+          case ConnectionStates.disconnected:
+            // act on 0 to all clients
+            final int numRandomClients = _rng.nextInt(_clients.length + 1);
+            affectedClients = _clients.getRandom(numRandomClients);
+            disconnectConnectMessage = _pse.disconnectMessage();
+            break;
+          case ConnectionStates.connected:
+            affectedClients = _clients;
+            disconnectConnectMessage = _pse.connectMessage();
+            break;
+        }
 
-      final List<Future<Map>> apiFutures = [];
-      for (Worker client in affectedClients) {
-        apiFutures.add(client.executeApi(disconnectConnectMessage));
-      }
-      await apiFutures.wait;
+        final List<Future<Map>> apiFutures = [];
+        for (Worker client in affectedClients) {
+          apiFutures.add(client.executeApi(disconnectConnectMessage));
+        }
+        await apiFutures.wait;
 
-      log.info(
-        'nemesis: disconnect/connect: ${connectionStateMessage.name}: clients: ${affectedClients.map((client) => client.clientNum)}',
-      );
-
-      // log upload queue count for debugging
-      final List<Future<Map>> uploadQueueCountFutures = [];
-      for (Worker client in affectedClients) {
-        uploadQueueCountFutures.add(
-          client.executeApi(_pse.uploadQueueCountMessage()),
+        log.info(
+          'nemesis: disconnect/connect: ${connectionStateMessage.name}: clients: ${affectedClients.map((client) => client.clientNum)}',
         );
-      }
-      await uploadQueueCountFutures.wait;
+
+        // log upload queue count for debugging
+        final List<Future<Map>> uploadQueueCountFutures = [];
+        for (Worker client in affectedClients) {
+          uploadQueueCountFutures.add(
+            client.executeApi(_pse.uploadQueueCountMessage()),
+          );
+        }
+        await uploadQueueCountFutures.wait;
+      });
     });
   }
 
@@ -221,45 +246,47 @@ class Nemesis {
     _stopStartSubscription = _stopStartStream().listen((
       stopStartMessage,
     ) async {
-      // what clients to act on
-      final Set<int> actOnClientNums = {};
-      switch (stopStartMessage) {
-        case StopStartStates.stopped:
-          // act on 0 to all clients
-          final int numRandomClients = _rng.nextInt(_clients.length + 1);
-          actOnClientNums.addAll(
-            _clients
-                .getRandom(numRandomClients)
-                .map((client) => client.clientNum),
-          );
-          break;
-        case StopStartStates.started:
-          actOnClientNums.addAll(_allClientNums);
-          break;
-      }
-
-      // act on clients in parallel
-      final List<Future<bool>> affectedClientFutures = [];
-      final List<int> affectedClientNums = [];
-      for (final clientNum in actOnClientNums) {
-        affectedClientFutures.add(
-          StopStart.stopOrStart(_clients, clientNum, stopStartMessage, _pse),
-        );
-        affectedClientNums.add(clientNum);
-      }
-
-      // find client nums that were actually acted on
-      Set<int> actuallyAffectedClientNums = {};
-      for (final (index, result)
-          in (await affectedClientFutures.wait).indexed) {
-        if (result) {
-          actuallyAffectedClientNums.add(affectedClientNums[index]);
+      await _locks[Nemeses.stop]!.synchronized(() async {
+        // what clients to act on
+        final Set<int> actOnClientNums = {};
+        switch (stopStartMessage) {
+          case StopStartStates.stopped:
+            // act on 0 to all clients
+            final int numRandomClients = _rng.nextInt(_clients.length + 1);
+            actOnClientNums.addAll(
+              _clients
+                  .getRandom(numRandomClients)
+                  .map((client) => client.clientNum),
+            );
+            break;
+          case StopStartStates.started:
+            actOnClientNums.addAll(_allClientNums);
+            break;
         }
-      }
 
-      log.info(
-        'nemesis: stop/start: ${stopStartMessage.name}: clients: $actuallyAffectedClientNums',
-      );
+        // act on clients in parallel
+        final List<Future<bool>> affectedClientFutures = [];
+        final List<int> affectedClientNums = [];
+        for (final clientNum in actOnClientNums) {
+          affectedClientFutures.add(
+            StopStart.stopOrStart(_clients, clientNum, stopStartMessage, _pse),
+          );
+          affectedClientNums.add(clientNum);
+        }
+
+        // find client nums that were actually acted on
+        Set<int> actuallyAffectedClientNums = {};
+        for (final (index, result)
+            in (await affectedClientFutures.wait).indexed) {
+          if (result) {
+            actuallyAffectedClientNums.add(affectedClientNums[index]);
+          }
+        }
+
+        log.info(
+          'nemesis: stop/start: ${stopStartMessage.name}: clients: $actuallyAffectedClientNums',
+        );
+      });
     });
   }
 
@@ -309,45 +336,47 @@ class Nemesis {
     _killStartSubscription = _killStartStream().listen((
       killStartMessage,
     ) async {
-      // what clients to act on
-      final Set<int> actOnClientNums = {};
-      switch (killStartMessage) {
-        case KillStartStates.killed:
-          // act on 0 to all clients
-          final int numRandomClients = _rng.nextInt(_clients.length + 1);
-          actOnClientNums.addAll(
-            _clients
-                .getRandom(numRandomClients)
-                .map((client) => client.clientNum),
-          );
-          break;
-        case KillStartStates.started:
-          actOnClientNums.addAll(_allClientNums);
-          break;
-      }
-
-      // act on clients in parallel
-      final List<Future<bool>> affectedClientFutures = [];
-      final List<int> affectedClientNums = [];
-      for (final clientNum in actOnClientNums) {
-        affectedClientFutures.add(
-          KillStart.killOrStart(_clients, clientNum, killStartMessage, _pse),
-        );
-        affectedClientNums.add(clientNum);
-      }
-
-      // find client nums that were actually acted on
-      Set<int> actuallyAffectedClientNums = {};
-      for (final (index, result)
-          in (await affectedClientFutures.wait).indexed) {
-        if (result) {
-          actuallyAffectedClientNums.add(affectedClientNums[index]);
+      await _locks[Nemeses.kill]!.synchronized(() async {
+        // what clients to act on
+        final Set<int> actOnClientNums = {};
+        switch (killStartMessage) {
+          case KillStartStates.killed:
+            // act on 0 to all clients
+            final int numRandomClients = _rng.nextInt(_clients.length + 1);
+            actOnClientNums.addAll(
+              _clients
+                  .getRandom(numRandomClients)
+                  .map((client) => client.clientNum),
+            );
+            break;
+          case KillStartStates.started:
+            actOnClientNums.addAll(_allClientNums);
+            break;
         }
-      }
 
-      log.info(
-        'nemesis: kill/start: ${killStartMessage.name}: clients: $actuallyAffectedClientNums',
-      );
+        // act on clients in parallel
+        final List<Future<bool>> affectedClientFutures = [];
+        final List<int> affectedClientNums = [];
+        for (final clientNum in actOnClientNums) {
+          affectedClientFutures.add(
+            KillStart.killOrStart(_clients, clientNum, killStartMessage, _pse),
+          );
+          affectedClientNums.add(clientNum);
+        }
+
+        // find client nums that were actually acted on
+        Set<int> actuallyAffectedClientNums = {};
+        for (final (index, result)
+            in (await affectedClientFutures.wait).indexed) {
+          if (result) {
+            actuallyAffectedClientNums.add(affectedClientNums[index]);
+          }
+        }
+
+        log.info(
+          'nemesis: kill/start: ${killStartMessage.name}: clients: $actuallyAffectedClientNums',
+        );
+      });
     });
   }
 
@@ -397,9 +426,11 @@ class Nemesis {
     _partitionSubscription = _partitionStream().listen((
       partitionStateMessage,
     ) async {
-      await Partition.partition(powerSyncHost, partitionStateMessage);
+      await _locks[Nemeses.partition]!.synchronized(() async {
+        await Partition.partition(powerSyncHost, partitionStateMessage);
 
-      log.info('nemesis: partition: ${partitionStateMessage.name}');
+        log.info('nemesis: partition: ${partitionStateMessage.name}');
+      });
     });
   }
 
@@ -423,29 +454,31 @@ class Nemesis {
       'nemesis: pause/resume: start listening to stream of pause/resume messages',
     );
 
-    _pauseSubscription = _pauseStream().listen((pauseMessage) {
-      final Set<Worker> affectedClients;
-      switch (pauseMessage) {
-        case PauseStates.paused:
-          // act on 0 to all clients
-          final int numRandomClients = _rng.nextInt(_clients.length + 1);
-          affectedClients = _clients.getRandom(numRandomClients);
-          break;
-        case PauseStates.running:
-          affectedClients = _clients;
-          break;
-      }
-
-      Set<int> affectedClientNums = {};
-      for (Worker client in affectedClients) {
-        if (Pause.pauseOrResume(client, pauseMessage)) {
-          affectedClientNums.add(client.clientNum);
+    _pauseSubscription = _pauseStream().listen((pauseMessage) async {
+      await _locks[Nemeses.pause]!.synchronized(() {
+        final Set<Worker> affectedClients;
+        switch (pauseMessage) {
+          case PauseStates.paused:
+            // act on 0 to all clients
+            final int numRandomClients = _rng.nextInt(_clients.length + 1);
+            affectedClients = _clients.getRandom(numRandomClients);
+            break;
+          case PauseStates.running:
+            affectedClients = _clients;
+            break;
         }
-      }
 
-      log.info(
-        'nemesis: pause/resume: ${pauseMessage.name}: clients: $affectedClientNums',
-      );
+        Set<int> affectedClientNums = {};
+        for (Worker client in affectedClients) {
+          if (Pause.pauseOrResume(client, pauseMessage)) {
+            affectedClientNums.add(client.clientNum);
+          }
+        }
+
+        log.info(
+          'nemesis: pause/resume: ${pauseMessage.name}: clients: $affectedClientNums',
+        );
+      });
     });
   }
 
