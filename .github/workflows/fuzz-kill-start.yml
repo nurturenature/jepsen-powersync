@@ -1,10 +1,10 @@
-name: fuzz-stop-start
+name: fuzz-kill-start
 
 on:
   workflow_dispatch:
 
 jobs:
-  fuzz-stop-start:
+  fuzz-kill-start:
     uses: nurturenature/jepsen-powersync/.github/workflows/fuzz-test-runner.yml@main
     with:
       clients: >
@@ -18,7 +18,7 @@ jobs:
       disconnect: >
         [ '--no-disconnect' ]
       stop-or-kill: >
-        [ '--stop' ]
+        [ '--kill' ]
       partition: >
         [ '--no-partition' ]
       pause: >

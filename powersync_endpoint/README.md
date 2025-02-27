@@ -46,3 +46,16 @@ Isolate.kill(priority: Isolate.immediate);
 Worker client is started:
   - newly spawned Isolate
   - SQLite3 data files are preserved
+
+#### --kill
+
+```dart
+// no warning, interaction, e.g. disconnect, close, etc, with PowerSync database
+
+// Isolate is killed immediately, do not wait for next event loop opportunity
+Isolate.kill(priority: Isolate.immediate);
+```
+
+Worker client is started:
+  - newly spawned Isolate
+  - SQLite3 data files are preserved

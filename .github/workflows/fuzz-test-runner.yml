@@ -28,8 +28,8 @@ on:
         type: string
         required: true
         default: "[ '--no-disconnect', '--disconnect' ]"
-      stop:
-        description: '--[no-]stop (as JSON)'
+      stop-or-kill:
+        description: '--[no-]stop --[no-]kill (as JSON)'
         type: string
         required: true
         default: "[ '--no-stop' ]"
@@ -81,8 +81,8 @@ on:
         type: string
         required: false
         default: "[ '--no-disconnect', '--disconnect' ]"
-      stop:
-        description: '--[no-]stop (as JSON)'
+      stop-or-kill:
+        description: '--[no-]stop --[no-kill] (as JSON)'
         type: string
         required: false
         default: "[ '--no-stop' ]"
@@ -114,19 +114,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        clients:    ${{ fromJSON(inputs.clients) }}
-        rate:       ${{ fromJSON(inputs.rates) }}
-        time:       ${{ fromJSON(inputs.times) }}
-        postgresql: ${{ fromJSON(inputs.postgresql) }}
-        disconnect: ${{ fromJSON(inputs.disconnect) }}
-        stop:       ${{ fromJSON(inputs.stop) }}
-        partition:  ${{ fromJSON(inputs.partition) }}
-        pause:      ${{ fromJSON(inputs.pause) }}
-        interval:   ${{ fromJson(inputs.interval) }}
-        repeat:     ${{ fromJSON(inputs.repeat) }}
+        clients:      ${{ fromJSON(inputs.clients) }}
+        rate:         ${{ fromJSON(inputs.rates) }}
+        time:         ${{ fromJSON(inputs.times) }}
+        postgresql:   ${{ fromJSON(inputs.postgresql) }}
+        disconnect:   ${{ fromJSON(inputs.disconnect) }}
+        stop-or-kill: ${{ fromJSON(inputs.stop-or-kill) }}
+        partition:    ${{ fromJSON(inputs.partition) }}
+        pause:        ${{ fromJSON(inputs.pause) }}
+        interval:     ${{ fromJson(inputs.interval) }}
+        repeat:       ${{ fromJSON(inputs.repeat) }}
 
     env:
-      test-title: ${{ matrix.clients}}c-${{ matrix.rate }}tps-${{ matrix.time }}s-${{ matrix.postgresql }}-${{ matrix.disconnect }}-${{ matrix.stop }}-${{ matrix.partition }}-${{ matrix.pause }}-${{ matrix.interval }}s-${{ matrix.repeat }}
+      test-title: ${{ matrix.clients}}c-${{ matrix.rate }}tps-${{ matrix.time }}s-${{ matrix.postgresql }}-${{ matrix.disconnect }}-${{ matrix.stop-or-kill }}-${{ matrix.partition }}-${{ matrix.pause }}-${{ matrix.interval }}s-${{ matrix.repeat }}
       POWERSYNC_IMAGE_TAG: latest
 
     steps:
@@ -150,7 +150,7 @@ jobs:
                                   --time ${{ matrix.time }}        \
                                   ${{ matrix.postgresql }}         \
                                   ${{ matrix.disconnect }}         \
-                                  ${{ matrix.stop }}               \
+                                  ${{ matrix.stop-or-kill }}       \
                                   ${{ matrix.partition }}          \
                                   ${{ matrix.pause }}              \
                                   --interval ${{ matrix.interval}}

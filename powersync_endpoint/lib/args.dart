@@ -31,6 +31,7 @@ void parseArgs(List<String> arguments) {
     // nemeses
     args['disconnect'] = results.flag('disconnect');
     args['stop'] = results.flag('stop');
+    args['kill'] = results.flag('kill');
     args['partition'] = results.flag('partition');
     args['pause'] = results.flag('pause');
     args['interval'] = int.parse(results.option('interval')!);
@@ -106,6 +107,12 @@ ArgParser _buildParser() {
       defaultsTo: false,
       negatable: true,
       help: 'stop/start Workers at interval',
+    )
+    ..addFlag(
+      'kill',
+      defaultsTo: false,
+      negatable: true,
+      help: 'kill/start Workers at interval',
     )
     ..addFlag(
       'partition',
