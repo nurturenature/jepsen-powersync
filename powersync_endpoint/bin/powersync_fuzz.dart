@@ -73,6 +73,14 @@ void main(List<String> arguments) async {
   // each sql txn message from the Stream is individually sent to a random client
   sqlTxnStream
       .listen((sqlTxnMessage) async {
+        // may be no active clients due to nemesis activities, if so ignore op
+        if (clients.isEmpty) {
+          log.fine(
+            'no active clients, so ignoring SQL transaction op: $sqlTxnMessage',
+          );
+          return;
+        }
+
         final op =
             (await clients.random().executeTxn(sqlTxnMessage))
                 as SplayTreeMap<String, dynamic>;
