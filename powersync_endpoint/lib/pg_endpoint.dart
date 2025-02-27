@@ -29,6 +29,7 @@ class PGEndpoint extends Endpoint {
       // errors/throwing in the PostgreSQL transaction reverts it
       await local_pg.postgreSQL.runTx(
         (tx) async {
+          late final Map<int, int> readAll;
           final valueAsFutures = op['value'].map((
             Map<String, dynamic> mop,
           ) async {
@@ -100,21 +101,33 @@ class PGEndpoint extends Endpoint {
                 }
 
                 // return mop['v'] as a {k: v} map containing all read k/v
-                mop['v'] = Map.fromEntries(
+                readAll = Map.fromEntries(
                   select
                       .map((resultRow) => resultRow.toColumnMap())
                       .map((row) => MapEntry(row['k'] as int, row['v'] as int)),
                 );
+                mop['v'] = readAll;
 
                 return mop;
 
               case 'write-some':
-                // create a new Map to iterate over so we can modify the mop['v'] Map
-                final Map<int, int> writeSome = Map.of(mop['v']);
-                pg.Result update;
+                final Map<int, int> writeSome = mop['v'];
+                // from the time of our txn request, sent via a ReceivePort
+                //   - a txn from another client may have completed and replicated
+                //   - so check to insure writes are still max write wins
+                // note creation of List of keys to avoid mutation issues in loop
+                for (final k in List<int>.from(
+                  writeSome.keys,
+                  growable: false,
+                )) {
+                  if (writeSome[k]! < readAll[k]!) {
+                    writeSome.remove(k);
+                  }
+                }
+
                 for (final kv in writeSome.entries) {
-                  update = await tx.execute(
-                    "UPDATE mww SET v = GREATEST(${kv.value}, mww.v) WHERE k = ${kv.key} RETURNING *;",
+                  final update = await tx.execute(
+                    "UPDATE mww SET v = ${kv.value} WHERE k = ${kv.key} RETURNING *;",
                   );
 
                   // db is pre-seeded so 1 and only 1 result when updating
@@ -123,11 +136,6 @@ class PGEndpoint extends Endpoint {
                       'invalid update: $update for key: ${kv.key} in mop: $mop in op: $op',
                     );
                     exit(11);
-                  }
-
-                  // if another process wrote a greater value our write doesn't count
-                  if (update.single.toColumnMap()['v'] > kv.value) {
-                    mop['v'].remove(kv.key);
                   }
                 }
 
