@@ -27,6 +27,7 @@ class PSEndpoint extends Endpoint {
     final table = op['table']! as String;
 
     await db.writeTransaction((tx) async {
+      late final Map<int, int> readAll;
       final valueAsFutures = op['value'].map((mop) async {
         switch (mop['f']) {
           case 'r':
@@ -107,17 +108,27 @@ class PSEndpoint extends Endpoint {
             }
 
             // return mop['v'] as a {k: v} map containing all read k/v
-            mop['v'] = Map.fromEntries(
+            readAll = Map.fromEntries(
               select.map((row) => MapEntry(row['k'] as int, row['v'] as int)),
             );
+            mop['v'] = readAll;
 
             return mop;
 
           case 'write-some':
             final Map<int, int> writeSome = mop['v'];
-            ResultSet update;
+            // from the time of our txn request, sent via a ReceivePort
+            //   - a txn from another client may have completed and replicated
+            //   - so check to insure writes are still max write wins
+            // note creation of List of keys to avoid mutation issues in loop
+            for (final k in List<int>.from(writeSome.keys, growable: false)) {
+              if (writeSome[k]! < readAll[k]!) {
+                writeSome.remove(k);
+              }
+            }
+
             for (final kv in writeSome.entries) {
-              update = await tx.execute(
+              final update = await tx.execute(
                 "UPDATE mww SET v = ${kv.value} WHERE k = ${kv.key} RETURNING *;",
               );
 
