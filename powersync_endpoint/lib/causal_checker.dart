@@ -1,8 +1,13 @@
+import 'package:synchronized/synchronized.dart';
 import 'log.dart';
 
 // TODO: add a possible writes state
 //  - txn requests may be interrupted by a nemesis before the txn response is sent or received
 //  - check/maintain state as part of checking for the read of an unwritten value
+
+// serialize access to preserve integrity of checks
+// e.g. multiple independent mutations would be a problem
+final _lock = Lock();
 
 /// Check a key/value, Max Write Wins, database
 class CausalChecker {
@@ -24,75 +29,77 @@ class CausalChecker {
 
   /// Check if op has valid reads/writes.
   /// Update client and mw/wfr state.
-  bool checkOp(Map<String, dynamic> op) {
-    final {
-      'type': String type,
-      'f': String f,
-      'value': List<Map<String, dynamic>> value,
-      'table': String table,
-      'clientType': String clientType,
-      'clientNum': int clientNum,
-    } = op;
+  Future<bool> checkOp(Map<String, dynamic> op) async {
+    return await _lock.synchronized<bool>(() {
+      final {
+        'type': String type,
+        'f': String f,
+        'value': List<Map<String, dynamic>> value,
+        'table': String table,
+        'clientType': String clientType,
+        'clientNum': int clientNum,
+      } = op;
 
-    final clientState = _clientStates[clientNum]!;
+      final clientState = _clientStates[clientNum]!;
 
-    // ok for PostgreSQL, clientType pg, to have an error op, e.g. concurrent access
-    if (clientType == 'pg' && type == 'error') {
-      log.info('CausalChecker ignoring PostgreSQL error op: $op');
-      return true;
-    }
-
-    // must be an op of interest
-    if (type != 'ok' || f != 'txn' || value.isEmpty || table != 'mww') {
-      throw StateError('Invalid request to check op: $op');
-    }
-
-    // act on each mop, read/write, in value
-    for (final mop in value) {
-      switch (mop['f']) {
-        case 'read-all':
-          final reads = mop['v'] as Map<int, int>;
-
-          // transactions are atomic and repeatable read
-          //   - update client state with mw/wfr state for all reads
-          //   - before checking individual reads
-          _updateClientStateWithReadMwWfrState(clientState, reads);
-
-          // check each read k/v
-          for (final kv in reads.entries) {
-            if (!_checkSingleRead(clientState, kv.key, kv.value, op)) {
-              return false;
-            }
-
-            // update client state with current read value
-            clientState[kv.key] = kv.value;
-          }
-
-          break;
-
-        case 'write-some':
-          final writes = mop['v'] as Map<int, int>;
-
-          // check each write k/v
-          for (final kv in writes.entries) {
-            if (!_checkSingleWrite(clientState, kv.key, kv.value, op)) {
-              return false;
-            }
-          }
-
-          // update state to include these writes
-          _updateClientAndMwWfrStatesWithClientWrites(clientState, writes);
-
-          break;
-
-        default:
-          throw StateError(
-            'Invalid f: ${mop['f']} in value: $value in mop: $mop in op: $op',
-          );
+      // ok for PostgreSQL, clientType pg, to have an error op, e.g. concurrent access
+      if (clientType == 'pg' && type == 'error') {
+        log.info('CausalChecker ignoring PostgreSQL error op: $op');
+        return true;
       }
-    }
 
-    return true;
+      // must be an op of interest
+      if (type != 'ok' || f != 'txn' || value.isEmpty || table != 'mww') {
+        throw StateError('Invalid request to check op: $op');
+      }
+
+      // act on each mop, read/write, in value
+      for (final mop in value) {
+        switch (mop['f']) {
+          case 'read-all':
+            final reads = mop['v'] as Map<int, int>;
+
+            // transactions are atomic and repeatable read
+            //   - update client state with mw/wfr state for all reads
+            //   - before checking individual reads
+            _updateClientStateWithReadMwWfrState(clientState, reads);
+
+            // check each read k/v
+            for (final kv in reads.entries) {
+              if (!_checkSingleRead(clientState, kv.key, kv.value, op)) {
+                return false;
+              }
+
+              // update client state with current read value
+              clientState[kv.key] = kv.value;
+            }
+
+            break;
+
+          case 'write-some':
+            final writes = mop['v'] as Map<int, int>;
+
+            // check each write k/v
+            for (final kv in writes.entries) {
+              if (!_checkSingleWrite(clientState, kv.key, kv.value, op)) {
+                return false;
+              }
+            }
+
+            // update state to include these writes
+            _updateClientAndMwWfrStatesWithClientWrites(clientState, writes);
+
+            break;
+
+          default:
+            throw StateError(
+              'Invalid f: ${mop['f']} in value: $value in mop: $mop in op: $op',
+            );
+        }
+      }
+
+      return true;
+    });
   }
 
   // only checks, does not update state

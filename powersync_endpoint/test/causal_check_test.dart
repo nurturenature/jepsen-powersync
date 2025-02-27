@@ -29,7 +29,7 @@ void main() {
         },
       ],
     });
-    expect(causalChecker.checkOp(readOfUnwritten), false);
+    expect(await causalChecker.checkOp(readOfUnwritten), false);
 
     // duplicate write
     causalChecker = CausalChecker(args['clients'], args['keys']);
@@ -43,7 +43,7 @@ void main() {
         },
       ],
     });
-    expect(causalChecker.checkOp(duplicateWrite), true);
+    expect(await causalChecker.checkOp(duplicateWrite), true);
     duplicateWrite.addAll({
       'value': [
         {
@@ -53,7 +53,7 @@ void main() {
         },
       ],
     });
-    expect(causalChecker.checkOp(duplicateWrite), false);
+    expect(await causalChecker.checkOp(duplicateWrite), false);
 
     // reading your own writes
     causalChecker = CausalChecker(args['clients'], args['keys']);
@@ -67,7 +67,7 @@ void main() {
         },
       ],
     });
-    expect(causalChecker.checkOp(readYourWrites), true);
+    expect(await causalChecker.checkOp(readYourWrites), true);
     readYourWrites.addAll({
       'value': [
         {
@@ -77,7 +77,7 @@ void main() {
         },
       ],
     });
-    expect(causalChecker.checkOp(readYourWrites), true);
+    expect(await causalChecker.checkOp(readYourWrites), true);
 
     // not reading your own writes
     causalChecker = CausalChecker(args['clients'], args['keys']);
@@ -91,7 +91,7 @@ void main() {
         },
       ],
     });
-    expect(causalChecker.checkOp(failReadYourWrites), true);
+    expect(await causalChecker.checkOp(failReadYourWrites), true);
     failReadYourWrites.addAll({
       'value': [
         {
@@ -101,7 +101,7 @@ void main() {
         },
       ],
     });
-    expect(causalChecker.checkOp(failReadYourWrites), false);
+    expect(await causalChecker.checkOp(failReadYourWrites), false);
 
     // monotonic writes
     causalChecker = CausalChecker(args['clients'], args['keys']);
@@ -116,7 +116,7 @@ void main() {
         },
       ],
     });
-    expect(causalChecker.checkOp(monotonicWrites), true);
+    expect(await causalChecker.checkOp(monotonicWrites), true);
     monotonicWrites.addAll({
       'clientNum': 1,
       'value': [
@@ -137,7 +137,7 @@ void main() {
         },
       ],
     });
-    expect(causalChecker.checkOp(monotonicWrites), true);
+    expect(await causalChecker.checkOp(monotonicWrites), true);
     monotonicWrites.addAll({
       'clientNum': 2,
       'value': [
@@ -148,7 +148,7 @@ void main() {
         },
       ],
     });
-    expect(causalChecker.checkOp(monotonicWrites), true);
+    expect(await causalChecker.checkOp(monotonicWrites), true);
     monotonicWrites.addAll({
       'clientNum': 2,
       'value': [
@@ -159,7 +159,7 @@ void main() {
         },
       ],
     });
-    expect(causalChecker.checkOp(monotonicWrites), false);
+    expect(await causalChecker.checkOp(monotonicWrites), false);
 
     // writes follow reads
     causalChecker = CausalChecker(args['clients'], args['keys']);
@@ -174,7 +174,7 @@ void main() {
         },
       ],
     });
-    expect(causalChecker.checkOp(writesFollowReads), true);
+    expect(await causalChecker.checkOp(writesFollowReads), true);
     writesFollowReads.addAll({
       'clientNum': 2,
       'value': [
@@ -190,7 +190,7 @@ void main() {
         },
       ],
     });
-    expect(causalChecker.checkOp(writesFollowReads), true);
+    expect(await causalChecker.checkOp(writesFollowReads), true);
     writesFollowReads.addAll({
       'clientNum': 3,
       'value': [
@@ -201,7 +201,7 @@ void main() {
         },
       ],
     });
-    expect(causalChecker.checkOp(writesFollowReads), true);
+    expect(await causalChecker.checkOp(writesFollowReads), true);
 
     // not writes follow reads
     causalChecker = CausalChecker(args['clients'], args['keys']);
@@ -216,7 +216,7 @@ void main() {
         },
       ],
     });
-    expect(causalChecker.checkOp(failWritesFollowReads), true);
+    expect(await causalChecker.checkOp(failWritesFollowReads), true);
     failWritesFollowReads.addAll({
       'clientNum': 2,
       'value': [
@@ -232,7 +232,7 @@ void main() {
         },
       ],
     });
-    expect(causalChecker.checkOp(failWritesFollowReads), true);
+    expect(await causalChecker.checkOp(failWritesFollowReads), true);
     failWritesFollowReads.addAll({
       'clientNum': 3,
       'value': [
@@ -243,6 +243,6 @@ void main() {
         },
       ],
     });
-    expect(causalChecker.checkOp(failWritesFollowReads), false);
+    expect(await causalChecker.checkOp(failWritesFollowReads), false);
   });
 }

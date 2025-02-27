@@ -82,9 +82,9 @@ void main(List<String> arguments) async {
         }
 
         final op =
-            (await clients.random().executeTxn(sqlTxnMessage))
+            await clients.random().executeTxn(sqlTxnMessage)
                 as SplayTreeMap<String, dynamic>;
-        if (!causalChecker.checkOp(op)) {
+        if (!await causalChecker.checkOp(op)) {
           log.severe('Causal Consistency check failed for op: $op');
           exit(2);
         }
