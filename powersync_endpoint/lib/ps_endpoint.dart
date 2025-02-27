@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:powersync/sqlite3.dart';
 import 'args.dart';
 import 'db.dart';
 import 'endpoint.dart';
