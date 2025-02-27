@@ -35,7 +35,14 @@ Library code is in `lib/`.
 
 #### --stop
 
-Isolate is killed immediately, do not wait for next event loop opportunity.
 ```dart
+// Database is closed, which disconnects, frees resources
+await db.close();
+
+// Isolate is killed immediately, do not wait for next event loop opportunity
 Isolate.kill(priority: Isolate.immediate);
 ```
+
+Worker client is started:
+  - newly spawned Isolate
+  - SQLite3 data files are preserved

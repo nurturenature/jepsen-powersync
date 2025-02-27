@@ -447,7 +447,14 @@ class StopStart {
           return true;
         }
 
-        clients.add(await Worker.spawn(pg.Tables.mww, clientNum, pse));
+        clients.add(
+          await Worker.spawn(
+            pg.Tables.mww,
+            clientNum,
+            pse,
+            preserveSqlite3Data: true,
+          ),
+        );
 
         return true;
     }

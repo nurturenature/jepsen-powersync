@@ -14,9 +14,24 @@ late PowerSyncDatabase db;
 /// Connector to PowerSync db.
 late PowerSyncBackendConnector connector;
 
-Future<void> initDb(pg.Tables table, String sqlite3Path) async {
-  // delete any existing files
-  await _deleteSqlite3Files(sqlite3Path);
+Future<void> initDb(
+  pg.Tables table,
+  String sqlite3Path, {
+  bool preserveSqlite3Data = false,
+}) async {
+  // delete any preexisting SQLite3 files?
+  if (await File(sqlite3Path).exists()) {
+    log.info('preexisting SQLite3 file: $sqlite3Path');
+
+    if (!preserveSqlite3Data) {
+      await _deleteSqlite3Files(sqlite3Path);
+      log.info('\tpreexisting file deleted');
+    } else {
+      log.info('\tpreexisting file preserved');
+    }
+  } else {
+    log.info('no preexisting SQLite3 file: $sqlite3Path');
+  }
 
   db = switch (table) {
     pg.Tables.lww => PowerSyncDatabase(schema: schemaLWW, path: sqlite3Path),

@@ -46,8 +46,9 @@ class Worker {
   static Future<Worker> spawn(
     pg.Tables table,
     int clientNum,
-    Endpoint endpoint,
-  ) async {
+    Endpoint endpoint, {
+    bool preserveSqlite3Data = false,
+  }) async {
     // Create a txn receive port and its initial message handler to receive the send port, e.g. a txn connection
     final initTxnReceivePort = RawReceivePort();
     final txnConnection = Completer<(ReceivePort, SendPort)>.sync();
@@ -80,6 +81,7 @@ class Worker {
         initTxnReceivePort.sendPort,
         initApiReceivePort.sendPort,
         endpoint,
+        preserveSqlite3Data,
       ), debugName: 'ps-$clientNum');
     } on Object {
       initTxnReceivePort.close();
@@ -111,6 +113,7 @@ class Worker {
       SendPort txnSendPort,
       SendPort apiSendPort,
       Endpoint endpoint,
+      bool preserveSqlite3Data,
     ) = message
             as (
               pg.Tables,
@@ -119,6 +122,7 @@ class Worker {
               SendPort,
               SendPort,
               Endpoint,
+              bool,
             );
 
     // initialize worker environment, state
@@ -133,7 +137,11 @@ class Worker {
     log.info('PostgreSQL connection initialized, connection: ${pg.postgreSQL}');
 
     // initialize PowerSync db
-    await initDb(table, '${Directory.current.path}/ps-$clientNum.sqlite3');
+    await initDb(
+      table,
+      '${Directory.current.path}/ps-$clientNum.sqlite3',
+      preserveSqlite3Data: preserveSqlite3Data,
+    );
     log.info('db initialized: $db');
 
     // Isolate needs to be able to receive txn messages, and message Worker how to send to Isolate's txn receive port
