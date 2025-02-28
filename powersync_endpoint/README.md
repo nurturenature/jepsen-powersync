@@ -59,3 +59,13 @@ Isolate.kill(priority: Isolate.immediate);
 Worker client is started:
   - newly spawned Isolate
   - SQLite3 data files are preserved
+
+----
+
+### Reproducing
+
+In `jepsen-powersync/docker`:
+```bash
+./powersync-fuzz-loop.sh ./powersync_fuzz --table mww --clients 10 --rate 10 --time 200 --no-postgresql --disconnect --no-stop --no-kill --partition --no-pause --interval 5
+```
+will loop until exit coe == 2.
