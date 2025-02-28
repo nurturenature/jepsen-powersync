@@ -14,7 +14,7 @@ jobs:
       times: >
         [ '100', '200', '300' ]
       postgresql: >
-        [ 'no-postgresql', '--postgresql' ]
+        [ '--no-postgresql', '--postgresql' ]
       disconnect: >
         [ '--disconnect' ]
       stop-or-kill: >
