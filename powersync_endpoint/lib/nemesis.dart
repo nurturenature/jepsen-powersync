@@ -190,7 +190,7 @@ class Nemesis {
             disconnectConnectMessage = _pse.disconnectMessage();
             break;
           case ConnectionStates.connected:
-            affectedClients = _clients;
+            affectedClients = _clients.getRandom(_clients.length);
             disconnectConnectMessage = _pse.connectMessage();
             break;
         }
@@ -260,7 +260,9 @@ class Nemesis {
             );
             break;
           case StopStartStates.started:
-            actOnClientNums.addAll(_allClientNums);
+            actOnClientNums.addAll(
+              _allClientNums.getRandom(_allClientNums.length),
+            );
             break;
         }
 
@@ -350,7 +352,9 @@ class Nemesis {
             );
             break;
           case KillStartStates.started:
-            actOnClientNums.addAll(_allClientNums);
+            actOnClientNums.addAll(
+              _allClientNums.getRandom(_allClientNums.length),
+            );
             break;
         }
 
