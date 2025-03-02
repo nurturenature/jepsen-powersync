@@ -1,6 +1,8 @@
 ## Logbook
 
-#### Misc Possible Issues
+## History
+
+### Issue Fixed and Tested
 
 - [`db.statusStream` has a large # of contiguous duplicate SyncStatus messages, ~70% of all messages are duplicates](https://github.com/powersync-ja/powersync.dart/issues/224)
   
@@ -99,8 +101,6 @@ disconnect when disconnected
 ```
 
 ----
-
-## History
 
 ### ~~Errors That Aren't Understood Yet~~
 
