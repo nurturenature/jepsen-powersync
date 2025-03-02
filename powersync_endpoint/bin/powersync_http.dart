@@ -9,7 +9,7 @@ Future<void> main(List<String> arguments) async {
   // parse args, set defaults, must be 1st in main
   parseArgs(arguments);
   initLogging('main');
-  log.info('args: $args');
+  log.config('args: $args');
 
   // initialize PostgreSQL
   await pg.init(

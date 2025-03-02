@@ -18,7 +18,7 @@ void main(List<String> arguments) async {
   // parse args, set defaults, must be 1st in main
   parseArgs(arguments);
   initLogging('main');
-  log.info('args: $args');
+  log.config('args: $args');
 
   final table = switch (args['table']) {
     'lww' => pg.Tables.lww,
