@@ -6,7 +6,6 @@ import 'package:powersync_endpoint/db.dart';
 import 'package:powersync_endpoint/endpoint.dart';
 import 'package:powersync_endpoint/log.dart';
 import 'package:powersync_endpoint/postgresql.dart' as pg;
-import 'package:powersync_endpoint/utils.dart';
 
 class Worker {
   final Isolate _isolate;
@@ -27,9 +26,6 @@ class Worker {
   final Map<int, Completer<Object?>> _activeApiRequests = {};
   int _apiCounter = 0;
   bool _apisClosed = false;
-
-  // consistency checker instance variables
-  final _readConsistency = ReadConsistency();
 
   Worker._(
     this._isolate,
@@ -196,22 +192,6 @@ class Worker {
     }
 
     if (_txnsClosed && activeTxnRequests.isEmpty) _txnResponses.close();
-
-    // check lww reads for consistency
-    final op = response as Map<String, dynamic>;
-    if (op['table'] == 'lww' && op['type'] == 'ok' && op['f'] == 'txn') {
-      final List<Map> value = op['value'];
-      value // List of {f: k: v:}
-          .where((mop) => mop['f'] == 'r') // only reads
-          .forEach((mop) {
-            final k = mop['k'] as int;
-            final v = mop['v'] as String?;
-            if (_readConsistency.suspiciousRead(k, v)) {
-              log.severe('ERROR: suspicious read: $mop, for $op');
-              exit(2);
-            }
-          });
-    }
   }
 
   static void _handleApiRequestsToIsolate(
