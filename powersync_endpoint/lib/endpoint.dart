@@ -106,7 +106,7 @@ abstract class Endpoint {
     });
   }
 
-  Map<String, dynamic> selectAllMessage(pg.Tables table) {
+  static Map<String, dynamic> selectAllMessage(pg.Tables table) {
     return Map.of({
       'type': 'invoke',
       'f': 'api',

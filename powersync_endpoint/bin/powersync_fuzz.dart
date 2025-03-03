@@ -119,7 +119,7 @@ void main(List<String> arguments) async {
         await downloadingWaits.wait;
 
         log.info('check for strong convergence in final reads');
-        await _checkStrongConvergence(table, clients);
+        await checkStrongConvergence(clients);
 
         // close all client txn/api ports
         for (Worker client in clients) {
@@ -130,54 +130,4 @@ void main(List<String> arguments) async {
         // done with PostgreSQL
         await pg.close();
       });
-}
-
-/// Do a final read of all keys on PostgreSQL and all clients.
-/// Treat PostgreSQL as the source of truth and look for differences with each client.
-/// Any differences are errors.
-Future<void> _checkStrongConvergence(
-  pg.Tables table,
-  Set<Worker> clients,
-) async {
-  // {pg: {k: v}    k/v for any diffs in any ps-#
-  //  ps-#: {k: v}}  k/v for this ps-# diff than pg
-  final Map<String, Map<int, dynamic>> divergent = SplayTreeMap();
-  final Map<int, dynamic> finalPgRead = switch (table) {
-    pg.Tables.lww => await pg.selectAllLWW(),
-    pg.Tables.mww => await pg.selectAllMWW(),
-  };
-  for (Worker client in clients) {
-    final Map<int, dynamic> finalPsRead =
-        (await client.executeApi(_pse.selectAllMessage(table)))['value']['v'];
-    for (final int k in finalPgRead.keys) {
-      final pgV = finalPgRead[k]!;
-      final psV = finalPsRead[k]!;
-      if (pgV != psV) {
-        divergent.update('pg', (inner) {
-          inner.addAll({k: pgV});
-          return inner;
-        }, ifAbsent: () => SplayTreeMap.from({k: pgV}));
-        divergent.update('ps-${client.clientNum}', (inner) {
-          inner.addAll({k: psV});
-          return inner;
-        }, ifAbsent: () => SplayTreeMap.from({k: psV}));
-      }
-    }
-  }
-
-  if (divergent.isEmpty) {
-    log.info('Strong Convergence on final reads! :)');
-  } else {
-    log.severe('Divergent final reads!:');
-    for (final node in divergent.entries) {
-      log.severe(node.key);
-      for (final kv in node.value.entries) {
-        final k = kv.key;
-        final v = kv.value;
-        log.severe('\t{$k: $v}');
-      }
-    }
-    log.severe(':(');
-    exit(1);
-  }
 }

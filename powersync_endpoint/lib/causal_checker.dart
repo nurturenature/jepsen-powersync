@@ -1,5 +1,10 @@
+import 'dart:collection';
+import 'dart:io';
 import 'package:synchronized/synchronized.dart';
+import 'endpoint.dart';
 import 'log.dart';
+import 'postgresql.dart' as pg;
+import 'worker.dart';
 
 // TODO: add a possible writes state
 //  - txn requests may be interrupted by a nemesis before the txn response is sent or received
@@ -268,5 +273,52 @@ class CausalChecker {
     for (final v in vs) {
       log.info('\t{$k: $v}: written when: ${_mwWfrStates[(k, v)]}');
     }
+  }
+}
+
+/// Do a final read of all keys on PostgreSQL and all clients.
+/// Treat PostgreSQL as the source of truth and look for differences with each client.
+/// Any differences are errors.
+Future<void> checkStrongConvergence(Set<Worker> clients) async {
+  // build a divergent map:
+  // {pg:   {k: v}   k/v for any diffs in any ps-#
+  //  ps-#: {k: v}}  k/v for this ps-# diff than pg
+  final Map<String, Map<int, int>> divergent = SplayTreeMap();
+  final Map<int, int> finalPgRead = await pg.selectAllMWW();
+
+  for (Worker client in clients) {
+    final Map<int, int> finalPsRead =
+        (await client.executeApi(
+          Endpoint.selectAllMessage(pg.Tables.mww),
+        ))['value']['v'];
+    for (final int k in finalPgRead.keys) {
+      final pgV = finalPgRead[k]!;
+      final psV = finalPsRead[k]!;
+      if (pgV != psV) {
+        divergent.update('pg', (inner) {
+          inner.addAll({k: pgV});
+          return inner;
+        }, ifAbsent: () => SplayTreeMap.from({k: pgV}));
+        divergent.update('ps-${client.clientNum}', (inner) {
+          inner.addAll({k: psV});
+          return inner;
+        }, ifAbsent: () => SplayTreeMap.from({k: psV}));
+      }
+    }
+  }
+
+  if (divergent.isEmpty) {
+    log.info('Strong Convergence on final reads! :)');
+  } else {
+    log.severe('Divergent final reads!:');
+    final pgKv = divergent.remove('pg');
+    log.severe('PostgreSQL {k: v} for client diversions:');
+    log.severe('\t$pgKv');
+    for (final client in divergent.entries) {
+      log.severe('${client.key} {k: v} that diverged from PostgreSQL');
+      log.severe('\t${client.value}');
+    }
+    log.severe(':(');
+    exit(1);
   }
 }

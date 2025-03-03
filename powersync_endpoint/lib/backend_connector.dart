@@ -132,7 +132,7 @@ dynamic _txWithRetries(Tables table, List<CrudEntry> crud) async {
       // retryable?
       if (_retryablePgErrors.contains(se.code)) {
         log.fine(
-          "Retrying txn: ${crud.first.transactionId} PostgreSQL: ${se.message}",
+          "uploadData: txn: ${crud.first.transactionId} retrying due to PostgreSQL: ${se.message}",
         );
 
         await futureSleep(
@@ -206,6 +206,10 @@ class CrudTransactionConnector extends PowerSyncBackendConnector {
       switch (await _txWithRetries(table, crudTransaction.crud)) {
         case 'ok':
           await crudTransaction.complete();
+          log.finer(
+            'uploadData: txn: ${crudTransaction.transactionId} complete',
+          );
+
           break;
 
         case ['error', final String cause]:
