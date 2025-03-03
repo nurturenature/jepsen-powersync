@@ -17,8 +17,12 @@ jobs:
         [ '--postgresql', '--no-postgresql' ]
       disconnect: >
         [ '--disconnect' ]
+      stop-or-kill: >
+        [ '--no-stop' ]
       partition: >
         [ '--no-partition' ]
+      pause: >
+        [ '--no-pause' ]
       interval: >
         [ '3', '5' ]
       repeat: >
