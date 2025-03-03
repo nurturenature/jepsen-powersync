@@ -18,11 +18,7 @@ class PGEndpoint extends Endpoint {
     String newType = 'ok'; // assume ok
 
     // convert table as String to enum
-    final table = switch (op['table'] as String) {
-      'lww' => local_pg.Tables.lww,
-      'mww' => local_pg.Tables.mww,
-      _ => throw StateError('Invalid table in op: $op'),
-    };
+    final table = local_pg.Tables.values.byName(op['table'] as String);
 
     try {
       // execute the PowerSync transaction in a PostgreSQL transaction

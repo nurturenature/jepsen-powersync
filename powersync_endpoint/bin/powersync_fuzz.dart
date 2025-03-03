@@ -20,11 +20,7 @@ void main(List<String> arguments) async {
   initLogging('main');
   log.config('args: $args');
 
-  final table = switch (args['table']) {
-    'lww' => pg.Tables.lww,
-    'mww' => pg.Tables.mww,
-    _ => throw StateError("Invalid table arg ${args['table']}"),
-  };
+  final table = pg.Tables.values.byName(args['table']);
 
   // initialize PostgreSQL
   await pg.init(table, true);

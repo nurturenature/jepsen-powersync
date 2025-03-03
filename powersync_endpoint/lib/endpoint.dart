@@ -43,7 +43,7 @@ abstract class Endpoint {
         {'f': 'read-all', 'k': -1, 'v': reads},
         {'f': 'write-some', 'k': -1, 'v': writes},
       ],
-      'table': 'mww',
+      'table': pg.Tables.mww.name,
     });
   }
 
