@@ -29,10 +29,10 @@ packages:
     dependency: transitive
     description:
       name: asn1lib
-      sha256: "1c296cd268f486cabcc3930e9b93a8133169305f18d722916e675959a88f6d2c"
+      sha256: "068190d6c99c436287936ba5855af2e1fa78d8083ae65b4db6a281780da727ae"
       url: "https://pub.dev"
     source: hosted
-    version: "1.5.9"
+    version: "1.6.0"
   async:
     dependency: transitive
     description:
@@ -362,26 +362,26 @@ packages:
     dependency: "direct main"
     description:
       name: powersync
-      sha256: c5d50ad3ed76567d5caca18c8bc0373585fd2dd7bab09bb7cd146dda42144315
+      sha256: ec5b11616d5a4c71a4c6cc4ed0798fdefd63ae9338d967d501bbb2aef1417ed4
       url: "https://pub.dev"
     source: hosted
-    version: "1.11.3"
+    version: "1.12.0"
   powersync_core:
     dependency: transitive
     description:
       name: powersync_core
-      sha256: "322fbbf857a3d6104fbecade05864d0a61f1a6666944269cb8b12d2f1c65add4"
+      sha256: a3b8786d66f23ece0a0b38131cf60a2ad525f6729a5e9d227e7f4bda1789c055
       url: "https://pub.dev"
     source: hosted
-    version: "1.1.3"
+    version: "1.2.0"
   powersync_flutter_libs:
     dependency: transitive
     description:
       name: powersync_flutter_libs
-      sha256: "16ef104cc1bad35fe20b7f8ac8f088d693d3d0d84076a9b88c2317ef4efca849"
+      sha256: "4cae1d23bd2a91af7d7c6de88b930b352ff83160925d65b730c6c77dd6f06bfa"
       url: "https://pub.dev"
     source: hosted
-    version: "0.4.5"
+    version: "0.4.6"
   pub_semver:
     dependency: transitive
     description:
