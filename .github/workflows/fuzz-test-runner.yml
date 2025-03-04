@@ -48,11 +48,11 @@ on:
         type: string
         required: true
         default: "[ '' ]"
-      repeat:
-        description: 'unused value to repeat test matrix (as JSON)'
+      args:
+        description: 'A JSON Map of args (workaround GitHub max inputs)'
         type: string
         required: true
-        default: "[ '1' ]"
+        default: "{'repeat': [ '1' ], 'timeout-minutes': 10}"
        
   workflow_call:
     inputs:
@@ -101,11 +101,11 @@ on:
         type: string
         required: false
         default: "[ '' ]"
-      repeat:
-        description: 'unused matrix value to repeat test matrix (as JSON)'
+      args:
+        description: 'A JSON Map of args (workaround GitHub max inputs)'
         type: string
         required: false
-        default: "[ '1' ]"
+        default: "{'repeat': [ '1' ], 'timeout-minutes': 10}"
 
 jobs:
   tests:
@@ -123,7 +123,7 @@ jobs:
         partition:    ${{ fromJSON(inputs.partition) }}
         pause:        ${{ fromJSON(inputs.pause) }}
         cli-opts:     ${{ fromJson(inputs.cli-opts) }}
-        repeat:       ${{ fromJSON(inputs.repeat) }}
+        repeat:       ${{ fromJSON(inputs.args).repeat }}
 
     env:
       test-title: ${{ matrix.clients}}c-${{ matrix.rate }}tps-${{ matrix.time }}s-${{ matrix.postgresql }}-${{ matrix.disconnect }}-${{ matrix.stop-or-kill }}-${{ matrix.partition }}-${{ matrix.pause }}-${{ matrix.cli-opts }}s-${{ matrix.repeat }}
@@ -140,7 +140,7 @@ jobs:
           ./powersync-fuzz-up.sh
 
       - name: ${{ env.test-title }}
-        timeout-minutes: 10
+        timeout-minutes: ${{ fromJSON(inputs.args).timeout-minutes }}
         run: |
           cd $GITHUB_WORKSPACE/docker
           ./powersync-fuzz-run.sh ./powersync_fuzz                 \
