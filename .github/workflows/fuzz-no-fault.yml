@@ -12,7 +12,7 @@ jobs:
       rates: >
         [ '10', '20', '30', '40', '50']
       times: >
-        [ '100', '200', '300', '400', '500' ]
+        [ '100', '200', '300', '400', '500', '600', '700', '800', '900', '1000', '1100', '1200' ]
       postgresql: >
         [ '--postgresql', '--no-postgresql' ]
       disconnect: >
@@ -26,4 +26,4 @@ jobs:
       cli-opts: >
         [ '' ]
       args: >
-        "{'repeat': [ '1', '2' ], 'timeout-minutes': 10}
+        "{'repeat': [ '1' ], 'timeout-minutes': 21}
