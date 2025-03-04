@@ -23,7 +23,7 @@ jobs:
         [ '--no-partition' ]
       pause: >
         [ '--pause' ]
-      interval: >
-        [ '3', '5' ]
+      cli-opts: >
+        [ '' ]
       repeat: >
         [ '1', '2' ]
