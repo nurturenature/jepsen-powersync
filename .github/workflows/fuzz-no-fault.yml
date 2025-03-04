@@ -26,4 +26,4 @@ jobs:
       cli-opts: >
         [ '' ]
       args: >
-        "{'repeat': [ '1' ], 'timeout-minutes': 21}
+        "{'repeat': [ '1' ], 'timeout-minutes': 21}"
