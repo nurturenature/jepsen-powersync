@@ -52,7 +52,7 @@ on:
         description: 'A JSON Map of args (workaround GitHub max inputs)'
         type: string
         required: true
-        default: "{'repeat': [ '1' ], 'timeout-minutes': 10}"
+        default: "{'repeat': [ '1' ], 'timeout-minutes': 10, 'powersync-image-tag': 'latest'}"
        
   workflow_call:
     inputs:
@@ -105,7 +105,7 @@ on:
         description: 'A JSON Map of args (workaround GitHub max inputs)'
         type: string
         required: false
-        default: "{'repeat': [ '1' ], 'timeout-minutes': 10}"
+        default: "{'repeat': [ '1' ], 'timeout-minutes': 10, 'powersync-image-tag': 'latest'}"
 
 jobs:
   tests:
@@ -127,7 +127,7 @@ jobs:
 
     env:
       test-title: ${{ matrix.clients}}c-${{ matrix.rate }}tps-${{ matrix.time }}s-${{ matrix.postgresql }}-${{ matrix.disconnect }}-${{ matrix.stop-or-kill }}-${{ matrix.partition }}-${{ matrix.pause }}-${{ matrix.cli-opts }}s-${{ matrix.repeat }}
-      POWERSYNC_IMAGE_TAG: latest
+      POWERSYNC_IMAGE_TAG: ${{ fromJSON(inputs.args).powersync-image-tag }}
 
     steps:
       - name: Checkout jepsen-powersync

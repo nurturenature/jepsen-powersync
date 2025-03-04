@@ -26,4 +26,4 @@ jobs:
       cli-opts: >
         [ '' ]
       args: >
-        {'repeat': [ '1', '2' ], 'timeout-minutes': 10}
+        {'repeat': [ '1', '2' ], 'timeout-minutes': 10, , 'powersync-image-tag': 'latest'}
