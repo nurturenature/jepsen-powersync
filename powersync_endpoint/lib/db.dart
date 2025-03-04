@@ -21,7 +21,7 @@ Future<void> initDb(
 }) async {
   // delete any preexisting SQLite3 files?
   if (await File(sqlite3Path).exists()) {
-    log.info('preexisting SQLite3 file: $sqlite3Path');
+    log.info('db: init: preexisting SQLite3 file: $sqlite3Path');
 
     if (!preserveSqlite3Data) {
       await _deleteSqlite3Files(sqlite3Path);
@@ -30,7 +30,7 @@ Future<void> initDb(
       log.info('\tpreexisting file preserved');
     }
   } else {
-    log.info('no preexisting SQLite3 file: $sqlite3Path');
+    log.info('db: init: no preexisting SQLite3 file: $sqlite3Path');
   }
 
   db = switch (table) {
@@ -38,12 +38,12 @@ Future<void> initDb(
     pg.Tables.mww => PowerSyncDatabase(schema: schemaMWW, path: sqlite3Path),
   };
   log.info(
-    "Created db, schemas: ${db.schema.tables.map((table) => {table.name: table.columns.map((column) => '${column.name} ${column.type.name}')})}, path: $sqlite3Path",
+    "db: init: created db with schemas: ${db.schema.tables.map((table) => {table.name: table.columns.map((column) => '${column.name} ${column.type.name}')})}, path: $sqlite3Path",
   );
 
   await db.initialize();
   log.info(
-    'db initialized, runtimeType: ${db.runtimeType}, status: ${db.currentStatus}',
+    'db: init: initialized with runtimeType: ${db.runtimeType}, status: ${db.currentStatus}',
   );
 
   connector = CrudTransactionConnector(table, db);
@@ -53,10 +53,12 @@ Future<void> initDb(
   db.retryDelay = Duration(milliseconds: 1000);
 
   await db.connect(connector: connector);
-  log.info('db connected, connector: $connector, status: ${db.currentStatus}');
+  log.info(
+    'db: init: connected with connector: $connector, status: ${db.currentStatus}',
+  );
 
   await db.waitForFirstSync();
-  log.info('db first sync completed, status: ${db.currentStatus}');
+  log.info('db: init: first sync completed with status: ${db.currentStatus}');
 
   // insure local db is complete, i.e. has all the keys
   // PostgreSQL is source of truth, explicitly initialized at app startup
@@ -75,7 +77,7 @@ Future<void> initDb(
   );
   while (!psKeys.containsAll(pgKeys)) {
     log.info(
-      'db.waitForFirstSync incomplete, missing keys: ${pgKeys.difference(psKeys)}',
+      'db: init: db.waitForFirstSync() incomplete, missing keys: ${pgKeys.difference(psKeys)}',
     );
     log.info('\twith currentStatus: $currentStatus');
 
@@ -89,7 +91,9 @@ Future<void> initDb(
       }).keys,
     );
   }
-  log.info('db first sync confirmed, all keys present: $psKeys');
+  log.info(
+    'db: init: db.waitForFirstSync() confirmed with all keys present: $psKeys',
+  );
 
   // log PowerSync status changes
   _logSyncStatus(db);
@@ -109,8 +113,8 @@ Future<void> initDb(
     pg.Tables.lww => await selectAllLWW(),
     pg.Tables.mww => await selectAllMWW(),
   };
-  log.info("tables: $dbTables");
-  log.info("${table.name}: $currTable");
+  log.info("db: init: tables: $dbTables");
+  log.info("db: init: ${table.name}: $currTable");
 }
 
 // delete any existing SQLite3 files
@@ -131,12 +135,14 @@ void _logSyncStatus(PowerSyncDatabase db) {
     if (!syncStatus.connected &&
         (syncStatus.downloading || syncStatus.uploading)) {
       log.warning(
-        'syncStatus.connected is false yet uploading|downloading: $syncStatus',
+        'SyncStatus: syncStatus.connected is false yet uploading|downloading: $syncStatus',
       );
     }
     if ((syncStatus.hasSynced == false && syncStatus.lastSyncedAt != null) ||
         (syncStatus.hasSynced == true && syncStatus.lastSyncedAt == null)) {
-      log.warning('syncStatus.hasSynced/lastSyncedAt mismatch: $syncStatus');
+      log.warning(
+        'SyncStatus: syncStatus.hasSynced/lastSyncedAt mismatch: $syncStatus',
+      );
     }
 
     // no errors
@@ -150,13 +156,13 @@ void _logSyncStatus(PowerSyncDatabase db) {
       // ignorable
       if (_ignorableUploadError(syncStatus.uploadError!)) {
         log.info(
-          'ignorable upload error in statusStream: ${syncStatus.uploadError}',
+          'SyncStatus: ignorable upload error in statusStream: ${syncStatus.uploadError}',
         );
         return;
       }
       // unexpected
       log.severe(
-        'unexpected upload error in statusStream: ${syncStatus.uploadError}',
+        'SyncStatus: unexpected upload error in statusStream: ${syncStatus.uploadError}',
       );
       exit(40);
     }
@@ -166,13 +172,13 @@ void _logSyncStatus(PowerSyncDatabase db) {
       // ignorable
       if (_ignorableDownloadError(syncStatus.downloadError!)) {
         log.info(
-          'ignorable download error in statusStream: ${syncStatus.downloadError}',
+          'SyncStatus: ignorable download error in statusStream: ${syncStatus.downloadError}',
         );
         return;
       }
       // unexpected
       log.severe(
-        'unexpected download error in statusStream: ${syncStatus.downloadError}',
+        'SyncStatus: unexpected download error in statusStream: ${syncStatus.downloadError}',
       );
       exit(41);
     }

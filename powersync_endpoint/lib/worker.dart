@@ -130,7 +130,6 @@ class Worker {
       table,
       false,
     ); // database table was initialized in main Isolate
-    log.info('PostgreSQL connection initialized, connection: ${pg.postgreSQL}');
 
     // initialize PowerSync db
     await initDb(
@@ -138,7 +137,6 @@ class Worker {
       '${Directory.current.path}/ps-$clientNum.sqlite3',
       preserveSqlite3Data: preserveSqlite3Data,
     );
-    log.info('db initialized: $db');
 
     // Isolate needs to be able to receive txn messages, and message Worker how to send to Isolate's txn receive port
     final txnReceivePort = ReceivePort();
@@ -169,11 +167,12 @@ class Worker {
       // txn
       final (int id, Map txn) = message as (int, Map);
       try {
-        log.fine('txn request: $txn');
+        log.fine('SQL txn: request: $txn');
 
         await endpoint.sqlTxn(txn);
 
-        log.fine('txn response: $txn');
+        log.fine('SQL txn: response: $txn');
+
         sendPort.send((id, txn));
       } catch (e) {
         sendPort.send((id, RemoteError(e.toString(), '')));
@@ -210,11 +209,11 @@ class Worker {
       // api call
       final (int id, Map api) = message as (int, Map);
       try {
-        log.fine('api request: $api');
+        log.fine('database api: request: $api');
 
         await endpoint.powersyncApi(api);
 
-        log.fine('api response: $api');
+        log.fine('database api: response: $api');
         sendPort.send((id, api));
       } catch (e) {
         sendPort.send((id, RemoteError(e.toString(), '')));

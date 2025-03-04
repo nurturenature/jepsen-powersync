@@ -21,7 +21,7 @@ Future<void> init(Tables table, bool initData) async {
   final settings = ConnectionSettings(sslMode: SslMode.disable);
 
   log.config(
-    'connecting to PostgreSQL @ ${endpoint.host}:${endpoint.port}/${endpoint.database} as ${endpoint.username}/${endpoint.password} with socket: ${endpoint.isUnixSocket}',
+    'PostgreSQL: connecting @ ${endpoint.host}:${endpoint.port}/${endpoint.database} as ${endpoint.username}/${endpoint.password} with socket: ${endpoint.isUnixSocket}',
   );
 
   postgreSQL = await Connection.open(endpoint, settings: settings);
@@ -38,6 +38,14 @@ Future<void> init(Tables table, bool initData) async {
         break;
     }
   }
+
+  log.config('PostgreSQL: connected: $postgreSQL');
+  log.config(
+    'PostgreSQL: ${table.name}: ${switch (table) {
+      Tables.lww => await selectAllLWW(),
+      Tables.mww => await selectAllMWW(),
+    }}',
+  );
 }
 
 // start test from a known lww state

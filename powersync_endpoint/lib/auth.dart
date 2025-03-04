@@ -56,7 +56,7 @@ Future<String> generateToken() async {
   final jws = builder.build().toCompactSerialization();
 
   log.finer(
-    'Created token w/payload: ${(await JsonWebSignature.fromCompactSerialization(jws).getPayload(_keyStore)).jsonContent}',
+    'auth: created token w/payload: ${(await JsonWebSignature.fromCompactSerialization(jws).getPayload(_keyStore)).jsonContent}',
   );
 
   return jws;
@@ -66,7 +66,7 @@ Future<bool> verifyToken(String token) async {
   final jwt = JsonWebToken.unverified(token);
   final verified = await jwt.verify(_keyStore);
 
-  log.finer('Token verified: $verified, with claims: ${jwt.claims}');
+  log.finer('auth: token verified: $verified, with claims: ${jwt.claims}');
 
   return verified;
 }

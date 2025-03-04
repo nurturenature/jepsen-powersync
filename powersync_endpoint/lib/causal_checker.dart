@@ -150,7 +150,7 @@ class CausalChecker {
     // must read a null, -1, or a value that was written
     if (v != -1 && !_mwWfrStates.containsKey((k, v))) {
       log.severe('{$k: $v} was never written, yet reading it in op: $op');
-      debug(k, [v]);
+      _debug(k, [v]);
       return false;
     }
 
@@ -160,7 +160,7 @@ class CausalChecker {
       log.severe(
         'read of {$k: $v} is less than expected read of {$k: ${clientState[k]}}, expected because ${clientReasons[k].name}, in op: $op',
       );
-      debug(k, [v, clientState[k]]);
+      _debug(k, [v, clientState[k]]);
       return false;
     }
 
@@ -180,7 +180,7 @@ class CausalChecker {
       log.severe(
         '{$k: $v} was already written yet trying to write it in op: $op',
       );
-      debug(k, [v]);
+      _debug(k, [v]);
       return false;
     }
 
@@ -190,7 +190,7 @@ class CausalChecker {
       log.severe(
         'write of {$k: $v} is less than or equal to previous client state of {$k: ${clientState[k]}}, previous state due to ${clientReasons[k]}, in op: $op',
       );
-      debug(k, [v, clientState[k]]);
+      _debug(k, [v, clientState[k]]);
       return false;
     }
 
@@ -257,21 +257,22 @@ class CausalChecker {
 
   // log clients that have {k: v} in their state
   // log mw/wfr states that were a {k: v} write
-  void debug(int k, Iterable<int> vs) {
-    log.info('CausalChecker client states with {$k: $vs}:');
+  // log at severe level as only used when Causal Consistency violation
+  void _debug(int k, Iterable<int> vs) {
+    log.severe('CausalChecker client states with {$k: $vs}:');
     for (var clientNum = 0; clientNum <= _numClients; clientNum++) {
       // only log client if its state for k is in vs
       final v = _clientStates[clientNum]![k];
       if (vs.contains(v)) {
-        log.info(
+        log.severe(
           '\t{$k: $v}: in client $clientNum: reason: ${_clientReasons[clientNum]![k].name}',
         );
       }
     }
 
-    log.info('CausalChecker Monotonic Read/Write Follows Reads states:');
+    log.severe('CausalChecker Monotonic Read/Write Follows Reads states:');
     for (final v in vs) {
-      log.info('\t{$k: $v}: written when: ${_mwWfrStates[(k, v)]}');
+      log.severe('\t{$k: $v}: written when: ${_mwWfrStates[(k, v)]}');
     }
   }
 }

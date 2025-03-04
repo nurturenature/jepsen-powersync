@@ -24,15 +24,6 @@ void main(List<String> arguments) async {
 
   // initialize PostgreSQL
   await pg.init(table, true);
-  log.config(
-    'PostgreSQL connection and database initialized, connection: ${pg.postgreSQL}',
-  );
-  log.config(
-    'PostgreSQL table: ${table.name} ${switch (table) {
-      pg.Tables.lww => await pg.selectAllLWW(),
-      pg.Tables.mww => await pg.selectAllMWW(),
-    }}',
-  );
 
   // create a set of worker clients
   log.info('creating ${args["clients"]} clients');
@@ -72,7 +63,7 @@ void main(List<String> arguments) async {
         // may be no active clients due to nemesis activities, if so ignore op
         if (clients.isEmpty) {
           log.fine(
-            'no active clients, so ignoring SQL transaction op: $sqlTxnMessage',
+            'SQL txn: no active clients, so ignoring SQL transaction op: $sqlTxnMessage',
           );
           return;
         }
@@ -80,6 +71,7 @@ void main(List<String> arguments) async {
         final op =
             await clients.random().executeTxn(sqlTxnMessage)
                 as SplayTreeMap<String, dynamic>;
+
         if (!await causalChecker.checkOp(op)) {
           log.severe('Causal Consistency check failed for op: $op');
           exit(2);

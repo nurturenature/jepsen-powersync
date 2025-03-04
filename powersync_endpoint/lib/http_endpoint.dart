@@ -28,11 +28,11 @@ Future<Response> _sqlTxn(Request req) async {
   final reqStr = await req.readAsString();
   final reqOp = jsonDecode(reqStr) as Map;
 
-  log.fine('txn request: $reqOp');
+  log.fine('SQL txn: request: $reqOp');
 
   final resOp = await _pse.sqlTxn(reqOp);
 
-  log.fine('txn response: $resOp');
+  log.fine('SQL txn: response: $resOp');
 
   final resStr = jsonEncode(resOp);
   return Response.ok(resStr);
@@ -42,7 +42,7 @@ Future<Response> _sqlTxn(Request req) async {
 Future<Response> _powersync(Request req, String action) async {
   Map response;
 
-  log.fine('api request: $action');
+  log.fine('PowerSync api: request: $action');
 
   switch (action) {
     case 'connect':
@@ -82,7 +82,7 @@ Future<Response> _powersync(Request req, String action) async {
       exit(100);
   }
 
-  log.fine('api response: $action $response');
+  log.fine('PowerSync api: response: $action: $response');
 
   final resStr = jsonEncode(response);
   return Response.ok(resStr);

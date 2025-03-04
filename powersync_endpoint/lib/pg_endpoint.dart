@@ -44,7 +44,7 @@ class PGEndpoint extends Endpoint {
                 // literal null read is an error, db is pre-seeded
                 if (v == null) {
                   log.severe(
-                    "Unexpected database state, uninitialized read for key: $k', in mop: $mop, for op: $op",
+                    "PostgreSQL: unexpected database state, uninitialized read for key: $k', in mop: $mop, for op: $op",
                   );
                   exit(11);
                 }
@@ -77,7 +77,7 @@ class PGEndpoint extends Endpoint {
                 };
                 if (result.affectedRows != 1) {
                   log.severe(
-                    'Not 1 row affected by append in mop: $mop, with results: $result, for $op',
+                    'PostgreSQL: not 1 row affected by append in mop: $mop, with results: $result, for $op',
                   );
                   exit(11);
                 }
@@ -91,7 +91,7 @@ class PGEndpoint extends Endpoint {
                 // db is pre-seeded so all keys expected in result when reading
                 if (select.length != args['keys']) {
                   log.severe(
-                    'invalid select: $select for mop: $mop in op: $op',
+                    'PostgreSQL: invalid select: $select for mop: $mop in op: $op',
                   );
                   exit(11);
                 }
@@ -129,7 +129,7 @@ class PGEndpoint extends Endpoint {
                   // db is pre-seeded so 1 and only 1 result when updating
                   if (update.length != 1) {
                     log.severe(
-                      'invalid update: $update for key: ${kv.key} in mop: $mop in op: $op',
+                      'PostgreSQL: invalid update: $update for key: ${kv.key} in mop: $mop in op: $op',
                     );
                     exit(11);
                   }
@@ -138,7 +138,9 @@ class PGEndpoint extends Endpoint {
                 return mop;
 
               default:
-                throw StateError('Unexpected f: $f in mop: $mop in op: $op');
+                throw StateError(
+                  'PostgreSQL: unexpected f: $f in mop: $mop in op: $op',
+                );
             }
           });
 
@@ -156,12 +158,12 @@ class PGEndpoint extends Endpoint {
       // truly fatal
       if (se.severity == pg.Severity.panic ||
           se.severity == pg.Severity.fatal) {
-        log.severe('Fatal error from Postgres: ${se.message}');
+        log.severe('PostgreSQL: fatal error: ${se.message}');
         exit(21);
       }
 
       // no retry, just fail transaction, likely concurrent access or deadlock
-      log.info('PostgreSQL exception: ${se.message}, for op: $op');
+      log.info('PostgreSQL: exception: ${se.message}, for op: $op');
       newType = 'error';
     }
 
@@ -209,7 +211,7 @@ class PGEndpoint extends Endpoint {
         break;
 
       default:
-        log.severe('Unknown powersyncApi request: $op');
+        log.severe('PostgreSQL: unknown api request: $op');
         exit(100);
     }
 

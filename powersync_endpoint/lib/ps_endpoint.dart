@@ -37,7 +37,7 @@ class PSEndpoint extends Endpoint {
             // result row expected as db is pre-seeded
             if (select == null) {
               log.severe(
-                "Unexpected database state, uninitialized read key ${mop['k']} for op: $op",
+                "PowerSyncDatabase: unexpected state, uninitialized read key ${mop['k']} for op: $op",
               );
               exit(10);
             }
@@ -45,7 +45,7 @@ class PSEndpoint extends Endpoint {
             // literal null read is an error, db is pre-seeded
             if (select['v'] == null) {
               log.severe(
-                "Literal null read for key: ${mop['k']} in mop: $mop in op: $op",
+                "PowerSyncDatabase: literal null read for key: ${mop['k']} in mop: $mop in op: $op",
               );
               exit(10);
             }
@@ -87,7 +87,7 @@ class PSEndpoint extends Endpoint {
             // result set expected as db is pre-seeded
             if (update.isEmpty) {
               log.severe(
-                "Unexpected database state, uninitialized append key ${mop['k']} for op: $op",
+                "PowerSyncDatabase: unexpected state, uninitialized append key ${mop['k']} for op: $op",
               );
               exit(10);
             }
@@ -101,7 +101,7 @@ class PSEndpoint extends Endpoint {
             if (select.length != args['keys']) {
               op['type'] = 'error';
               log.severe(
-                'invalid SELECT, tx.getAll(), ResultSet: $select for mop: $mop in op: $op',
+                'PowerSyncDatabase: invalid SELECT, tx.getAll(), ResultSet: $select for mop: $mop in op: $op',
               );
               exit(10);
             }
@@ -134,7 +134,7 @@ class PSEndpoint extends Endpoint {
               // db is pre-seeded so 1 and only 1 result when updating
               if (update.length != 1) {
                 log.severe(
-                  'invalid update: $update for key: ${kv.key} in mop: $mop in op: $op',
+                  'PowerSyncDatabase: invalid update: $update for key: ${kv.key} in mop: $mop in op: $op',
                 );
                 exit(10);
               }
@@ -143,7 +143,9 @@ class PSEndpoint extends Endpoint {
             return mop;
 
           default:
-            throw StateError('invalid f: ${mop['f']} in mop: $mop in op: $op');
+            throw StateError(
+              'PowerSyncDatabase: invalid f: ${mop['f']} in mop: $mop in op: $op',
+            );
         }
       });
 
@@ -183,7 +185,7 @@ class PSEndpoint extends Endpoint {
         };
         if (!connected) {
           log.warning(
-            'expected db.connected to be true after db.connect(): $v',
+            'PowerSyncDatabase: expected db.connected to be true after db.connect(): $v',
           );
         }
         op['value']['v'] = v;
@@ -201,7 +203,7 @@ class PSEndpoint extends Endpoint {
         };
         if (connected) {
           log.warning(
-            'expected db.connected to be false after db.disconnect(): $v',
+            'PowerSyncDatabase: expected db.connected to be false after db.disconnect(): $v',
           );
         }
         op['value']['v'] = v;
@@ -219,7 +221,7 @@ class PSEndpoint extends Endpoint {
         };
         if (!closed || connected) {
           log.warning(
-            'expected db.closed to be true and db.connected to be false after db.close(): $v',
+            'PowerSyncDatabase: expected db.closed to be true and db.connected to be false after db.close(): $v',
           );
         }
         op['value']['v'] = v;
@@ -233,7 +235,7 @@ class PSEndpoint extends Endpoint {
       case 'upload-queue-wait':
         while ((await db.getUploadQueueStats()).count != 0) {
           log.info(
-            'still waiting for db.uploadQueueStats.count == 0, currently ${(await db.getUploadQueueStats()).count}...',
+            'PowerSyncDatabase: waiting for db.uploadQueueStats.count == 0, currently ${(await db.getUploadQueueStats()).count}...',
           );
           await futureSleep(1000);
         }
@@ -248,7 +250,7 @@ class PSEndpoint extends Endpoint {
         var currentStatus = db.currentStatus;
         while ((currentStatus.downloading) == true && onTry <= maxTries) {
           log.info(
-            'still waiting after try $onTry for db.currentStatus.downloading == false, $currentStatus',
+            'PowerSyncDatabase: waiting for db.currentStatus.downloading == false: on try $onTry: $currentStatus',
           );
           await futureSleep(waitPerTry);
           onTry++;
@@ -261,7 +263,9 @@ class PSEndpoint extends Endpoint {
             'error': 'Tried ${onTry - 1} times every ${waitPerTry}ms',
             'db.currentStatus.downloading': currentStatus.downloading,
           };
-          log.warning(op);
+          log.warning(
+            'PowerSyncDatabase: waited for db.currentStatus.downloading == false: tried $onTry times every ${waitPerTry}ms',
+          );
         } else {
           op['value']['v'] = {
             'db.currentStatus.downloading': currentStatus.downloading,
@@ -273,12 +277,15 @@ class PSEndpoint extends Endpoint {
         op['value']['v'] = switch (op['value']['k']) {
           'lww' => await selectAllLWW(),
           'mww' => await selectAllMWW(),
-          _ => throw StateError("Invalid table value: ${op['value']['k']}"),
+          _ =>
+            throw StateError(
+              "PowerSyncDatabase: invalid table value: ${op['value']['k']}",
+            ),
         };
         break;
 
       default:
-        log.severe('Unknown powersyncApi request: $op');
+        log.severe('PowerSyncDatabase: unknown powersyncApi request: $op');
         exit(100);
     }
 
