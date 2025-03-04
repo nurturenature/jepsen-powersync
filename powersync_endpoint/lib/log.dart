@@ -23,6 +23,8 @@ void initLogging(String name) {
       level = Level.INFO;
     case 'WARNING':
       level = Level.WARNING;
+    case 'SEVERE':
+      level = Level.SEVERE;
     default:
       level = Level.ALL;
   }

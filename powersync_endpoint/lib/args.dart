@@ -132,10 +132,26 @@ ArgParser _buildParser() {
       defaultsTo: '5',
       help: 'invoke nemeses every 0 <= random <= interval * 2 seconds',
     )
+    // logging
+    ..addOption(
+      'logLevel',
+      abbr: 'l',
+      allowed: [
+        'OFF',
+        'FINEST',
+        'FINER',
+        'FINE',
+        'CONFIG',
+        'INFO',
+        'WARNING',
+        'SEVERE',
+        'ALL',
+      ],
+      defaultsTo: 'ALL',
+      help: 'log level',
+    )
     // http_endpoint
     ..addOption('httpPort', defaultsTo: '8089', help: 'http_endpoint port')
-    // logging
-    ..addOption('logLevel', abbr: 'l', defaultsTo: 'ALL', help: 'log level')
     // PostgreSQL
     ..addOption('PG_DATABASE_HOST', defaultsTo: 'pg-db')
     ..addOption('PG_DATABASE_PORT', defaultsTo: '5432')
