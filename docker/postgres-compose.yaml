@@ -28,9 +28,11 @@ services:
           "CMD-SHELL",
           "pg_isready -U ${PG_DATABASE_USER} -d ${PG_DATABASE_NAME}",
         ]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      interval: 1s
+      timeout: 1s
+      start_period: 1s
+      start_interval: 1s
+      retries: 10
 
 volumes:
   db_data:

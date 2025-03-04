@@ -12,9 +12,11 @@ services:
       - mongo_storage:/data/db
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "'db.ping'"]
-      interval: 5s
+      interval: 1s
       timeout: 1s
-      retries: 5
+      start_period: 1s
+      start_interval: 1s
+      retries: 10
 
   # Initializes the MongoDB replica set. This service will not usually be actively running
   mongo-rs-init:
