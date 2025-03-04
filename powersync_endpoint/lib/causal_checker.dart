@@ -60,7 +60,7 @@ class CausalChecker {
 
       // ok for PostgreSQL, clientType pg, to have an error op, e.g. concurrent access
       if (clientType == 'pg' && type == 'error') {
-        log.info('CausalChecker ignoring PostgreSQL error op: $op');
+        log.info('CausalChecker: ignoring PostgreSQL error op: $op');
         return true;
       }
 
@@ -314,10 +314,10 @@ Future<void> checkStrongConvergence(Set<Worker> clients) async {
     log.severe('Divergent final reads!:');
     final pgKv = divergent.remove('pg');
     log.severe('PostgreSQL {k: v} for client diversions:');
-    log.severe('\t$pgKv');
+    log.severe('pg: $pgKv');
     for (final client in divergent.entries) {
       log.severe('${client.key} {k: v} that diverged from PostgreSQL');
-      log.severe('\t${client.value}');
+      log.severe('${client.key} ${client.value}');
     }
     log.severe(':(');
     exit(1);
