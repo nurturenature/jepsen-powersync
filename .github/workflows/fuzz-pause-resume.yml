@@ -25,5 +25,5 @@ jobs:
         [ '--pause' ]
       cli-opts: >
         [ '' ]
-      repeat: >
-        [ '1', '2' ]
+      args: >
+        "{'repeat': [ '1', '2' ], 'timeout-minutes': 10}
