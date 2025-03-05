@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:io';
 import 'args.dart';
 import 'db.dart';
@@ -15,7 +16,7 @@ class PSEndpoint extends Endpoint {
   /// Single user local PowerSync is totally available, strict serializable.
   /// No catching, let Exceptions fail the test
   @override
-  Future<Map> sqlTxn(Map op) async {
+  Future<SplayTreeMap> sqlTxn(SplayTreeMap op) async {
     assert(op['type'] == 'invoke');
     assert(op['f'] == 'txn');
     assert(op['value'].length >= 1);
@@ -162,7 +163,7 @@ class PSEndpoint extends Endpoint {
 
   /// api endpoint for connect/disconnect, upload-queue-count/upload-queue-wait, and select-all
   @override
-  Future<Map> powersyncApi(Map op) async {
+  Future<SplayTreeMap> powersyncApi(SplayTreeMap op) async {
     assert(op['type'] == 'invoke');
     assert(op['f'] == 'api');
     assert(op['value'] != null);

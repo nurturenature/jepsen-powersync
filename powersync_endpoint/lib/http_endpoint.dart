@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 import 'package:shelf/shelf.dart';
@@ -27,7 +28,7 @@ final int _port = args['httpPort'];
 /// No catching, let Exceptions fail the test
 Future<Response> _sqlTxn(Request req) async {
   final reqStr = await req.readAsString();
-  final reqOp = jsonDecode(reqStr) as Map;
+  final reqOp = SplayTreeMap.of(jsonDecode(reqStr) as Map);
 
   log.fine('SQL txn: request: $reqOp');
 

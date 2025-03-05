@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:io';
 import 'dart:isolate';
 import 'package:powersync_endpoint/args.dart';
@@ -165,7 +166,7 @@ class Worker {
       }
 
       // txn
-      final (int id, Map txn) = message as (int, Map);
+      final (int id, SplayTreeMap txn) = message as (int, SplayTreeMap);
       try {
         log.fine('SQL txn: request: $txn');
 
@@ -207,7 +208,7 @@ class Worker {
       }
 
       // api call
-      final (int id, Map api) = message as (int, Map);
+      final (int id, SplayTreeMap api) = message as (int, SplayTreeMap);
       try {
         log.fine('database api: request: $api');
 

@@ -13,10 +13,10 @@ abstract class Endpoint {
   /// No Exceptions are expected!
   /// Single user local PowerSync is totally available, strict serializable.
   /// No catching, let Exceptions fail the test
-  Future<Map> sqlTxn(Map op);
+  Future<SplayTreeMap> sqlTxn(SplayTreeMap op);
 
   /// api endpoint for connect/disconnect, upload-queue-count/upload-queue-wait, and select-all
-  Future<Map> powersyncApi(Map op);
+  Future<SplayTreeMap> powersyncApi(SplayTreeMap op);
 
   /// returns a transaction message that:
   ///   - reads all key/values

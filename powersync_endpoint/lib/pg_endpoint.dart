@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:io';
 import 'package:postgres/postgres.dart' as pg;
 import 'args.dart';
@@ -7,7 +8,7 @@ import 'postgresql.dart' as local_pg;
 
 class PGEndpoint extends Endpoint {
   @override
-  Future<Map> sqlTxn(Map op) async {
+  Future<SplayTreeMap> sqlTxn(SplayTreeMap op) async {
     assert(op['type'] == 'invoke');
     assert(op['f'] == 'txn');
     assert(op['value'].length >= 1);
@@ -173,7 +174,7 @@ class PGEndpoint extends Endpoint {
 
   /// api endpoint for connect/disconnect, upload-queue-count/upload-queue-wait, and select-all
   @override
-  Future<Map> powersyncApi(Map op) async {
+  Future<SplayTreeMap> powersyncApi(SplayTreeMap op) async {
     assert(op['type'] == 'invoke');
     assert(op['f'] == 'api');
     assert(op['value'] != null);
