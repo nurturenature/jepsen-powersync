@@ -2,17 +2,21 @@
 set -o pipefail
 
 # Example: find a Causal Consistency violation
-# export SUSPECT_EXIT_CODE=1 
+# export SUSPECT_EXIT_CODE=2
 # ./powersync-fuzz-loop.sh ./powersync_fuzz --table mww --clients 10 --rate 10 --time 100 --postgresql --disconnect --no-stop --no-kill --partition --no-pause --interval 5
 
-# set SUSPECT_EXIT_CODE to stop looping in environment, or defaults to 1
+# set SUSPECT_EXIT_CODE to exit code to stop looping, or defaults to 1
 SUSPECT_EXIT_CODE=${SUSPECT_EXIT_CODE:-1}
+
+# set TIME_LIMIT, maximum runtime of test, or defaults to 600s
+TIME_LIMIT=${TIME_LIMIT:-600s}
 
 # insure environment is built
 ./powersync-fuzz-down.sh
 ./powersync-fuzz-build.sh
 
 echo "looping until exit code >= $SUSPECT_EXIT_CODE"
+echo "with a test time limit of $TIME_LIMIT"
 
 while true;
 do
@@ -22,7 +26,7 @@ do
     
     # fuzz with CLI opts
     echo "fuzzing: $*"
-    ./powersync-fuzz-run.sh "$*"
+    timeout --verbose "$TIME_LIMIT" ./powersync-fuzz-run.sh "$*"
     ec=$?
 
     echo "exit code from powersync-fuzz-run.sh: $ec"
