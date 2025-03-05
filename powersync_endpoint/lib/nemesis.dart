@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:io';
 import 'package:list_utilities/list_utilities.dart';
 import 'package:synchronized/synchronized.dart';
+import 'endpoint.dart';
 import 'log.dart';
 import 'postgresql.dart' as pg;
 import 'ps_endpoint.dart' as pse;
@@ -187,11 +188,11 @@ class Nemesis {
             // act on 0 to all clients
             final int numRandomClients = _rng.nextInt(_clients.length + 1);
             affectedClients = _clients.getRandom(numRandomClients);
-            disconnectConnectMessage = _pse.disconnectMessage();
+            disconnectConnectMessage = Endpoint.disconnectMessage();
             break;
           case ConnectionStates.connected:
             affectedClients = _clients.getRandom(_clients.length);
-            disconnectConnectMessage = _pse.connectMessage();
+            disconnectConnectMessage = Endpoint.connectMessage();
             break;
         }
 
@@ -209,7 +210,7 @@ class Nemesis {
         final List<Future<Map>> uploadQueueCountFutures = [];
         for (Worker client in affectedClients) {
           uploadQueueCountFutures.add(
-            client.executeApi(_pse.uploadQueueCountMessage()),
+            client.executeApi(Endpoint.uploadQueueCountMessage()),
           );
         }
         await uploadQueueCountFutures.wait;
@@ -228,7 +229,7 @@ class Nemesis {
     // insure all clients are connected
     final List<Future> connectingClients = [];
     for (Worker client in _clients) {
-      connectingClients.add(client.executeApi(_pse.connectMessage()));
+      connectingClients.add(client.executeApi(Endpoint.connectMessage()));
     }
     await connectingClients.wait;
 
@@ -574,7 +575,7 @@ class StopStart {
           return false;
         }
 
-        final result = await client.executeApi(pse.closeMessage());
+        final result = await client.executeApi(Endpoint.closeMessage());
         if (result['type'] != 'ok') {
           throw StateError(
             'Not able to close client: $clientNum, result: $result',

@@ -4,6 +4,7 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart';
 import 'package:shelf_router/shelf_router.dart';
 import 'args.dart';
+import 'endpoint.dart';
 import 'ps_endpoint.dart' as pse;
 import 'log.dart';
 
@@ -46,34 +47,35 @@ Future<Response> _powersync(Request req, String action) async {
 
   switch (action) {
     case 'connect':
-      response = (await _pse.powersyncApi(_pse.connectMessage()))['value']['v'];
+      response =
+          (await _pse.powersyncApi(Endpoint.connectMessage()))['value']['v'];
       response['db.currentStatus'] = response['db.currentStatus'].toString();
       break;
 
     case 'disconnect':
       response =
-          (await _pse.powersyncApi(_pse.disconnectMessage()))['value']['v'];
+          (await _pse.powersyncApi(Endpoint.disconnectMessage()))['value']['v'];
       response['db.currentStatus'] = response['db.currentStatus'].toString();
       break;
 
     case 'upload-queue-count':
       response =
           (await _pse.powersyncApi(
-            _pse.uploadQueueCountMessage(),
+            Endpoint.uploadQueueCountMessage(),
           ))['value']['v'];
       break;
 
     case 'upload-queue-wait':
       response =
           (await _pse.powersyncApi(
-            _pse.uploadQueueWaitMessage(),
+            Endpoint.uploadQueueWaitMessage(),
           ))['value']['v'];
       break;
 
     case 'downloading-wait':
       response =
           (await _pse.powersyncApi(
-            _pse.downloadingWaitMessage(),
+            Endpoint.downloadingWaitMessage(),
           ))['value']['v'];
       break;
 

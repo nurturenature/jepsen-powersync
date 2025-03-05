@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:list_utilities/list_utilities.dart';
 import 'package:powersync_endpoint/args.dart';
 import 'package:powersync_endpoint/causal_checker.dart';
+import 'package:powersync_endpoint/endpoint.dart';
 import 'package:powersync_endpoint/log.dart';
 import 'package:powersync_endpoint/nemesis.dart';
 import 'package:powersync_endpoint/postgresql.dart' as pg;
@@ -11,8 +12,6 @@ import 'package:powersync_endpoint/pg_endpoint.dart' as pge;
 import 'package:powersync_endpoint/ps_endpoint.dart' as pse;
 import 'package:powersync_endpoint/utils.dart' as utils;
 import 'package:powersync_endpoint/worker.dart';
-
-final _pse = pse.PSEndpoint();
 
 void main(List<String> arguments) async {
   // parse args, set defaults, must be 1st in main
@@ -52,7 +51,7 @@ void main(List<String> arguments) async {
   .periodic(
     Duration(milliseconds: (1000 / args['rate']).floor()),
     // using reads/appends against random keys with a sequential value
-    (value) => _pse.readAllWriteSomeTxnMessage(args['maxTxnLen'], value),
+    (value) => Endpoint.readAllWriteSomeTxnMessage(args['maxTxnLen'], value),
   )
   // for a total # of txns
   .take(args['time'] * args['rate']);
@@ -90,8 +89,8 @@ void main(List<String> arguments) async {
         final List<Future> uploadQueueFutures = [];
         for (Worker client in clients) {
           uploadQueueFutures.addAll([
-            client.executeApi(_pse.uploadQueueCountMessage()),
-            client.executeApi(_pse.uploadQueueWaitMessage()),
+            client.executeApi(Endpoint.uploadQueueCountMessage()),
+            client.executeApi(Endpoint.uploadQueueWaitMessage()),
           ]);
         }
         await uploadQueueFutures.wait;
@@ -101,7 +100,7 @@ void main(List<String> arguments) async {
         final List<Future> downloadingWaits = [];
         for (Worker client in clients) {
           downloadingWaits.add(
-            client.executeApi(_pse.downloadingWaitMessage()),
+            client.executeApi(Endpoint.downloadingWaitMessage()),
           );
         }
         await downloadingWaits.wait;

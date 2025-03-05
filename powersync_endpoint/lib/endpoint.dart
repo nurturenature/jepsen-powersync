@@ -1,11 +1,8 @@
 import 'dart:collection';
-import 'dart:math';
 import 'package:list_utilities/list_utilities.dart';
 import 'package:powersync/sqlite3.dart' as sqlite3;
 import 'args.dart';
 import 'postgresql.dart' as pg;
-
-final _rng = Random();
 
 abstract class Endpoint {
   /// Execute an sql transaction and return the results:
@@ -24,7 +21,7 @@ abstract class Endpoint {
   /// returns a transaction message that:
   ///   - reads all key/values
   ///   - writes `value` to `count` random keys
-  SplayTreeMap<String, dynamic> readAllWriteSomeTxnMessage(
+  static SplayTreeMap<String, dynamic> readAllWriteSomeTxnMessage(
     int count,
     int value,
   ) {
@@ -47,58 +44,23 @@ abstract class Endpoint {
     });
   }
 
-  Map<String, dynamic> rndTxnMessage(pg.Tables table, int count) {
-    return Map.of({
-      'type': 'invoke',
-      'f': 'txn',
-      'value': _genRandTxn(args['maxTxnLen'], count),
-      'table': table.name,
-    });
-  }
-
-  List<Map> _genRandTxn(int num, int value) {
-    final List<Map<String, dynamic>> txn = [];
-    final Set<int> appendedKeys = {};
-
-    for (var i = 0; i < num; i++) {
-      final f = ['r', 'append'].getRandom(1).first;
-      final k = _rng.nextInt(args['keys']);
-      switch (f) {
-        case 'r':
-          txn.add({'f': 'r', 'k': k, 'v': null});
-          break;
-        // only append to a key once
-        case 'append' when !appendedKeys.contains(k):
-          appendedKeys.add(k);
-          txn.add({'f': 'append', 'k': k, 'v': value});
-          break;
-        // duplicate append key so read it instead
-        default:
-          txn.add({'f': 'r', 'k': k, 'v': null});
-          break;
-      }
-    }
-
-    return txn;
-  }
-
-  Map<String, dynamic> connectMessage() {
-    return Map.of({
+  static SplayTreeMap<String, dynamic> connectMessage() {
+    return SplayTreeMap.of({
       'type': 'invoke',
       'f': 'api',
       'value': {'f': 'connect', 'v': {}},
     });
   }
 
-  Map<String, dynamic> disconnectMessage() {
-    return Map.of({
+  static SplayTreeMap<String, dynamic> disconnectMessage() {
+    return SplayTreeMap.of({
       'type': 'invoke',
       'f': 'api',
       'value': {'f': 'disconnect', 'v': {}},
     });
   }
 
-  SplayTreeMap<String, dynamic> closeMessage() {
+  static SplayTreeMap<String, dynamic> closeMessage() {
     return SplayTreeMap.of({
       'type': 'invoke',
       'f': 'api',
@@ -106,8 +68,8 @@ abstract class Endpoint {
     });
   }
 
-  static Map<String, dynamic> selectAllMessage(pg.Tables table) {
-    return Map.of({
+  static SplayTreeMap<String, dynamic> selectAllMessage(pg.Tables table) {
+    return SplayTreeMap.of({
       'type': 'invoke',
       'f': 'api',
       'value': {'f': 'select-all', 'k': table.name, 'v': <sqlite3.Row>{}},
@@ -115,38 +77,24 @@ abstract class Endpoint {
     });
   }
 
-  Map<String, dynamic> selectAllResultToOpResult(Map<String, dynamic> op) {
-    final Iterable<Map<String, dynamic>> value = (op['value']['v']
-            as Map<int, int>)
-        .entries
-        .map((MapEntry<int, int> kv) {
-          return {'f': 'r', 'k': kv.key, 'v': kv.value};
-        });
-
-    op['f'] = 'txn';
-    op['value'] = value.toList(growable: false);
-
-    return op;
-  }
-
-  Map<String, dynamic> uploadQueueCountMessage() {
-    return Map.of({
+  static SplayTreeMap<String, dynamic> uploadQueueCountMessage() {
+    return SplayTreeMap.of({
       'type': 'invoke',
       'f': 'api',
       'value': {'f': 'upload-queue-count', 'v': {}},
     });
   }
 
-  Map<String, dynamic> uploadQueueWaitMessage() {
-    return Map.of({
+  static SplayTreeMap<String, dynamic> uploadQueueWaitMessage() {
+    return SplayTreeMap.of({
       'type': 'invoke',
       'f': 'api',
       'value': {'f': 'upload-queue-wait', 'v': {}},
     });
   }
 
-  Map<String, dynamic> downloadingWaitMessage() {
-    return Map.of({
+  static SplayTreeMap<String, dynamic> downloadingWaitMessage() {
+    return SplayTreeMap.of({
       'type': 'invoke',
       'f': 'api',
       'value': {'f': 'downloading-wait', 'v': {}},
