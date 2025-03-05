@@ -1,5 +1,32 @@
 ## Logbook
 
+Working on Strong Convergence anomaly [issue](issues/strong-convergence.md) using [powersync_fuzz](../powersync_endpoint/README.md) as discussed below.
+
+
+Jepsen has been able to find and exhibit non Causally Consistent behavior when testing PowerSync.
+
+But Jepsen is a bit of a heavy lift:
+- full featured generic environment
+  - each client is its own container
+  - written in Clojure
+  - analyzes the test history
+    - with acyclic graphs for transaction values
+    - using Adya's full blown SQL consistency models and research
+
+So `powersync_fuzz` was developed:
+- written as a minimalistic Dart CLI application
+  - uses existing Powersync Dart client libraries
+  - easier to understand, modify
+- analyzes the test history dynamically
+  - just for Causal Consistency
+  - uses simple/efficient Lists of integers for client state
+
+See `powersync_fuzz` [readme](../powersync_endpoint/README.md).
+
+A full suite of [GitHub Actions](https://github.com/nurturenature/jepsen-powersync/actions) that use `powersync_fuzz` to demonstrate anomalies.
+
+----
+
 ## History
 
 ### Issue Fixed and Tested
