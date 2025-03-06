@@ -7,9 +7,6 @@ import 'package:powersync_endpoint/causal_checker.dart';
 import 'package:powersync_endpoint/endpoint.dart';
 import 'package:powersync_endpoint/log.dart';
 import 'package:powersync_endpoint/nemesis.dart';
-import 'package:powersync_endpoint/postgresql.dart' as pg;
-import 'package:powersync_endpoint/pg_endpoint.dart' as pge;
-import 'package:powersync_endpoint/ps_endpoint.dart' as pse;
 import 'package:powersync_endpoint/utils.dart' as utils;
 import 'package:powersync_endpoint/worker.dart';
 
@@ -19,22 +16,17 @@ void main(List<String> arguments) async {
   initLogging('main');
   log.config('args: $args');
 
-  final table = pg.Tables.values.byName(args['table']);
-
-  // initialize PostgreSQL
-  await pg.init(table, true);
-
   // create a set of worker clients
   log.info('creating ${args["clients"]} clients');
   final List<Future<Worker>> clientFutures = [];
   for (var clientNum = 1; clientNum <= args['clients']; clientNum++) {
-    clientFutures.add(Worker.spawn(table, clientNum, pse.PSEndpoint()));
+    clientFutures.add(Worker.spawn(Endpoints.powersync, clientNum));
   }
   Set<Worker> clients = Set.from(await clientFutures.wait);
 
   // include PostgreSQL client in pool of Workers?
   if (args['postgresql']) {
-    clients.add(await Worker.spawn(table, 0, pge.PGEndpoint()));
+    clients.add(await Worker.spawn(Endpoints.postgresql, 0));
   }
 
   // create a causal consistency checker
@@ -113,8 +105,5 @@ void main(List<String> arguments) async {
           client.closeTxns();
           client.closeApis();
         }
-
-        // done with PostgreSQL
-        await pg.close();
       });
 }

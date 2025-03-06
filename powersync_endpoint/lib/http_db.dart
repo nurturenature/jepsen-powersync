@@ -1,10 +1,13 @@
+// TODO: old db package for http
+// TODO: refactor to ps_endpoint
+
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:powersync/powersync.dart';
 import 'package:powersync/sqlite_async.dart' as sqlite;
 import 'backend_connector.dart';
 import 'log.dart';
-import 'postgresql.dart' as pg;
+import 'http_postgresql.dart' as pg;
 import 'schema.dart';
 import 'utils.dart' as utils;
 
@@ -15,7 +18,7 @@ late PowerSyncDatabase db;
 late PowerSyncBackendConnector connector;
 
 Future<void> initDb(
-  pg.Tables table,
+  Tables table,
   String sqlite3Path, {
   bool preserveSqlite3Data = false,
 }) async {
@@ -34,8 +37,8 @@ Future<void> initDb(
   }
 
   db = switch (table) {
-    pg.Tables.lww => PowerSyncDatabase(schema: schemaLWW, path: sqlite3Path),
-    pg.Tables.mww => PowerSyncDatabase(schema: schemaMWW, path: sqlite3Path),
+    Tables.lww => PowerSyncDatabase(schema: schemaLWW, path: sqlite3Path),
+    Tables.mww => PowerSyncDatabase(schema: schemaMWW, path: sqlite3Path),
   };
   log.info(
     "db: init: created db with schemas: ${db.schema.tables.map((table) => {table.name: table.columns.map((column) => '${column.name} ${column.type.name}')})}, path: $sqlite3Path",
@@ -64,15 +67,15 @@ Future<void> initDb(
   // PostgreSQL is source of truth, explicitly initialized at app startup
   final Set<int> pgKeys = Set.from(
     (switch (table) {
-      pg.Tables.lww => await pg.selectAllLWW(),
-      pg.Tables.mww => await pg.selectAllMWW(),
+      Tables.lww => await pg.selectAllLWW(),
+      Tables.mww => await pg.selectAllMWW(),
     }).keys,
   );
   var currentStatus = db.currentStatus;
   Set<int> psKeys = Set.from(
     (switch (table) {
-      pg.Tables.lww => await selectAllLWW(),
-      pg.Tables.mww => await selectAllMWW(),
+      Tables.lww => await selectAllLWW(),
+      Tables.mww => await selectAllMWW(),
     }).keys,
   );
   while (!psKeys.containsAll(pgKeys)) {
@@ -86,8 +89,8 @@ Future<void> initDb(
     currentStatus = db.currentStatus;
     psKeys = Set.from(
       (switch (table) {
-        pg.Tables.lww => await selectAllLWW(),
-        pg.Tables.mww => await selectAllMWW(),
+        Tables.lww => await selectAllLWW(),
+        Tables.mww => await selectAllMWW(),
       }).keys,
     );
   }
@@ -110,8 +113,8 @@ Future<void> initDb(
   ''');
 
   final currTable = switch (table) {
-    pg.Tables.lww => await selectAllLWW(),
-    pg.Tables.mww => await selectAllMWW(),
+    Tables.lww => await selectAllLWW(),
+    Tables.mww => await selectAllMWW(),
   };
   log.info("db: init: tables: $dbTables");
   log.info("db: init: ${table.name}: $currTable");

@@ -5,7 +5,8 @@ import 'package:powersync/powersync.dart';
 import 'args.dart';
 import 'auth.dart';
 import 'log.dart';
-import 'postgresql.dart';
+import 'http_postgresql.dart' as pg;
+import 'schema.dart';
 import 'utils.dart';
 
 /// A `PowerSyncBackendConnector` with:
@@ -54,7 +55,7 @@ dynamic _txWithRetries(Tables table, List<CrudEntry> crud) async {
     try {
       // execute the PowerSync transaction in a PostgreSQL transaction
       // throwing in the PostgreSQL transaction reverts it
-      await postgreSQL.runTx(
+      await pg.postgreSQL.runTx(
         (tx) async {
           for (final crudEntry in crud) {
             switch (crudEntry.op) {
@@ -186,7 +187,10 @@ class CrudTransactionConnector extends PowerSyncBackendConnector {
   Tables table;
   PowerSyncDatabase db;
 
-  CrudTransactionConnector(this.table, this.db);
+  CrudTransactionConnector(this.table, this.db) {
+    // init our very own personal PostgreSQL connection
+    pg.init(table, false);
+  }
 
   @override
   Future<PowerSyncCredentials?> fetchCredentials() async {

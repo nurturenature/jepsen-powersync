@@ -4,9 +4,6 @@ import 'package:args/args.dart';
 /// Global args set from CLI or default args.
 Map<String, dynamic> args = {};
 
-/// A Set of all keys
-late Set<int> allKeys;
-
 /// Parse CLI args into global args
 void parseArgs(List<String> arguments) {
   final ArgParser argParser = _buildParser();
@@ -55,10 +52,11 @@ void parseArgs(List<String> arguments) {
   }
 
   // init common values based on args
-  allKeys = {};
+  final Set<int> allKeys = {};
   for (var i = 0; i < args['keys']; i++) {
     allKeys.add(i);
   }
+  args['allKeys'] = allKeys;
 }
 
 ArgParser _buildParser() {

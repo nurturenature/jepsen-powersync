@@ -1,5 +1,8 @@
 import 'package:powersync/powersync.dart';
 
+/// possible tables
+enum Tables { lww, mww }
+
 final schemaLWW = Schema(([
   Table(
     'lww',

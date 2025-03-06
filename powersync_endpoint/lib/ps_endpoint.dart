@@ -1,20 +1,104 @@
 import 'dart:collection';
 import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:powersync/powersync.dart';
+import 'package:powersync/sqlite_async.dart' as sqlite;
 import 'args.dart';
-import 'db.dart';
+import 'backend_connector.dart';
 import 'endpoint.dart';
 import 'log.dart';
+import 'schema.dart';
 import 'utils.dart';
 
 class PSEndpoint extends Endpoint {
-  /// Execute an sql transaction and return the results:
-  /// - request is a Jepsen op value as a Map
-  ///   - transaction maps are in value: [{f: r | append, k: key, v: value}...]
-  /// - response is an updated Jepsen op value with the txn results
-  ///
-  /// No Exceptions are expected!
-  /// Single user local PowerSync is totally available, strict serializable.
-  /// No catching, let Exceptions fail the test
+  late final PowerSyncDatabase _db;
+  late final PowerSyncBackendConnector _connector;
+
+  @override
+  Future<void> init({String filePath = '', bool preserveData = false}) async {
+    // delete any preexisting SQLite3 files?
+    if (await File(filePath).exists()) {
+      log.info('db: init: preexisting SQLite3 file: $filePath');
+
+      if (!preserveData) {
+        await _deleteSqlite3Files(filePath);
+        log.info('\tpreexisting file deleted');
+      } else {
+        log.info('\tpreexisting file preserved');
+      }
+    } else {
+      log.info('db: init: no preexisting SQLite3 file: $filePath');
+    }
+
+    _db = PowerSyncDatabase(schema: schemaMWW, path: filePath);
+    log.info(
+      "db: init: created db with schemas: ${_db.schema.tables.map((table) => {table.name: table.columns.map((column) => '${column.name} ${column.type.name}')})}, path: $filePath",
+    );
+
+    await _db.initialize();
+    log.info(
+      'db: init: initialized with runtimeType: ${_db.runtimeType}, status: ${_db.currentStatus}',
+    );
+
+    _connector = CrudTransactionConnector(Tables.mww, _db);
+
+    // retry significantly faster than default of 5s, designed to leverage a Transaction oriented BackendConnector
+    // must be set before connecting
+    _db.retryDelay = Duration(milliseconds: 1000);
+
+    await _db.connect(connector: _connector);
+    log.info(
+      'db: init: connected with connector: $_connector, status: ${_db.currentStatus}',
+    );
+
+    await _db.waitForFirstSync();
+    log.info(
+      'db: init: first sync completed with status: ${_db.currentStatus}',
+    );
+
+    // insure local db is complete, i.e. has all the keys
+    // PostgreSQL is source of truth, explicitly initialized at app startup with all keys
+    var currentStatus = _db.currentStatus;
+    Set<int> psKeys = Set.from((await _selectAll()).keys);
+    while (!psKeys.containsAll(args['allKeys'] as Set<int>)) {
+      log.info(
+        'db: init: db.waitForFirstSync() incomplete, missing keys: ${(args['allKeys'] as Set<int>).difference(psKeys)}',
+      );
+      log.info('\twith currentStatus: $currentStatus');
+
+      // sleep and try again
+      await futureSleep(100);
+      currentStatus = _db.currentStatus;
+      psKeys = Set.from((await _selectAll()).keys);
+    }
+    log.info(
+      'db: init: db.waitForFirstSync() confirmed with all keys present: $psKeys',
+    );
+
+    // log PowerSync status changes
+    _logSyncStatus(_db);
+
+    // log PowerSync db updates
+    _logUpdates(_db);
+
+    // log current db contents
+    final dbTables = await _db.execute('''
+    SELECT name FROM sqlite_schema 
+    WHERE type IN ('table','view') 
+    AND name NOT LIKE 'sqlite_%'
+    ORDER BY 1;
+  ''');
+
+    final currTable = await _selectAll();
+    log.info("db: init: tables: $dbTables");
+    log.info("db: init: ${Tables.mww.name}: $currTable");
+  }
+
+  @override
+  Future<void> close() async {
+    await _db.close();
+  }
+
   @override
   Future<SplayTreeMap> sqlTxn(SplayTreeMap op) async {
     assert(op['type'] == 'invoke');
@@ -24,77 +108,10 @@ class PSEndpoint extends Endpoint {
     // augment op with client type
     op['clientType'] = 'ps';
 
-    final table = op['table']! as String;
-
-    await db.writeTransaction((tx) async {
+    await _db.writeTransaction((tx) async {
       late final Map<int, int> readAll;
       final valueAsFutures = op['value'].map((mop) async {
         switch (mop['f']) {
-          case 'r':
-            final select = await tx.getOptional(
-              'SELECT k,v from $table where k = ?',
-              [mop['k']],
-            );
-            // result row expected as db is pre-seeded
-            if (select == null) {
-              log.severe(
-                "PowerSyncDatabase: unexpected state, uninitialized read key ${mop['k']} for op: $op",
-              );
-              exit(10);
-            }
-
-            // literal null read is an error, db is pre-seeded
-            if (select['v'] == null) {
-              log.severe(
-                "PowerSyncDatabase: literal null read for key: ${mop['k']} in mop: $mop in op: $op",
-              );
-              exit(10);
-            }
-
-            switch (table) {
-              case 'lww':
-                // v == '' is a  null read
-                if ((select['v'] as String) == '') {
-                  return mop;
-                } else {
-                  // trim leading space that was created on first UPDATE
-                  final v = (select['v'] as String).trimLeft();
-                  mop['v'] = "[$v]";
-                  return mop;
-                }
-
-              case 'mww':
-                mop['v'] = select['v'] as int;
-                return mop;
-
-              default:
-                throw StateError('Invalid table value: $table');
-            }
-
-          case 'append':
-            final update = switch (table) {
-              // note: creates leading space on first update, upsert isn't supported
-              'lww' => await tx.execute(
-                'UPDATE lww SET v = lww.v || \' \' || ? WHERE k = ? RETURNING *',
-                [mop['v'], mop['k']],
-              ),
-              'mww' => await tx.execute(
-                'UPDATE mww SET v = ? WHERE k = ? RETURNING *',
-                [mop['v'], mop['k']],
-              ),
-              _ => throw StateError('Invalid table value: $table'),
-            };
-
-            // result set expected as db is pre-seeded
-            if (update.isEmpty) {
-              log.severe(
-                "PowerSyncDatabase: unexpected state, uninitialized append key ${mop['k']} for op: $op",
-              );
-              exit(10);
-            }
-
-            return mop;
-
           case 'read-all':
             final select = await tx.getAll('SELECT k,v FROM mww ORDER BY k;');
 
@@ -161,7 +178,6 @@ class PSEndpoint extends Endpoint {
     return op;
   }
 
-  /// api endpoint for connect/disconnect, upload-queue-count/upload-queue-wait, and select-all
   @override
   Future<SplayTreeMap> powersyncApi(SplayTreeMap op) async {
     assert(op['type'] == 'invoke');
@@ -175,10 +191,10 @@ class PSEndpoint extends Endpoint {
 
     switch (op['value']['f']) {
       case 'connect':
-        await db.connect(connector: connector);
-        final closed = db.closed;
-        final connected = db.connected;
-        final currentStatus = db.currentStatus;
+        await _db.connect(connector: _connector);
+        final closed = _db.closed;
+        final connected = _db.connected;
+        final currentStatus = _db.currentStatus;
         final v = {
           'db.closed': closed,
           'db.connected': connected,
@@ -193,10 +209,10 @@ class PSEndpoint extends Endpoint {
         break;
 
       case 'disconnect':
-        await db.disconnect();
-        final closed = db.closed;
-        final connected = db.connected;
-        final currentStatus = db.currentStatus;
+        await _db.disconnect();
+        final closed = _db.closed;
+        final connected = _db.connected;
+        final currentStatus = _db.currentStatus;
         final v = {
           'db.closed': closed,
           'db.connected': connected,
@@ -211,10 +227,10 @@ class PSEndpoint extends Endpoint {
         break;
 
       case 'close':
-        await db.close();
-        final closed = db.closed;
-        final connected = db.connected;
-        final currentStatus = db.currentStatus;
+        await _db.close();
+        final closed = _db.closed;
+        final connected = _db.connected;
+        final currentStatus = _db.currentStatus;
         final v = {
           'db.closed': closed,
           'db.connected': connected,
@@ -229,14 +245,14 @@ class PSEndpoint extends Endpoint {
         break;
 
       case 'upload-queue-count':
-        final uploadQueueCount = (await db.getUploadQueueStats()).count;
+        final uploadQueueCount = (await _db.getUploadQueueStats()).count;
         op['value']['v'] = {'db.uploadQueueStats.count': uploadQueueCount};
         break;
 
       case 'upload-queue-wait':
-        while ((await db.getUploadQueueStats()).count != 0) {
+        while ((await _db.getUploadQueueStats()).count != 0) {
           log.info(
-            'PowerSyncDatabase: waiting for db.uploadQueueStats.count == 0, currently ${(await db.getUploadQueueStats()).count}...',
+            'PowerSyncDatabase: waiting for db.uploadQueueStats.count == 0, currently ${(await _db.getUploadQueueStats()).count}...',
           );
           await futureSleep(1000);
         }
@@ -248,14 +264,14 @@ class PSEndpoint extends Endpoint {
         const waitPerTry = 1000;
 
         int onTry = 1;
-        var currentStatus = db.currentStatus;
+        var currentStatus = _db.currentStatus;
         while ((currentStatus.downloading) == true && onTry <= maxTries) {
           log.info(
             'PowerSyncDatabase: waiting for db.currentStatus.downloading == false: on try $onTry: $currentStatus',
           );
           await futureSleep(waitPerTry);
           onTry++;
-          currentStatus = db.currentStatus;
+          currentStatus = _db.currentStatus;
         }
         if (onTry > maxTries) {
           newType = 'error';
@@ -275,14 +291,7 @@ class PSEndpoint extends Endpoint {
         break;
 
       case 'select-all':
-        op['value']['v'] = switch (op['value']['k']) {
-          'lww' => await selectAllLWW(),
-          'mww' => await selectAllMWW(),
-          _ =>
-            throw StateError(
-              "PowerSyncDatabase: invalid table value: ${op['value']['k']}",
-            ),
-        };
+        op['value']['v'] = await _selectAll();
         break;
 
       default:
@@ -293,4 +302,181 @@ class PSEndpoint extends Endpoint {
     op['type'] = newType;
     return op;
   }
+
+  /// Select all rows from mww table and return {k: v}.
+  Future<Map<int, int>> _selectAll() async {
+    return Map.fromEntries(
+      (await _db.getAll(
+        'SELECT k,v FROM mww ORDER BY k;',
+      )).map((row) => MapEntry(row['k'], row['v'])),
+    );
+  }
+}
+
+// delete any existing SQLite3 files
+Future<void> _deleteSqlite3Files(String sqlite3Path) async {
+  try {
+    await File(sqlite3Path).delete();
+    await File('$sqlite3Path-shm').delete();
+    await File('$sqlite3Path-wal').delete();
+  } catch (ex) {
+    // don't care
+  }
+}
+
+// log PowerSync status changes
+void _logSyncStatus(PowerSyncDatabase db) {
+  db.statusStream.listen((syncStatus) {
+    // state mismatch
+    if (!syncStatus.connected &&
+        (syncStatus.downloading || syncStatus.uploading)) {
+      log.warning(
+        'SyncStatus: syncStatus.connected is false yet uploading|downloading: $syncStatus',
+      );
+    }
+    if ((syncStatus.hasSynced == false && syncStatus.lastSyncedAt != null) ||
+        (syncStatus.hasSynced == true && syncStatus.lastSyncedAt == null)) {
+      log.warning(
+        'SyncStatus: syncStatus.hasSynced/lastSyncedAt mismatch: $syncStatus',
+      );
+    }
+
+    // no errors
+    if (syncStatus.anyError == null) {
+      log.finest('$syncStatus');
+      return;
+    }
+
+    // upload error
+    if (syncStatus.uploadError != null) {
+      // ignorable
+      if (_ignorableUploadError(syncStatus.uploadError!)) {
+        log.info(
+          'SyncStatus: ignorable upload error in statusStream: ${syncStatus.uploadError}',
+        );
+        return;
+      }
+      // unexpected
+      log.severe(
+        'SyncStatus: unexpected upload error in statusStream: ${syncStatus.uploadError}',
+      );
+      exit(40);
+    }
+
+    // download error
+    if (syncStatus.downloadError != null) {
+      // ignorable
+      if (_ignorableDownloadError(syncStatus.downloadError!)) {
+        log.info(
+          'SyncStatus: ignorable download error in statusStream: ${syncStatus.downloadError}',
+        );
+        return;
+      }
+      // unexpected
+      log.severe(
+        'SyncStatus: unexpected download error in statusStream: ${syncStatus.downloadError}',
+      );
+      exit(41);
+    }
+
+    // WTF?
+    throw StateError('Error interpreting syncStatus: $syncStatus');
+  });
+}
+
+// log PowerSync db updates
+void _logUpdates(PowerSyncDatabase db) {
+  db.updates.listen((updateNotification) {
+    log.finest('$updateNotification');
+  });
+}
+
+// can this upload error be ignored?
+bool _ignorableUploadError(Object ex) {
+  // exposed by disconnect-connect nemesis
+  if (ex is sqlite.ClosedException) {
+    return true;
+  }
+
+  // exposed by nemesis
+  if (ex is http.ClientException &&
+      (ex.message.startsWith(
+            'Connection closed before full header was received',
+          ) ||
+          ex.message.startsWith(
+            'HTTP request failed. Client is already closed.',
+          ) ||
+          ex.message.startsWith('Broken pipe') ||
+          ex.message.startsWith('Connection reset by peer') ||
+          ex.message.contains('Connection timed out'))) {
+    return true;
+  }
+
+  // exposed by nemesis
+  if (ex is Exception &&
+      ex.toString().contains(
+        'ClientException with SocketException: Connection timed out (OS Error: Connection timed out, errno = 110)',
+      )) {
+    return true;
+  }
+
+  // exposed by nemesis
+  if (ex is SyncResponseException &&
+      ex.statusCode == 408 &&
+      ex.description.startsWith('Request Timeout')) {
+    return true;
+  }
+
+  // exposed by disconnect-connect nemesis
+  if (ex is SyncResponseException &&
+      ex.statusCode == 429 &&
+      ex.description.startsWith('Too Many Requests')) {
+    return true;
+  }
+
+  // don't ignore unexpected
+  return false;
+}
+
+// can this download error be ignored?
+bool _ignorableDownloadError(Object ex) {
+  // exposed by disconnect-connect nemesis
+  if (ex is sqlite.ClosedException) {
+    return true;
+  }
+
+  // exposed by nemesis
+  if (ex is http.ClientException &&
+      (ex.message.startsWith(
+            'Connection closed before full header was received',
+          ) ||
+          ex.message.startsWith('Broken pipe') ||
+          ex.message.startsWith('Connection reset by peer'))) {
+    return true;
+  }
+
+  // exposed by nemesis
+  if (ex is Exception &&
+      ex.toString().contains(
+        'ClientException with SocketException: Connection timed out (OS Error: Connection timed out, errno = 110)',
+      )) {
+    return true;
+  }
+
+  // exposed by disconnect-connect nemesis
+  if (ex is SyncResponseException &&
+      ex.statusCode == 401 &&
+      ex.description.contains('"exp" claim timestamp check failed')) {
+    return true;
+  }
+
+  // exposed by nemeses
+  if (ex is SyncResponseException &&
+      ex.statusCode == 408 &&
+      ex.description.contains('Request Timeout')) {
+    return true;
+  }
+
+  // don't ignore unexpected
+  return false;
 }

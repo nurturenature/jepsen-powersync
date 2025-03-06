@@ -1,12 +1,38 @@
 import 'dart:collection';
 import 'dart:io';
-import 'package:postgres/postgres.dart' as pg;
+import 'package:postgres/postgres.dart' as postgres;
 import 'args.dart';
 import 'endpoint.dart';
 import 'log.dart';
-import 'postgresql.dart' as local_pg;
 
 class PGEndpoint extends Endpoint {
+  late final postgres.Connection _postgreSQL;
+
+  @override
+  Future<void> init({String filePath = '', bool preserveData = false}) async {
+    final endpoint = postgres.Endpoint(
+      host: args['PG_DATABASE_HOST']!,
+      port: args['PG_DATABASE_PORT']!,
+      database: args['PG_DATABASE_NAME']!,
+      username: args['PG_DATABASE_USER']!,
+      password: args['PG_DATABASE_PASSWORD']!,
+    );
+    final settings = postgres.ConnectionSettings(
+      sslMode: postgres.SslMode.disable,
+    );
+
+    _postgreSQL = await postgres.Connection.open(endpoint, settings: settings);
+
+    log.config(
+      'PostgreSQL: connected @ ${endpoint.host}:${endpoint.port}/${endpoint.database} as ${endpoint.username}/${endpoint.password} with socket: ${endpoint.isUnixSocket}',
+    );
+  }
+
+  @override
+  Future<void> close() async {
+    await _postgreSQL.close(force: true);
+  }
+
   @override
   Future<SplayTreeMap> sqlTxn(SplayTreeMap op) async {
     assert(op['type'] == 'invoke');
@@ -18,13 +44,10 @@ class PGEndpoint extends Endpoint {
 
     String newType = 'ok'; // assume ok
 
-    // convert table as String to enum
-    final table = local_pg.Tables.values.byName(op['table'] as String);
-
     try {
       // execute the PowerSync transaction in a PostgreSQL transaction
       // errors/throwing in the PostgreSQL transaction reverts it
-      await local_pg.postgreSQL.runTx(
+      await _postgreSQL.runTx(
         (tx) async {
           late final Map<int, int> readAll;
           final valueAsFutures = op['value'].map((
@@ -32,58 +55,6 @@ class PGEndpoint extends Endpoint {
           ) async {
             final {'f': String f, 'k': dynamic k, 'v': dynamic v} = mop;
             switch (f) {
-              case 'r':
-                final result = await tx.execute(
-                  'SELECT v from ${table.name} where k = $k',
-                );
-                final v =
-                    result
-                        .single // throws if not 1 and only 1 result
-                        .toColumnMap() // friendly map
-                        ['v'];
-
-                // literal null read is an error, db is pre-seeded
-                if (v == null) {
-                  log.severe(
-                    "PostgreSQL: unexpected database state, uninitialized read for key: $k', in mop: $mop, for op: $op",
-                  );
-                  exit(11);
-                }
-
-                switch (table) {
-                  case local_pg.Tables.lww:
-                    final vStr = v as String;
-                    // v == '' is a null read
-                    if (vStr != '') {
-                      // trim leading space that was created on first INERT/UPDATE
-                      mop['v'] = '[${vStr.trimLeft()}]';
-                    }
-                    break;
-
-                  case local_pg.Tables.mww:
-                    mop['v'] = v as int;
-                    break;
-                }
-                return mop;
-
-              case 'append':
-                final pg.Result result = switch (table) {
-                  local_pg.Tables.lww => await tx.execute('''
-                    INSERT INTO ${table.name} (k,v) VALUES ($k,$v) 
-                    ON CONFLICT (k) DO UPDATE SET v = concat_ws(' ',${table.name}.v,'$v')
-                    '''),
-                  local_pg.Tables.mww => await tx.execute(
-                    'UPDATE ${table.name} SET v = $v WHERE k = $k',
-                  ),
-                };
-                if (result.affectedRows != 1) {
-                  log.severe(
-                    'PostgreSQL: not 1 row affected by append in mop: $mop, with results: $result, for $op',
-                  );
-                  exit(11);
-                }
-                return mop;
-
               case 'read-all':
                 final select = await tx.execute(
                   'SELECT k,v from mww ORDER BY k;',
@@ -151,14 +122,14 @@ class PGEndpoint extends Endpoint {
             await mop;
           }
         },
-        settings: pg.TransactionSettings(
-          isolationLevel: pg.IsolationLevel.repeatableRead,
+        settings: postgres.TransactionSettings(
+          isolationLevel: postgres.IsolationLevel.repeatableRead,
         ),
       );
-    } on pg.ServerException catch (se) {
+    } on postgres.ServerException catch (se) {
       // truly fatal
-      if (se.severity == pg.Severity.panic ||
-          se.severity == pg.Severity.fatal) {
+      if (se.severity == postgres.Severity.panic ||
+          se.severity == postgres.Severity.fatal) {
         log.severe('PostgreSQL: fatal error: ${se.message}');
         exit(21);
       }
@@ -192,7 +163,7 @@ class PGEndpoint extends Endpoint {
         break;
 
       case 'upload-queue-count':
-        op['value']['v'] = {'pg': 0};
+        op['value']['v'] = {'pg': 'no-queue'};
         break;
 
       case 'upload-queue-wait':
@@ -204,11 +175,7 @@ class PGEndpoint extends Endpoint {
         break;
 
       case 'select-all':
-        op['value']['v'] = switch (op['value']['k']) {
-          'lww' => await local_pg.selectAllLWW(),
-          'mww' => await local_pg.selectAllMWW(),
-          _ => throw StateError("Invalid table value: ${op['value']['k']}"),
-        };
+        op['value']['v'] = await selectAll();
         break;
 
       default:
@@ -218,5 +185,15 @@ class PGEndpoint extends Endpoint {
 
     op['type'] = 'ok';
     return op;
+  }
+
+  Future<Map<int, int>> selectAll() async {
+    final Map<int, int> response = {};
+    response.addEntries(
+      (await _postgreSQL.execute('SELECT k,v FROM mww ORDER BY k;'))
+          .map((resultRow) => resultRow.toColumnMap())
+          .map((row) => MapEntry(row['k'], row['v'])),
+    );
+    return response;
   }
 }

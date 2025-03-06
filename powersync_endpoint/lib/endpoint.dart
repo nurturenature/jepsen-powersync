@@ -2,20 +2,29 @@ import 'dart:collection';
 import 'package:list_utilities/list_utilities.dart';
 import 'package:powersync/sqlite3.dart' as sqlite3;
 import 'args.dart';
-import 'postgresql.dart' as pg;
+import 'schema.dart';
+
+/// types of Endpoints
+enum Endpoints { powersync, postgresql }
 
 abstract class Endpoint {
+  /// initialize the database
+  Future<void> init({String filePath = '', bool preserveData = false});
+
+  /// close the database
+  Future<void> close();
+
   /// Execute an sql transaction and return the results:
-  /// - request is a Jepsen op value as a Map
-  ///   - transaction maps are in value: [{f: r | append, k: key, v: value}...]
-  /// - response is an updated Jepsen op value with the txn results
+  /// - request is an operation styled as a  Jepsen op as a SplayTreeMap
+  ///   - transaction maps are in value: [{f: read-all | write-some, k: -1, v: {k: v}}...]
+  /// - response is an updated op with the txn results
   ///
   /// No Exceptions are expected!
   /// Single user local PowerSync is totally available, strict serializable.
   /// No catching, let Exceptions fail the test
   Future<SplayTreeMap> sqlTxn(SplayTreeMap op);
 
-  /// api endpoint for connect/disconnect, upload-queue-count/upload-queue-wait, and select-all
+  /// api endpoint, will use the underlying db api for connect/disconnect, upload-queue-count/upload-queue-wait, select-all, etc
   Future<SplayTreeMap> powersyncApi(SplayTreeMap op);
 
   /// returns a transaction message that:
@@ -30,7 +39,9 @@ abstract class Endpoint {
 
     // {k: v} map of k/v to write
     final writes = Map.fromEntries(
-      allKeys.getRandom(count).map((k) => MapEntry(k, value)),
+      (args['allKeys'] as Set<int>)
+          .getRandom(count)
+          .map((k) => MapEntry(k, value)),
     );
 
     return SplayTreeMap.of({
@@ -40,7 +51,7 @@ abstract class Endpoint {
         {'f': 'read-all', 'k': -1, 'v': reads},
         {'f': 'write-some', 'k': -1, 'v': writes},
       ],
-      'table': pg.Tables.mww.name,
+      'table': Tables.mww.name,
     });
   }
 
@@ -68,12 +79,16 @@ abstract class Endpoint {
     });
   }
 
-  static SplayTreeMap<String, dynamic> selectAllMessage(pg.Tables table) {
+  static SplayTreeMap<String, dynamic> selectAllMessage() {
     return SplayTreeMap.of({
       'type': 'invoke',
       'f': 'api',
-      'value': {'f': 'select-all', 'k': table.name, 'v': <sqlite3.Row>{}},
-      'table': table.name,
+      'value': {
+        'f': 'select-all',
+        'k': -1,
+        'v': <sqlite3.Row>{},
+        'table': Tables.mww.name,
+      },
     });
   }
 

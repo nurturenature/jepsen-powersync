@@ -1,14 +1,15 @@
+// TODO: old postgres for http
+// TODO: refactor to pg_endpoint
+
 import 'package:postgres/postgres.dart';
 import 'args.dart';
 import 'log.dart';
+import 'schema.dart';
 
 /// Assuming single use of `backendConnector` `uploadData`, i.e. single Postgres connection appropriate
 
 /// Global Postgres connection.
 late Connection postgreSQL;
-
-/// possible tables
-enum Tables { lww, mww }
 
 Future<void> init(Tables table, bool initData) async {
   final endpoint = Endpoint(

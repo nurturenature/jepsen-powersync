@@ -3,10 +3,10 @@ import 'dart:collection';
 import 'dart:io';
 import 'dart:isolate';
 import 'package:powersync_endpoint/args.dart';
-import 'package:powersync_endpoint/db.dart';
 import 'package:powersync_endpoint/endpoint.dart';
 import 'package:powersync_endpoint/log.dart';
-import 'package:powersync_endpoint/postgresql.dart' as pg;
+import 'package:powersync_endpoint/pg_endpoint.dart';
+import 'package:powersync_endpoint/ps_endpoint.dart';
 
 class Worker {
   final Isolate _isolate;
@@ -41,10 +41,9 @@ class Worker {
   }
 
   static Future<Worker> spawn(
-    pg.Tables table,
-    int clientNum,
-    Endpoint endpoint, {
-    bool preserveSqlite3Data = false,
+    Endpoints endpoint,
+    int clientNum, {
+    bool preserveData = false,
   }) async {
     // Create a txn receive port and its initial message handler to receive the send port, e.g. a txn connection
     final initTxnReceivePort = RawReceivePort();
@@ -72,13 +71,12 @@ class Worker {
     final Isolate isolate;
     try {
       isolate = await Isolate.spawn(_startRemoteIsolate, (
-        table,
+        endpoint,
         clientNum,
         args,
         initTxnReceivePort.sendPort,
         initApiReceivePort.sendPort,
-        endpoint,
-        preserveSqlite3Data,
+        preserveData,
       ), debugName: 'ps-$clientNum');
     } on Object {
       initTxnReceivePort.close();
@@ -104,39 +102,26 @@ class Worker {
 
   static Future<void> _startRemoteIsolate(message) async {
     final (
-      pg.Tables table,
+      Endpoints endpoint,
       int clientNum,
       Map<String, dynamic> mainArgs,
       SendPort txnSendPort,
       SendPort apiSendPort,
-      Endpoint endpoint,
-      bool preserveSqlite3Data,
+      bool preserveData,
     ) = message
-            as (
-              pg.Tables,
-              int,
-              Map<String, dynamic>,
-              SendPort,
-              SendPort,
-              Endpoint,
-              bool,
-            );
+            as (Endpoints, int, Map<String, dynamic>, SendPort, SendPort, bool);
 
     // initialize worker environment, state
     args = mainArgs; // args must be set first in Isolate
     initLogging('ps-$clientNum');
 
-    // initialize PostgreSQL
-    await pg.init(
-      table,
-      false,
-    ); // database table was initialized in main Isolate
-
-    // initialize PowerSync db
-    await initDb(
-      table,
-      '${Directory.current.path}/ps-$clientNum.sqlite3',
-      preserveSqlite3Data: preserveSqlite3Data,
+    final endpointDb = switch (endpoint) {
+      Endpoints.powersync => PSEndpoint(),
+      Endpoints.postgresql => PGEndpoint(),
+    };
+    await endpointDb.init(
+      filePath: '${Directory.current.path}/ps-$clientNum.sqlite3',
+      preserveData: preserveData,
     );
 
     // Isolate needs to be able to receive txn messages, and message Worker how to send to Isolate's txn receive port
@@ -148,8 +133,8 @@ class Worker {
     apiSendPort.send(apiReceivePort.sendPort);
 
     // setup Isolate to handle incoming commands, send responses
-    _handleTxnRequestsToIsolate(txnReceivePort, txnSendPort, endpoint);
-    _handleApiRequestsToIsolate(apiReceivePort, apiSendPort, endpoint);
+    _handleTxnRequestsToIsolate(txnReceivePort, txnSendPort, endpointDb);
+    _handleApiRequestsToIsolate(apiReceivePort, apiSendPort, endpointDb);
   }
 
   static void _handleTxnRequestsToIsolate(
@@ -162,6 +147,7 @@ class Worker {
       // shutdown?
       if (message == 'shutdown') {
         receivePort.close();
+        await endpoint.close();
         return;
       }
 
@@ -275,7 +261,12 @@ class Worker {
     if (!_txnsClosed) {
       _txnsClosed = true;
       _txnRequests.send('shutdown');
-      if (activeTxnRequests.isEmpty) _txnResponses.close();
+      if (activeTxnRequests.isNotEmpty) {
+        log.warning(
+          'Closing txn response stream with active requests: $activeTxnRequests',
+        );
+      }
+      _txnResponses.close();
     }
   }
 
@@ -283,7 +274,12 @@ class Worker {
     if (!_apisClosed) {
       _apisClosed = true;
       _apiRequests.send('shutdown');
-      if (_activeApiRequests.isEmpty) _apiResponses.close();
+      if (_activeApiRequests.isNotEmpty) {
+        log.warning(
+          'closing api response stream with active api requests: $_activeApiRequests',
+        );
+      }
+      _apiResponses.close();
     }
   }
 

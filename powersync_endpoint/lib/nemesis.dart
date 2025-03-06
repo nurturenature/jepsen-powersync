@@ -5,8 +5,6 @@ import 'package:list_utilities/list_utilities.dart';
 import 'package:synchronized/synchronized.dart';
 import 'endpoint.dart';
 import 'log.dart';
-import 'postgresql.dart' as pg;
-import 'ps_endpoint.dart' as pse;
 import 'utils.dart' as utils;
 import 'worker.dart';
 
@@ -71,9 +69,6 @@ class Nemesis {
   final PauseState _pauseState = PauseState();
   late final Stream<PauseStates> Function() _pauseStream;
   late final StreamSubscription<PauseStates> _pauseSubscription;
-
-  // Endpoint knows what messages to send
-  final pse.PSEndpoint _pse = pse.PSEndpoint();
 
   // source of randomness
   final _rng = Random();
@@ -272,7 +267,7 @@ class Nemesis {
         final List<int> affectedClientNums = [];
         for (final clientNum in actOnClientNums) {
           affectedClientFutures.add(
-            StopStart.stopOrStart(_clients, clientNum, stopStartMessage, _pse),
+            StopStart.stopOrStart(_clients, clientNum, stopStartMessage),
           );
           affectedClientNums.add(clientNum);
         }
@@ -307,12 +302,7 @@ class Nemesis {
     for (final clientNum in _allClientNums) {
       // conditionally, not in _clients, start new client as clientNum
       affectedClientFutures.add(
-        StopStart.stopOrStart(
-          _clients,
-          clientNum,
-          StopStartStates.started,
-          _pse,
-        ),
+        StopStart.stopOrStart(_clients, clientNum, StopStartStates.started),
       );
       affectedClientNums.add(clientNum);
     }
@@ -364,7 +354,7 @@ class Nemesis {
         final List<int> affectedClientNums = [];
         for (final clientNum in actOnClientNums) {
           affectedClientFutures.add(
-            KillStart.killOrStart(_clients, clientNum, killStartMessage, _pse),
+            KillStart.killOrStart(_clients, clientNum, killStartMessage),
           );
           affectedClientNums.add(clientNum);
         }
@@ -399,12 +389,7 @@ class Nemesis {
     for (final clientNum in _allClientNums) {
       // conditionally, not in _clients, start new client as clientNum
       affectedClientFutures.add(
-        KillStart.killOrStart(
-          _clients,
-          clientNum,
-          KillStartStates.started,
-          _pse,
-        ),
+        KillStart.killOrStart(_clients, clientNum, KillStartStates.started),
       );
       affectedClientNums.add(clientNum);
     }
@@ -554,7 +539,6 @@ class StopStart {
     Set<Worker> clients,
     int clientNum,
     StopStartStates stopStartType,
-    pse.PSEndpoint pse,
   ) async {
     switch (stopStartType) {
       case StopStartStates.stopped:
@@ -599,10 +583,9 @@ class StopStart {
 
         clients.add(
           await Worker.spawn(
-            pg.Tables.mww,
+            Endpoints.powersync,
             clientNum,
-            pse,
-            preserveSqlite3Data: true,
+            preserveData: true,
           ),
         );
 
@@ -639,7 +622,6 @@ class KillStart {
     Set<Worker> clients,
     int clientNum,
     KillStartStates killStartType,
-    pse.PSEndpoint pse,
   ) async {
     switch (killStartType) {
       case KillStartStates.killed:
@@ -677,10 +659,9 @@ class KillStart {
 
         clients.add(
           await Worker.spawn(
-            pg.Tables.mww,
+            Endpoints.powersync,
             clientNum,
-            pse,
-            preserveSqlite3Data: true,
+            preserveData: true,
           ),
         );
 

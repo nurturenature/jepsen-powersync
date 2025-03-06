@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:synchronized/synchronized.dart';
 import 'endpoint.dart';
 import 'log.dart';
-import 'postgresql.dart' as pg;
+import 'pg_endpoint.dart';
 import 'worker.dart';
 
 // TODO: add a possible writes state
@@ -281,17 +281,20 @@ class CausalChecker {
 /// Treat PostgreSQL as the source of truth and look for differences with each client.
 /// Any differences are errors.
 Future<void> checkStrongConvergence(Set<Worker> clients) async {
+  // use our own independent PostgreSQL connection to make a final read
+  final pg = PGEndpoint();
+  await pg.init();
+  final Map<int, int> finalPgRead = await pg.selectAll();
+  await pg.close();
+
   // build a divergent map:
   // {pg:   {k: v}   k/v for any diffs in any ps-#
   //  ps-#: {k: v}}  k/v for this ps-# diff than pg
   final Map<String, Map<int, int>> divergent = SplayTreeMap();
-  final Map<int, int> finalPgRead = await pg.selectAllMWW();
 
   for (Worker client in clients) {
     final Map<int, int> finalPsRead =
-        (await client.executeApi(
-          Endpoint.selectAllMessage(pg.Tables.mww),
-        ))['value']['v'];
+        (await client.executeApi(Endpoint.selectAllMessage()))['value']['v'];
     for (final int k in finalPgRead.keys) {
       final pgV = finalPgRead[k]!;
       final psV = finalPsRead[k]!;
