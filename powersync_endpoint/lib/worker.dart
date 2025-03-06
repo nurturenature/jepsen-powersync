@@ -261,12 +261,7 @@ class Worker {
     if (!_txnsClosed) {
       _txnsClosed = true;
       _txnRequests.send('shutdown');
-      if (activeTxnRequests.isNotEmpty) {
-        log.warning(
-          'Closing txn response stream with active requests: $activeTxnRequests',
-        );
-      }
-      _txnResponses.close();
+      if (activeTxnRequests.isEmpty) _txnResponses.close();
     }
   }
 
@@ -274,12 +269,7 @@ class Worker {
     if (!_apisClosed) {
       _apisClosed = true;
       _apiRequests.send('shutdown');
-      if (_activeApiRequests.isNotEmpty) {
-        log.warning(
-          'closing api response stream with active api requests: $_activeApiRequests',
-        );
-      }
-      _apiResponses.close();
+      if (_activeApiRequests.isEmpty) _apiResponses.close();
     }
   }
 
