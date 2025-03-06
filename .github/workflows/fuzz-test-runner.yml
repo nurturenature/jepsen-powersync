@@ -126,7 +126,7 @@ jobs:
         repeat:       ${{ fromJSON(inputs.args).repeat }}
 
     env:
-      test-title: ${{ matrix.clients}}c-${{ matrix.rate }}tps-${{ matrix.time }}s-${{ matrix.postgresql }}-${{ matrix.disconnect }}-${{ matrix.stop-or-kill }}-${{ matrix.partition }}-${{ matrix.pause }}-${{ matrix.cli-opts }}s-${{ matrix.repeat }}
+      test-title: ${{ matrix.clients}}c-${{ matrix.rate }}tps-${{ matrix.time }}s-${{ matrix.postgresql }}-${{ matrix.disconnect }}-${{ matrix.stop-or-kill }}-${{ matrix.partition }}-${{ matrix.pause }}-${{ matrix.cli-opts }}-${{ matrix.repeat }}
       POWERSYNC_IMAGE_TAG: ${{ fromJSON(inputs.args).powersync-image-tag }}
 
     steps:
