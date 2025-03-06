@@ -52,7 +52,7 @@ on:
         description: 'A JSON Map of args (workaround GitHub max inputs)'
         type: string
         required: true
-        default: "{'repeat': [ '1', '2', '3', '4', '5', '6', '7', '8', '9', '10' ], 'timeout-minutes': 10, , 'powersync-image-tag': 'latest'}"
+        default: "{'repeat': [ '1', '2', '3', '4', '5', '6', '7', '8', '9', '10' ], 'timeout-minutes': 10, 'powersync-image-tag': 'latest'}"
 
 jobs:
   fuzz-non-monotonic-reads:
