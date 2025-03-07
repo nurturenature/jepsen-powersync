@@ -147,7 +147,6 @@ class Worker {
       // shutdown?
       if (message == 'shutdown') {
         receivePort.close();
-        await endpoint.close();
         return;
       }
 

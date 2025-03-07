@@ -100,10 +100,21 @@ void main(List<String> arguments) async {
         log.info('check for strong convergence in final reads');
         await checkStrongConvergence(clients);
 
+        // close all databases
+        for (Worker client in clients) {
+          await client.executeApi(Endpoint.closeMessage());
+        }
+
         // close all client txn/api ports
         for (Worker client in clients) {
           client.closeTxns();
           client.closeApis();
         }
+
+        log.info('');
+        log.info('Success!');
+        log.info('Final reads had Strong Convergence');
+        log.info('All transactions were Atomic and Causally Consistent');
+        exit(0);
       });
 }

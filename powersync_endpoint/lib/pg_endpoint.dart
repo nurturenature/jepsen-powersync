@@ -162,6 +162,11 @@ class PGEndpoint extends Endpoint {
         op['value']['v'] = {'pg': 'always-connected'};
         break;
 
+      case 'close':
+        await close();
+        op['value']['v'] = {'pg': 'closed'};
+        break;
+
       case 'upload-queue-count':
         op['value']['v'] = {'pg': 'no-queue'};
         break;
