@@ -8,8 +8,8 @@
                  [causal "0.1.0-SNAPSHOT"]
                  [cheshire "5.13.0"]
                  [clj-http "3.13.0"]
-                 [com.github.seancorfield/next.jdbc "1.3.955"]
-                 [org.postgresql/postgresql "42.7.4"]]
+                 [com.github.seancorfield/next.jdbc "1.3.1002"]
+                 [org.postgresql/postgresql "42.7.5"]]
   :jvm-opts ["-Xmx8g"
              "-Djava.awt.headless=true"
              "-server"]
