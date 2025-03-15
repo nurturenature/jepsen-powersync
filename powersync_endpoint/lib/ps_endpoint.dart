@@ -200,11 +200,6 @@ class PSEndpoint extends Endpoint {
           'db.connected': connected,
           'db.currentStatus': currentStatus,
         };
-        if (!connected) {
-          log.warning(
-            'PowerSyncDatabase: expected db.connected to be true after db.connect(): $v',
-          );
-        }
         op['value']['v'] = v;
         break;
 
@@ -218,11 +213,6 @@ class PSEndpoint extends Endpoint {
           'db.connected': connected,
           'db.currentStatus': currentStatus,
         };
-        if (connected) {
-          log.warning(
-            'PowerSyncDatabase: expected db.connected to be false after db.disconnect(): $v',
-          );
-        }
         op['value']['v'] = v;
         break;
 
@@ -327,13 +317,7 @@ Future<void> _deleteSqlite3Files(String sqlite3Path) async {
 // log PowerSync status changes
 void _logSyncStatus(PowerSyncDatabase db) {
   db.statusStream.listen((syncStatus) {
-    // state mismatch
-    if (!syncStatus.connected &&
-        (syncStatus.downloading || syncStatus.uploading)) {
-      log.warning(
-        'SyncStatus: syncStatus.connected is false yet uploading|downloading: $syncStatus',
-      );
-    }
+    // hasSynced and lastSyncedAt mismatch
     if ((syncStatus.hasSynced == false && syncStatus.lastSyncedAt != null) ||
         (syncStatus.hasSynced == true && syncStatus.lastSyncedAt == null)) {
       log.warning(
