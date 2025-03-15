@@ -1,8 +1,6 @@
 import 'dart:collection';
 import 'dart:io';
-import 'package:http/http.dart' as http;
 import 'package:powersync/powersync.dart';
-import 'package:powersync/sqlite_async.dart' as sqlite;
 import 'args.dart';
 import 'backend_connector.dart';
 import 'endpoint.dart';
@@ -301,166 +299,29 @@ class PSEndpoint extends Endpoint {
       )).map((row) => MapEntry(row['k'], row['v'])),
     );
   }
-}
 
-// delete any existing SQLite3 files
-Future<void> _deleteSqlite3Files(String sqlite3Path) async {
-  try {
-    await File(sqlite3Path).delete();
-    await File('$sqlite3Path-shm').delete();
-    await File('$sqlite3Path-wal').delete();
-  } catch (ex) {
-    // don't care
-  }
-}
-
-// log PowerSync status changes
-void _logSyncStatus(PowerSyncDatabase db) {
-  db.statusStream.listen((syncStatus) {
-    // hasSynced and lastSyncedAt mismatch
-    if ((syncStatus.hasSynced == false && syncStatus.lastSyncedAt != null) ||
-        (syncStatus.hasSynced == true && syncStatus.lastSyncedAt == null)) {
-      log.warning(
-        'SyncStatus: syncStatus.hasSynced/lastSyncedAt mismatch: $syncStatus',
-      );
+  // delete any existing SQLite3 files
+  Future<void> _deleteSqlite3Files(String sqlite3Path) async {
+    try {
+      await File(sqlite3Path).delete();
+      await File('$sqlite3Path-shm').delete();
+      await File('$sqlite3Path-wal').delete();
+    } catch (ex) {
+      // don't care
     }
+  }
 
-    // no errors
-    if (syncStatus.anyError == null) {
+  // log PowerSync status changes
+  void _logSyncStatus(PowerSyncDatabase db) {
+    db.statusStream.listen((syncStatus) {
       log.finest('$syncStatus');
-      return;
-    }
-
-    // upload error
-    if (syncStatus.uploadError != null) {
-      // ignorable
-      if (_ignorableUploadError(syncStatus.uploadError!)) {
-        log.info(
-          'SyncStatus: ignorable upload error in statusStream: ${syncStatus.uploadError}',
-        );
-        return;
-      }
-      // unexpected
-      log.severe(
-        'SyncStatus: unexpected upload error in statusStream: ${syncStatus.uploadError}',
-      );
-      exit(40);
-    }
-
-    // download error
-    if (syncStatus.downloadError != null) {
-      // ignorable
-      if (_ignorableDownloadError(syncStatus.downloadError!)) {
-        log.info(
-          'SyncStatus: ignorable download error in statusStream: ${syncStatus.downloadError}',
-        );
-        return;
-      }
-      // unexpected
-      log.severe(
-        'SyncStatus: unexpected download error in statusStream: ${syncStatus.downloadError}',
-      );
-      exit(41);
-    }
-
-    // WTF?
-    throw StateError('Error interpreting syncStatus: $syncStatus');
-  });
-}
-
-// log PowerSync db updates
-void _logUpdates(PowerSyncDatabase db) {
-  db.updates.listen((updateNotification) {
-    log.finest('$updateNotification');
-  });
-}
-
-// can this upload error be ignored?
-bool _ignorableUploadError(Object ex) {
-  // exposed by disconnect-connect nemesis
-  if (ex is sqlite.ClosedException) {
-    return true;
+    });
   }
 
-  // exposed by nemesis
-  if (ex is http.ClientException &&
-      (ex.message.startsWith(
-            'Connection closed before full header was received',
-          ) ||
-          ex.message.startsWith(
-            'HTTP request failed. Client is already closed.',
-          ) ||
-          ex.message.startsWith('Broken pipe') ||
-          ex.message.startsWith('Connection reset by peer') ||
-          ex.message.contains('Connection timed out'))) {
-    return true;
+  // log PowerSync db updates
+  void _logUpdates(PowerSyncDatabase db) {
+    db.updates.listen((updateNotification) {
+      log.finest('$updateNotification');
+    });
   }
-
-  // exposed by nemesis
-  if (ex is Exception &&
-      ex.toString().contains(
-        'ClientException with SocketException: Connection timed out (OS Error: Connection timed out, errno = 110)',
-      )) {
-    return true;
-  }
-
-  // exposed by nemesis
-  if (ex is SyncResponseException &&
-      ex.statusCode == 408 &&
-      ex.description.startsWith('Request Timeout')) {
-    return true;
-  }
-
-  // exposed by disconnect-connect nemesis
-  if (ex is SyncResponseException &&
-      ex.statusCode == 429 &&
-      ex.description.startsWith('Too Many Requests')) {
-    return true;
-  }
-
-  // don't ignore unexpected
-  return false;
-}
-
-// can this download error be ignored?
-bool _ignorableDownloadError(Object ex) {
-  // exposed by disconnect-connect nemesis
-  if (ex is sqlite.ClosedException) {
-    return true;
-  }
-
-  // exposed by nemesis
-  if (ex is http.ClientException &&
-      (ex.message.startsWith(
-            'Connection closed before full header was received',
-          ) ||
-          ex.message.startsWith('Broken pipe') ||
-          ex.message.startsWith('Connection reset by peer'))) {
-    return true;
-  }
-
-  // exposed by nemesis
-  if (ex is Exception &&
-      ex.toString().contains(
-        'ClientException with SocketException: Connection timed out (OS Error: Connection timed out, errno = 110)',
-      )) {
-    return true;
-  }
-
-  // exposed by disconnect-connect nemesis
-  if (ex is SyncResponseException &&
-      ex.statusCode == 401 &&
-      ex.description.contains('"exp" claim timestamp check failed')) {
-    return true;
-  }
-
-  // exposed by nemeses
-  if (ex is SyncResponseException &&
-      ex.statusCode == 408 &&
-      ex.description.contains('Request Timeout')) {
-    return true;
-  }
-
-  // don't ignore unexpected
-  return false;
 }

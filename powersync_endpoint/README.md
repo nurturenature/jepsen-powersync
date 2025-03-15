@@ -182,9 +182,6 @@ Usage: dart powersync_(http|fuzz).dart <flags> [arguments]
 
 <tr><td>30</td><td>BackendConnector upload failure</td></tr>
 
-<tr><td>40</td><td>unknown upload error in SyncStatus</td></tr>
-<tr><td>41</td><td>unknown download error in SyncStatus</td></tr>
-
 <tr><td>100</td><td>invalid state due to coding error</td></tr>
 </table>
 
