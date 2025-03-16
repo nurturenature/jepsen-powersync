@@ -197,7 +197,7 @@ class Worker {
       try {
         log.fine('database api: request: $api');
 
-        await endpoint.powersyncApi(api);
+        await endpoint.dbApi(api);
 
         log.fine('database api: response: $api');
         sendPort.send((id, api));

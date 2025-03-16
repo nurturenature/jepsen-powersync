@@ -1,6 +1,7 @@
 import 'package:test/test.dart';
 import 'package:powersync_endpoint/args.dart';
 import 'package:powersync_endpoint/causal_checker.dart';
+import 'package:powersync_endpoint/endpoint.dart';
 import 'package:powersync_endpoint/log.dart';
 
 void main() {
@@ -23,8 +24,7 @@ void main() {
     readOfUnwritten.addAll({
       'value': [
         {
-          'f': 'read-all',
-          'k': -1,
+          'f': SQLTransactions.readAll.name,
           'v': {0: 0},
         },
       ],
@@ -37,8 +37,7 @@ void main() {
     duplicateWrite.addAll({
       'value': [
         {
-          'f': 'write-some',
-          'k': -1,
+          'f': SQLTransactions.writeSome.name,
           'v': {1: 0},
         },
       ],
@@ -47,8 +46,7 @@ void main() {
     duplicateWrite.addAll({
       'value': [
         {
-          'f': 'write-some',
-          'k': -1,
+          'f': SQLTransactions.writeSome.name,
           'v': {0: 0, 1: 0},
         },
       ],
@@ -61,8 +59,7 @@ void main() {
     readYourWrites.addAll({
       'value': [
         {
-          'f': 'write-some',
-          'k': -1,
+          'f': SQLTransactions.writeSome.name,
           'v': {0: 0, 1: 0},
         },
       ],
@@ -71,8 +68,7 @@ void main() {
     readYourWrites.addAll({
       'value': [
         {
-          'f': 'read-all',
-          'k': -1,
+          'f': SQLTransactions.readAll.name,
           'v': {0: 0, 1: 0, 2: -1},
         },
       ],
@@ -85,8 +81,7 @@ void main() {
     failReadYourWrites.addAll({
       'value': [
         {
-          'f': 'write-some',
-          'k': -1,
+          'f': SQLTransactions.writeSome.name,
           'v': {0: 0, 1: 0},
         },
       ],
@@ -95,8 +90,7 @@ void main() {
     failReadYourWrites.addAll({
       'value': [
         {
-          'f': 'read-all',
-          'k': -1,
+          'f': SQLTransactions.readAll.name,
           'v': {0: 0, 1: -1, 2: -1},
         },
       ],
@@ -110,8 +104,7 @@ void main() {
       'clientNum': 1,
       'value': [
         {
-          'f': 'write-some',
-          'k': -1,
+          'f': SQLTransactions.writeSome.name,
           'v': {0: 0},
         },
       ],
@@ -121,8 +114,7 @@ void main() {
       'clientNum': 1,
       'value': [
         {
-          'f': 'write-some',
-          'k': -1,
+          'f': SQLTransactions.writeSome.name,
           'v': {0: 1, 1: 0},
         },
       ],
@@ -131,8 +123,7 @@ void main() {
       'clientNum': 1,
       'value': [
         {
-          'f': 'write-some',
-          'k': -1,
+          'f': SQLTransactions.writeSome.name,
           'v': {0: 2, 1: 1, 2: 0},
         },
       ],
@@ -142,8 +133,7 @@ void main() {
       'clientNum': 2,
       'value': [
         {
-          'f': 'read-all',
-          'k': -1,
+          'f': SQLTransactions.readAll.name,
           'v': {0: 2, 1: 1, 2: 0},
         },
       ],
@@ -153,8 +143,7 @@ void main() {
       'clientNum': 2,
       'value': [
         {
-          'f': 'read-all',
-          'k': -1,
+          'f': SQLTransactions.readAll.name,
           'v': {0: 1, 1: 0, 2: -1},
         },
       ],
@@ -168,8 +157,7 @@ void main() {
       'clientNum': 1,
       'value': [
         {
-          'f': 'write-some',
-          'k': -1,
+          'f': SQLTransactions.writeSome.name,
           'v': {0: 0, 1: 0},
         },
       ],
@@ -179,13 +167,11 @@ void main() {
       'clientNum': 2,
       'value': [
         {
-          'f': 'read-all',
-          'k': -1,
+          'f': SQLTransactions.readAll.name,
           'v': {0: 0, 1: 0, 2: -1},
         },
         {
-          'f': 'write-some',
-          'k': -1,
+          'f': SQLTransactions.writeSome.name,
           'v': {2: 0},
         },
       ],
@@ -195,8 +181,7 @@ void main() {
       'clientNum': 3,
       'value': [
         {
-          'f': 'read-all',
-          'k': -1,
+          'f': SQLTransactions.readAll.name,
           'v': {0: 0, 1: 0, 2: 0},
         },
       ],
@@ -210,8 +195,7 @@ void main() {
       'clientNum': 1,
       'value': [
         {
-          'f': 'write-some',
-          'k': -1,
+          'f': SQLTransactions.writeSome.name,
           'v': {0: 0, 1: 0},
         },
       ],
@@ -221,13 +205,11 @@ void main() {
       'clientNum': 2,
       'value': [
         {
-          'f': 'read-all',
-          'k': -1,
+          'f': SQLTransactions.readAll.name,
           'v': {0: 0, 1: 0, 2: -1},
         },
         {
-          'f': 'write-some',
-          'k': -1,
+          'f': SQLTransactions.writeSome.name,
           'v': {2: 0},
         },
       ],
@@ -237,8 +219,7 @@ void main() {
       'clientNum': 3,
       'value': [
         {
-          'f': 'read-all',
-          'k': -1,
+          'f': SQLTransactions.readAll.name,
           'v': {0: -1, 1: 0, 2: 0},
         },
       ],

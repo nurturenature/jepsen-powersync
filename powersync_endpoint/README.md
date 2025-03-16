@@ -114,7 +114,7 @@ enum _Reasons {
 }
 ```
 ```log
-[main] [SEVERE] read of {0: 387} is less than expected read of {0: 548}, expected because myPreviousRead, in op: {clientNum: 2, clientType: ps, id: 61, table: mww, type: ok, value: [{f: read-all, v: {0: 387, ...}}, {f: write-some, v: {9: 694, ...}}]}
+[main] [SEVERE] read of {0: 387} is less than expected read of {0: 548}, expected because myPreviousRead, in op: {clientNum: 2, clientType: ps, id: 61, table: mww, type: ok, value: [{f: readAll, v: {0: 387, ...}}, {f: writeSome, v: {9: 694, ...}}]}
 ```
 
 ----

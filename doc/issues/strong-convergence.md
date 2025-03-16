@@ -56,16 +56,16 @@ Let's look at key 2 as both clients and PostgreSQL all have different values by 
 - PostgreSQL: `grep '2: 14949' powersync_fuzz.log`
   ```log
   # written by client ps-5
-  [2025-03-04 23:17:16.267290] [ps-5] [FINE] SQL txn: response: {clientNum: 5, clientType: ps, value: [{f: write-some, k: -1, v: {2: 14949, 81: 14949, 14: 14949, 63: 14949}}]}
+  [2025-03-04 23:17:16.267290] [ps-5] [FINE] SQL txn: response: {clientNum: 5, clientType: ps, value: [{f: writeSome, k: -1, v: {2: 14949, 81: 14949, 14: 14949, 63: 14949}}]}
   
   # ps-5 BackendConnector.uploadData()
   [2025-03-04 23:17:16.279645] [ps-5] [FINER] uploadData: txn: 1369 patch: {2: 14949}
   
   # ps-5 repeatedly reads
-  [2025-03-04 23:17:16.459805] [ps-5] [FINE] SQL txn: response: {clientNum: 5, clientType: ps, value: [{f: read-all, k: -1, v: {... 2: 14949, ...}}]}
+  [2025-03-04 23:17:16.459805] [ps-5] [FINE] SQL txn: response: {clientNum: 5, clientType: ps, value: [{f: readAll, k: -1, v: {... 2: 14949, ...}}]}
   
   # ps-0, PostgreSQL repeatedly reads
-  [2025-03-04 23:17:16.573451] [ps-0] [FINE] SQL txn: response: {clientNum: 0, clientType: pg, value: [{f: read-all, k: -1, v: {..., 2: 14949, ...}}]}
+  [2025-03-04 23:17:16.573451] [ps-0] [FINE] SQL txn: response: {clientNum: 0, clientType: pg, value: [{f: readAll, k: -1, v: {..., 2: 14949, ...}}]}
   ```
 - no other clients interact with '2: 14949'
 

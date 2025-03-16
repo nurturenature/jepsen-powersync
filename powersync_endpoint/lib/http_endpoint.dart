@@ -48,36 +48,28 @@ Future<Response> _powersync(Request req, String action) async {
 
   switch (action) {
     case 'connect':
-      response =
-          (await _pse.powersyncApi(Endpoint.connectMessage()))['value']['v'];
+      response = (await _pse.dbApi(Endpoint.connectMessage()))['value']['v'];
       response['db.currentStatus'] = response['db.currentStatus'].toString();
       break;
 
     case 'disconnect':
-      response =
-          (await _pse.powersyncApi(Endpoint.disconnectMessage()))['value']['v'];
+      response = (await _pse.dbApi(Endpoint.disconnectMessage()))['value']['v'];
       response['db.currentStatus'] = response['db.currentStatus'].toString();
       break;
 
     case 'upload-queue-count':
       response =
-          (await _pse.powersyncApi(
-            Endpoint.uploadQueueCountMessage(),
-          ))['value']['v'];
+          (await _pse.dbApi(Endpoint.uploadQueueCountMessage()))['value']['v'];
       break;
 
     case 'upload-queue-wait':
       response =
-          (await _pse.powersyncApi(
-            Endpoint.uploadQueueWaitMessage(),
-          ))['value']['v'];
+          (await _pse.dbApi(Endpoint.uploadQueueWaitMessage()))['value']['v'];
       break;
 
     case 'downloading-wait':
       response =
-          (await _pse.powersyncApi(
-            Endpoint.downloadingWaitMessage(),
-          ))['value']['v'];
+          (await _pse.dbApi(Endpoint.downloadingWaitMessage()))['value']['v'];
       break;
 
     default:

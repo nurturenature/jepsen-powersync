@@ -1,22 +1,37 @@
 import 'dart:collection';
 import 'package:list_utilities/list_utilities.dart';
-import 'package:powersync/sqlite3.dart' as sqlite3;
 import 'args.dart';
-import 'schema.dart';
 
 /// types of Endpoints
 enum Endpoints { powersync, postgresql }
+
+/// types of SQL transactions
+enum SQLTransactions { readAll, writeSome }
+
+/// lookup Map for SQL Transactions
+final sqlTransactionLookup = SQLTransactions.values.asNameMap();
+
+/// types of API calls
+enum APICalls {
+  connect,
+  disconnect,
+  close,
+  selectAll,
+  uploadQueueCount,
+  uploadQueueWait,
+  downloadingWait,
+}
+
+/// lookup Map for API Calls
+final apiCallLookup = APICalls.values.asNameMap();
 
 abstract class Endpoint {
   /// initialize the database
   Future<void> init({String filePath = '', bool preserveData = false});
 
-  /// close the database
-  Future<void> close();
-
   /// Execute an sql transaction and return the results:
   /// - request is an operation styled as a  Jepsen op as a SplayTreeMap
-  ///   - transaction maps are in value: [{f: read-all | write-some, k: -1, v: {k: v}}...]
+  ///   - transaction maps are in value: [{f: readAll | writeSome, k: -1, v: {k: v}}...]
   /// - response is an updated op with the txn results
   ///
   /// No Exceptions are expected!
@@ -25,7 +40,7 @@ abstract class Endpoint {
   Future<SplayTreeMap> sqlTxn(SplayTreeMap op);
 
   /// api endpoint, will use the underlying db api for connect/disconnect, upload-queue-count/upload-queue-wait, select-all, etc
-  Future<SplayTreeMap> powersyncApi(SplayTreeMap op);
+  Future<SplayTreeMap> dbApi(SplayTreeMap op);
 
   /// returns a transaction message that:
   ///   - reads all key/values
@@ -48,10 +63,9 @@ abstract class Endpoint {
       'type': 'invoke',
       'f': 'txn',
       'value': [
-        {'f': 'read-all', 'k': -1, 'v': reads},
-        {'f': 'write-some', 'k': -1, 'v': writes},
+        {'f': SQLTransactions.readAll.name, 'v': reads},
+        {'f': SQLTransactions.writeSome.name, 'v': writes},
       ],
-      'table': Tables.mww.name,
     });
   }
 
@@ -59,7 +73,7 @@ abstract class Endpoint {
     return SplayTreeMap.of({
       'type': 'invoke',
       'f': 'api',
-      'value': {'f': 'connect', 'v': {}},
+      'value': {'f': APICalls.connect.name, 'v': {}},
     });
   }
 
@@ -67,7 +81,7 @@ abstract class Endpoint {
     return SplayTreeMap.of({
       'type': 'invoke',
       'f': 'api',
-      'value': {'f': 'disconnect', 'v': {}},
+      'value': {'f': APICalls.disconnect.name, 'v': {}},
     });
   }
 
@@ -75,7 +89,7 @@ abstract class Endpoint {
     return SplayTreeMap.of({
       'type': 'invoke',
       'f': 'api',
-      'value': {'f': 'close', 'v': {}},
+      'value': {'f': APICalls.close.name, 'v': {}},
     });
   }
 
@@ -83,12 +97,7 @@ abstract class Endpoint {
     return SplayTreeMap.of({
       'type': 'invoke',
       'f': 'api',
-      'value': {
-        'f': 'select-all',
-        'k': -1,
-        'v': <sqlite3.Row>{},
-        'table': Tables.mww.name,
-      },
+      'value': {'f': APICalls.selectAll.name, 'v': {}},
     });
   }
 
@@ -96,7 +105,7 @@ abstract class Endpoint {
     return SplayTreeMap.of({
       'type': 'invoke',
       'f': 'api',
-      'value': {'f': 'upload-queue-count', 'v': {}},
+      'value': {'f': APICalls.uploadQueueCount.name, 'v': {}},
     });
   }
 
@@ -104,7 +113,7 @@ abstract class Endpoint {
     return SplayTreeMap.of({
       'type': 'invoke',
       'f': 'api',
-      'value': {'f': 'upload-queue-wait', 'v': {}},
+      'value': {'f': APICalls.uploadQueueWait.name, 'v': {}},
     });
   }
 
@@ -112,7 +121,7 @@ abstract class Endpoint {
     return SplayTreeMap.of({
       'type': 'invoke',
       'f': 'api',
-      'value': {'f': 'downloading-wait', 'v': {}},
+      'value': {'f': APICalls.downloadingWait.name, 'v': {}},
     });
   }
 }

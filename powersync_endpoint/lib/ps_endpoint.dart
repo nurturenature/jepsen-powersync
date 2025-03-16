@@ -93,11 +93,6 @@ class PSEndpoint extends Endpoint {
   }
 
   @override
-  Future<void> close() async {
-    await _db.close();
-  }
-
-  @override
   Future<SplayTreeMap> sqlTxn(SplayTreeMap op) async {
     assert(op['type'] == 'invoke');
     assert(op['f'] == 'txn');
@@ -109,8 +104,9 @@ class PSEndpoint extends Endpoint {
     await _db.writeTransaction((tx) async {
       late final Map<int, int> readAll;
       final valueAsFutures = op['value'].map((mop) async {
-        switch (mop['f']) {
-          case 'read-all':
+        final f = sqlTransactionLookup[mop['f']]!;
+        switch (f) {
+          case SQLTransactions.readAll:
             final select = await tx.getAll('SELECT k,v FROM mww ORDER BY k;');
 
             // db is pre-seeded so all keys expected in result when reading
@@ -130,7 +126,7 @@ class PSEndpoint extends Endpoint {
 
             return mop;
 
-          case 'write-some':
+          case SQLTransactions.writeSome:
             final Map<int, int> writeSome = mop['v'];
             // from the time of our txn request, sent via a ReceivePort
             //   - a txn from another client may have completed and replicated
@@ -157,11 +153,6 @@ class PSEndpoint extends Endpoint {
             }
 
             return mop;
-
-          default:
-            throw StateError(
-              'PowerSyncDatabase: invalid f: ${mop['f']} in mop: $mop in op: $op',
-            );
         }
       });
 
@@ -177,7 +168,7 @@ class PSEndpoint extends Endpoint {
   }
 
   @override
-  Future<SplayTreeMap> powersyncApi(SplayTreeMap op) async {
+  Future<SplayTreeMap> dbApi(SplayTreeMap op) async {
     assert(op['type'] == 'invoke');
     assert(op['f'] == 'api');
     assert(op['value'] != null);
@@ -187,75 +178,47 @@ class PSEndpoint extends Endpoint {
 
     String newType = 'ok';
 
-    switch (op['value']['f']) {
-      case 'connect':
+    final f = apiCallLookup[op['value']['f']]!;
+    switch (f) {
+      case APICalls.connect:
         await _db.connect(connector: _connector);
-        final closed = _db.closed;
-        final connected = _db.connected;
-        final currentStatus = _db.currentStatus;
-        final v = {
-          'db.closed': closed,
-          'db.connected': connected,
-          'db.currentStatus': currentStatus,
-        };
-        op['value']['v'] = v;
+        op['value']['v'] = {'db': 'connected'};
         break;
 
-      case 'disconnect':
+      case APICalls.disconnect:
         await _db.disconnect();
-        final closed = _db.closed;
-        final connected = _db.connected;
-        final currentStatus = _db.currentStatus;
-        final v = {
-          'db.closed': closed,
-          'db.connected': connected,
-          'db.currentStatus': currentStatus,
-        };
-        op['value']['v'] = v;
+        op['value']['v'] = {'db': 'disconnected'};
         break;
 
-      case 'close':
+      case APICalls.close:
         await _db.close();
-        final closed = _db.closed;
-        final connected = _db.connected;
-        final currentStatus = _db.currentStatus;
-        final v = {
-          'db.closed': closed,
-          'db.connected': connected,
-          'db.currentStatus': currentStatus,
-        };
-        if (!closed || connected) {
-          log.warning(
-            'PowerSyncDatabase: expected db.closed to be true and db.connected to be false after db.close(): $v',
-          );
-        }
-        op['value']['v'] = v;
+        op['value']['v'] = {'db': 'closed'};
         break;
 
-      case 'upload-queue-count':
+      case APICalls.uploadQueueCount:
         final uploadQueueCount = (await _db.getUploadQueueStats()).count;
         op['value']['v'] = {'db.uploadQueueStats.count': uploadQueueCount};
         break;
 
-      case 'upload-queue-wait':
+      case APICalls.uploadQueueWait:
         while ((await _db.getUploadQueueStats()).count != 0) {
-          log.info(
-            'PowerSyncDatabase: waiting for db.uploadQueueStats.count == 0, currently ${(await _db.getUploadQueueStats()).count}...',
+          log.fine(
+            'database api: ${APICalls.uploadQueueWait.name}: waiting on UploadQueueStats.count: ${(await _db.getUploadQueueStats()).count}...',
           );
           await futureSleep(1000);
         }
         op['value']['v'] = {'db.uploadQueueStats.count': 'queue-empty'};
         break;
 
-      case 'downloading-wait':
+      case APICalls.downloadingWait:
         const maxTries = 30;
         const waitPerTry = 1000;
 
         int onTry = 1;
         var currentStatus = _db.currentStatus;
         while ((currentStatus.downloading) == true && onTry <= maxTries) {
-          log.info(
-            'PowerSyncDatabase: waiting for db.currentStatus.downloading == false: on try $onTry: $currentStatus',
+          log.fine(
+            'database api: ${APICalls.downloadingWait.name}: waiting on SyncStatus.downloading: true...',
           );
           await futureSleep(waitPerTry);
           onTry++;
@@ -265,26 +228,20 @@ class PSEndpoint extends Endpoint {
           newType = 'error';
           op['type'] = newType; // update op now for better error message
           op['value']['v'] = {
-            'error': 'Tried ${onTry - 1} times every ${waitPerTry}ms',
-            'db.currentStatus.downloading': currentStatus.downloading,
+            'error':
+                'waited for SyncStatus.downloading: false $onTry times every ${waitPerTry}ms',
           };
           log.warning(
-            'PowerSyncDatabase: waited for db.currentStatus.downloading == false: tried $onTry times every ${waitPerTry}ms',
+            'database api: ${APICalls.downloadingWait.name}: waited for SyncStatus.downloading: false $onTry times every ${waitPerTry}ms',
           );
         } else {
-          op['value']['v'] = {
-            'db.currentStatus.downloading': currentStatus.downloading,
-          };
+          op['value']['v'] = {'db.SyncStatus.downloading:': false};
         }
         break;
 
-      case 'select-all':
+      case APICalls.selectAll:
         op['value']['v'] = await _selectAll();
         break;
-
-      default:
-        log.severe('PowerSyncDatabase: unknown powersyncApi request: $op');
-        exit(100);
     }
 
     op['type'] = newType;

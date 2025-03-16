@@ -50,7 +50,6 @@ class CausalChecker {
         'type': String type,
         'f': String f,
         'value': List<Map<String, dynamic>> value,
-        'table': String table,
         'clientType': String clientType,
         'clientNum': int clientNum,
       } = op;
@@ -65,14 +64,15 @@ class CausalChecker {
       }
 
       // must be an op of interest
-      if (type != 'ok' || f != 'txn' || value.isEmpty || table != 'mww') {
+      if (type != 'ok' || f != 'txn' || value.isEmpty) {
         throw StateError('Invalid request to check op: $op');
       }
 
       // act on each mop, read/write, in value
       for (final mop in value) {
-        switch (mop['f']) {
-          case 'read-all':
+        final f = sqlTransactionLookup[mop['f']]!;
+        switch (f) {
+          case SQLTransactions.readAll:
             final reads = mop['v'] as Map<int, int>;
 
             // transactions are atomic and repeatable read
@@ -103,7 +103,7 @@ class CausalChecker {
 
             break;
 
-          case 'write-some':
+          case SQLTransactions.writeSome:
             final writes = mop['v'] as Map<int, int>;
 
             // check each write k/v
@@ -127,11 +127,6 @@ class CausalChecker {
             );
 
             break;
-
-          default:
-            throw StateError(
-              'Invalid f: ${mop['f']} in value: $value in mop: $mop in op: $op',
-            );
         }
       }
 
@@ -284,8 +279,10 @@ Future<void> checkStrongConvergence(Set<Worker> clients) async {
   // use our own independent PostgreSQL connection to make a final read
   final pg = PGEndpoint();
   await pg.init();
-  final Map<int, int> finalPgRead = await pg.selectAll();
-  await pg.close();
+  final Map<int, int> finalPgRead =
+      (await pg.dbApi(Endpoint.selectAllMessage()))['value']['v']
+          as Map<int, int>;
+  await pg.dbApi(Endpoint.closeMessage());
 
   // build a divergent map:
   // {pg:   {k: v}   k/v for any diffs in any ps-#
