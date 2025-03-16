@@ -132,8 +132,6 @@ Runtime requires manual download of PowerSync's SQLite core `./download-powersyn
 ```bash
 $ ./powersync_fuzz --help
 Usage: dart powersync_(http|fuzz).dart <flags> [arguments]
-    --table                   table name/type
-                              [lww, mww (default)]
 -c, --clients                 number of PowerSync clients
                               (defaults to "5")
     --[no-]postgresql         include a postgresql client
@@ -278,7 +276,7 @@ cd jepsen-powersync/docker
 ./powersync-fuzz-down.sh && ./powersync-fuzz-build.sh && ./powersync-fuzz-up.sh
 
 # run a fuzz test on the fuzzing node
-./powersync-fuzz-run.sh ./powersync_fuzz --table mww --clients 10 --rate 10 --time 100 --postgresql --disconnect --no-stop --no-kill --partition --no-pause --interval 5
+./powersync-fuzz-run.sh ./powersync_fuzz --clients 10 --rate 10 --time 100 --postgresql --disconnect --no-stop --no-kill --partition --no-pause --interval 5
 
 # download the test run's output from the container to the local host for local analysis
 docker cp powersync-fuzz-node:/jepsen/jepsen-powersync/powersync_endpoint/powersync_fuzz.log .
@@ -312,5 +310,5 @@ cd jepsen-powersync/docker
 
 # simplest CLI args most likely to produce a non-monotonic or empty read
 export SUSPECT_EXIT_CODE=2
-./powersync-fuzz-loop.sh ./powersync_fuzz --table mww --clients 10 --rate 10 --time 100 --postgresql --disconnect --no-stop --no-kill --partition --no-pause --interval 5
+./powersync-fuzz-loop.sh ./powersync_fuzz --clients 10 --rate 10 --time 100 --postgresql --disconnect --no-stop --no-kill --partition --no-pause --interval 5
 ```

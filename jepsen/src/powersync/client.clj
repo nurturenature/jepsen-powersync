@@ -27,16 +27,15 @@
       (throw+ {:connection-failure db-spec}))
     conn))
 
-(defrecord PostgreSQLJDBCClient [db-spec table]
+(defrecord PostgreSQLJDBCClient [db-spec]
   client/Client
   (open!
     [this _test node]
-    (info "PostgreSQL opening: " db-spec ", using table: " table)
+    (info "PostgreSQL opening: " db-spec)
     (assoc this
            :node      node
            :conn      (get-jdbc-connection db-spec)
-           :table     table
-           :result-kw (keyword table "v")))
+           :result-kw (keyword "mww" "v")))
 
   (setup!
     [_this _test])
@@ -52,7 +51,7 @@
                           (mapv (fn [[f k v :as mop]]
                                   (case f
                                     :r
-                                    (let [v (->> (jdbc/execute! tx [(str "SELECT k,v FROM " table " WHERE k = " k)])
+                                    (let [v (->> (jdbc/execute! tx [(str "SELECT k,v FROM mww WHERE k = " k)])
                                                  (map result-kw)
                                                  first)
                                           ; v may be nil, '', ' 0...'
@@ -71,7 +70,7 @@
 
                                     :append
                                     (let [insert (->> (jdbc/execute! tx
-                                                                     [(str "INSERT INTO " table " (k,v) VALUES (" k "," v ")"
+                                                                     [(str "INSERT INTO mww (k,v) VALUES (" k "," v ")"
                                                                            " ON CONFLICT (k) DO UPDATE SET v = concat_ws(' '," table ".v,'" v "')")])
                                                       first)]
                                       (assert (= 1 (:next.jdbc/update-count insert)))
@@ -131,9 +130,7 @@
   "Invokes the op against the endpoint and returns the result."
   [op endpoint]
   (let [body   (-> (select-keys op [:value]) ; only sending :value, don't expose rest of op map 
-                   (assoc :table "lww")
-                   op->json)                 ; 
-        ]
+                   op->json)]
     (try
       (let [result (http/post endpoint
                               {:body               body
@@ -179,7 +176,7 @@
     [this {:keys [postgres-nodes] :as _test} node]
     ; PostgreSQL client or PowerSync client
     (if (contains? postgres-nodes node)
-      (client/open! (PostgreSQLJDBCClient. (db-spec test) "lww") test node)
+      (client/open! (PostgreSQLJDBCClient. (db-spec test)) test node)
       (assoc this
              :node node
              :url  (str "http://" node ":8089" "/sql-txn"))))

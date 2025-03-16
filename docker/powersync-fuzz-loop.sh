@@ -3,7 +3,7 @@ set -o pipefail
 
 # Example: find a Causal Consistency violation
 # export SUSPECT_EXIT_CODE=2
-# ./powersync-fuzz-loop.sh ./powersync_fuzz --table mww --clients 10 --rate 10 --time 100 --postgresql --disconnect --no-stop --no-kill --partition --no-pause --interval 5
+# ./powersync-fuzz-loop.sh ./powersync_fuzz --clients 10 --rate 10 --time 100 --postgresql --disconnect --no-stop --no-kill --partition --no-pause --interval 5
 
 # set SUSPECT_EXIT_CODE to exit code to stop looping, or defaults to 1
 SUSPECT_EXIT_CODE=${SUSPECT_EXIT_CODE:-1}

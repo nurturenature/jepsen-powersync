@@ -89,8 +89,7 @@
             {:chdir   app-dir
              :logfile log-file
              :pidfile pid-file}
-            bin-path
-            :--table :lww))
+            bin-path))
           :started)))
 
     (kill!

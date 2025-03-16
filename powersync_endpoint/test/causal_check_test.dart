@@ -5,7 +5,7 @@ import 'package:powersync_endpoint/endpoint.dart';
 import 'package:powersync_endpoint/log.dart';
 
 void main() {
-  parseArgs(['--table', 'mww', '--clients', '3', '--keys', '3']);
+  parseArgs(['--clients', '3', '--keys', '3']);
   initLogging('causal');
 
   test('Causal Consistency', () async {
@@ -13,7 +13,6 @@ void main() {
     final Map<String, dynamic> baseOp = {
       'type': 'ok',
       'f': 'txn',
-      'table': 'mww',
       'clientType': 'ps',
       'clientNum': 1,
     };

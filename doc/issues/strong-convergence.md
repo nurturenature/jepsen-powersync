@@ -98,7 +98,7 @@ To reproduce on a local machine:
 cd jepsen-powersync/docker
 
 # simplest CLI args most likely to produce divergence in several test runs
-./powersync-fuzz-loop.sh ./powersync_fuzz --table mww --clients 10 --rate 50 --time 300 --postgresql
+./powersync-fuzz-loop.sh ./powersync_fuzz --clients 10 --rate 50 --time 300 --postgresql
 
 # cp logs from Docker container to host
 docker cp powersync-fuzz-node:/jepsen/jepsen-powersync/powersync_endpoint/powersync_fuzz.log .

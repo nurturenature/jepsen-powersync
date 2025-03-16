@@ -1,12 +1,10 @@
 import 'dart:io';
 import 'dart:math';
-import 'package:postgres/postgres.dart';
+import 'package:postgres/postgres.dart' as postgres;
 import 'package:powersync/powersync.dart';
 import 'args.dart';
 import 'auth.dart';
 import 'log.dart';
-import 'http_postgresql.dart' as pg;
-import 'schema.dart';
 import 'utils.dart';
 
 /// A `PowerSyncBackendConnector` with:
@@ -42,26 +40,26 @@ const _retryablePgErrors = {
 // retry/delay strategy
 // - delay diversity
 //   - random uniform distribution
-//   - not too big to keep LWW fair(er)
+//   - not too big to keep MWW fair(er)
 // - persistent retries
-//   - relative large max to keep LWW fair(er)
+//   - relative large max to keep MWW fair(er)
 const _minRetryDelay = 32; // in ms, each retry delay is min <= random <= max
 const _maxRetryDelay = 512;
 const _maxRetries = 64;
 final _rng = Random();
 
-dynamic _txWithRetries(Tables table, List<CrudEntry> crud) async {
+dynamic _txWithRetries(postgres.Connection pg, List<CrudEntry> crud) async {
   for (var i = 0; i < _maxRetries; i++) {
     try {
       // execute the PowerSync transaction in a PostgreSQL transaction
       // throwing in the PostgreSQL transaction reverts it
-      await pg.postgreSQL.runTx(
+      await pg.runTx(
         (tx) async {
           for (final crudEntry in crud) {
             switch (crudEntry.op) {
               case UpdateType.put:
                 final put = await tx.execute(
-                  'INSERT INTO ${table.name} (id,k,v) VALUES (\$1,\$2,\$3) RETURNING *',
+                  'INSERT INTO mww (id,k,v) VALUES (\$1,\$2,\$3) RETURNING *',
                   parameters: [
                     crudEntry.id,
                     crudEntry.opData!['k'],
@@ -78,22 +76,11 @@ dynamic _txWithRetries(Tables table, List<CrudEntry> crud) async {
                 break;
 
               case UpdateType.patch:
-                late Result patch;
-                switch (table) {
-                  case Tables.lww:
-                    patch = await tx.execute(
-                      'UPDATE ${table.name} SET v = \'${crudEntry.opData!['v']}\' WHERE id = \'${crudEntry.id}\' RETURNING *',
-                    );
-                    break;
-
-                  case Tables.mww:
-                    // max write wins, so GREATEST() value of v
-                    final v = crudEntry.opData!['v'] as int;
-                    patch = await tx.execute(
-                      'UPDATE ${table.name} SET v = GREATEST($v, ${table.name}.v) WHERE id = \'${crudEntry.id}\' RETURNING *',
-                    );
-                    break;
-                }
+                // max write wins, so GREATEST() value of v
+                final patchV = crudEntry.opData!['v'] as int;
+                final patch = await tx.execute(
+                  'UPDATE mww SET v = GREATEST($patchV, mww.v) WHERE id = \'${crudEntry.id}\' RETURNING *',
+                );
 
                 final {'k': int k, 'v': int v} =
                     patch // result of UPDATE
@@ -106,7 +93,7 @@ dynamic _txWithRetries(Tables table, List<CrudEntry> crud) async {
 
               case UpdateType.delete:
                 final delete = await tx.execute(
-                  'DELETE FROM ${table.name} WHERE id = \$1 RETURNING *',
+                  'DELETE FROM mww WHERE id = \$1 RETURNING *',
                   parameters: [crudEntry.id],
                 );
                 final {'k': int k, 'v': int v} =
@@ -120,13 +107,14 @@ dynamic _txWithRetries(Tables table, List<CrudEntry> crud) async {
             }
           }
         },
-        settings: TransactionSettings(
-          isolationLevel: IsolationLevel.repeatableRead,
+        settings: postgres.TransactionSettings(
+          isolationLevel: postgres.IsolationLevel.repeatableRead,
         ),
       );
-    } on ServerException catch (se) {
+    } on postgres.ServerException catch (se) {
       // truly fatal
-      if (se.severity == Severity.panic || se.severity == Severity.fatal) {
+      if (se.severity == postgres.Severity.panic ||
+          se.severity == postgres.Severity.fatal) {
         return ['error', 'Fatal error from Postgres: ${se.message}'];
       }
 
@@ -184,12 +172,32 @@ dynamic _txWithRetries(Tables table, List<CrudEntry> crud) async {
 ///   - not safe to proceed
 ///     - `exit` to force app restart and resync
 class CrudTransactionConnector extends PowerSyncBackendConnector {
-  Tables table;
-  PowerSyncDatabase db;
+  final postgres.Connection _pg;
+  final PowerSyncDatabase _db;
 
-  CrudTransactionConnector(this.table, this.db) {
-    // init our very own personal PostgreSQL connection
-    pg.init(table, false);
+  CrudTransactionConnector._(this._pg, this._db);
+
+  static Future<CrudTransactionConnector> connector(
+    PowerSyncDatabase ps,
+  ) async {
+    final endpoint = postgres.Endpoint(
+      host: args['PG_DATABASE_HOST']!,
+      port: args['PG_DATABASE_PORT']!,
+      database: args['PG_DATABASE_NAME']!,
+      username: args['PG_DATABASE_USER']!,
+      password: args['PG_DATABASE_PASSWORD']!,
+    );
+    final settings = postgres.ConnectionSettings(
+      sslMode: postgres.SslMode.disable,
+    );
+
+    final pg = await postgres.Connection.open(endpoint, settings: settings);
+
+    log.config(
+      'PostgreSQL: connected @ ${endpoint.host}:${endpoint.port}/${endpoint.database} as ${endpoint.username}/${endpoint.password} with socket: ${endpoint.isUnixSocket}',
+    );
+
+    return CrudTransactionConnector._(pg, ps);
   }
 
   @override
@@ -203,11 +211,11 @@ class CrudTransactionConnector extends PowerSyncBackendConnector {
   Future<void> uploadData(PowerSyncDatabase database) async {
     // eagerly process all available PowerSync transactions
     for (
-      CrudTransaction? crudTransaction = await db.getNextCrudTransaction();
+      CrudTransaction? crudTransaction = await _db.getNextCrudTransaction();
       crudTransaction != null;
-      crudTransaction = await db.getNextCrudTransaction()
+      crudTransaction = await _db.getNextCrudTransaction()
     ) {
-      switch (await _txWithRetries(table, crudTransaction.crud)) {
+      switch (await _txWithRetries(_pg, crudTransaction.crud)) {
         case 'ok':
           await crudTransaction.complete();
           log.finer(

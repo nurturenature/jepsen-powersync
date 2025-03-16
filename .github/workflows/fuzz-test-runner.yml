@@ -144,7 +144,6 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/docker
           ./powersync-fuzz-run.sh ./powersync_fuzz                 \
-                                  --table mww                      \
                                   --clients ${{ matrix.clients }}  \
                                   --rate ${{ matrix.rate }}        \
                                   --time ${{ matrix.time }}        \

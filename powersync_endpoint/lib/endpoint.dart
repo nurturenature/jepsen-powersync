@@ -5,6 +5,9 @@ import 'args.dart';
 /// types of Endpoints
 enum Endpoints { powersync, postgresql }
 
+/// lookup Map for Endpoints
+final endpointLookup = Endpoints.values.asNameMap();
+
 /// types of SQL transactions
 enum SQLTransactions { readAll, writeSome }
 

@@ -3,5 +3,4 @@
 bucket_definitions:
   global:
     data:
-      - SELECT * FROM lww;
       - SELECT * FROM mww;

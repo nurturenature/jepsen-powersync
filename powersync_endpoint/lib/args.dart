@@ -17,7 +17,7 @@ void parseArgs(List<String> arguments) {
     }
 
     // set args based on CLI or defaults
-    args['table'] = results.option('table')!;
+    args['endpoint'] = results.option('endpoint')!;
     args['clients'] = int.parse(results.option('clients')!);
     args['postgresql'] = results.flag('postgresql');
     // txn values
@@ -62,10 +62,10 @@ void parseArgs(List<String> arguments) {
 ArgParser _buildParser() {
   return ArgParser()
     ..addOption(
-      'table',
-      allowed: ['lww', 'mww'],
-      defaultsTo: 'mww',
-      help: 'table name/type',
+      'endpoint',
+      allowed: ['powersync', 'postgresql'],
+      defaultsTo: 'powersync',
+      help: 'endpoint database',
     )
     ..addOption(
       'clients',

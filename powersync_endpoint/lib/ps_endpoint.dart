@@ -38,7 +38,7 @@ class PSEndpoint extends Endpoint {
       'db: init: initialized with runtimeType: ${_db.runtimeType}, status: ${_db.currentStatus}',
     );
 
-    _connector = CrudTransactionConnector(Tables.mww, _db);
+    _connector = await CrudTransactionConnector.connector(_db);
 
     // retry significantly faster than default of 5s, designed to leverage a Transaction oriented BackendConnector
     // must be set before connecting
@@ -89,7 +89,7 @@ class PSEndpoint extends Endpoint {
 
     final currTable = await _selectAll();
     log.info("db: init: tables: $dbTables");
-    log.info("db: init: ${Tables.mww.name}: $currTable");
+    log.info("db: init: mww: $currTable");
   }
 
   @override
