@@ -27,7 +27,10 @@ Future<void> main(List<String> arguments) async {
   // wrap Endpoint.sqlTxn with HTTP Request/Response, JSON decode/encode
   Future<Response> sqlTxn(Request req) async {
     final reqStr = await req.readAsString();
-    final reqOp = SplayTreeMap.of(jsonDecode(reqStr) as Map);
+    final reqOp = SplayTreeMap.of(jsonDecode(reqStr));
+
+    // JSON requires String keys so writeSome Map is <String, int> vs <int, int>
+    _convertWriteSome(reqOp);
 
     log.fine('SQL txn: request: $reqOp');
 
@@ -35,18 +38,27 @@ Future<void> main(List<String> arguments) async {
 
     log.fine('SQL txn: response: $resOp');
 
-    final resStr = jsonEncode(resOp);
+    final resStr = jsonEncode(
+      resOp,
+      toEncodable:
+          (Object? value) =>
+              // JSON requires String keys so convert readAll and writeSome Map<int, int> to <String, int>
+              value is Map<int, int>
+                  ? Map.fromEntries(
+                    value.entries.map((kv) => MapEntry('${kv.key}', kv.value)),
+                  )
+                  : throw UnsupportedError('Cannot convert to JSON: $value'),
+    );
     return Response.ok(resStr);
   }
 
   // wrap Endpoint.dbAPI with HTTP Request/Response, JSON decode/encode
   Future<Response> dbApi(Request req, String actionParam) async {
-    SplayTreeMap response;
-
     final action = apiCallLookup[actionParam]!;
 
     log.fine('${endpoint.name} api: request: $action');
 
+    final Map<String, dynamic> response;
     switch (action) {
       case APICalls.connect:
         response =
@@ -116,4 +128,28 @@ Future<void> main(List<String> arguments) async {
 
   log.info('httpServer initialized: $httpServer');
   log.info('Listening at ${httpServer.port}');
+}
+
+// convert {value: [{f: writeSome Map<String, int>}]} to Map<int, int>
+void _convertWriteSome(SplayTreeMap op) {
+  final value = op['value'];
+
+  // one or none writeSome
+  final mop = value.firstWhere(
+    (mop) => mop['f'] == SQLTransactions.writeSome.name,
+    orElse: () => {},
+  );
+  if (mop.isEmpty) {
+    return;
+  }
+
+  // JSON requires String keys
+  final v = mop['v'] as Map<String, dynamic>;
+
+  // convert to int keys
+  mop['v'] = Map.fromEntries(
+    v.entries.map((kv) => MapEntry(int.parse(kv.key), kv.value as int)),
+  );
+
+  return;
 }

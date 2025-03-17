@@ -8,11 +8,22 @@
              [nemesis :as nemesis]]
             [jepsen.nemesis.combined :as nc]))
 
+(def nemesis-path
+  "URI path for nemesis on HTTP server"
+  "db-api")
+
+(def api-enum
+  "The actual enum values used in the Dart HTTP server.
+   This value just serves as documentation."
+  #{:connect :disconnect :close
+    :selectAll
+    :uploadQueueCount :uploadQueueWait :downloadingWait})
+
 (defn disconnect
   "Disconnect from sync service."
   [_test node]
   (try
-    (http/get (str "http://" node ":8089/powersync/disconnect"))
+    (http/get (str "http://" node ":8089/" nemesis-path "/disconnect"))
     :disconnected
     (catch java.net.ConnectException ex
       (if (= (.getMessage ex) "Connection refused")
@@ -23,7 +34,7 @@
   "Connect to sync service."
   [_test node]
   (try
-    (http/get (str "http://" node ":8089/powersync/connect"))
+    (http/get (str "http://" node ":8089/" nemesis-path "/connect"))
     :connected
     (catch java.net.ConnectException ex
       (if (= (.getMessage ex) "Connection refused")
@@ -172,7 +183,7 @@
   "Get the count of transactions in the PowerSync db upload queue for the PowerSync node."
   [_test node]
   (try
-    (-> (str "http://" node ":8089/powersync/upload-queue-count")
+    (-> (str "http://" node ":8089/" nemesis-path "/uploadQueueCount")
         (http/get {:accept :json})
         :body
         (json/decode true)
@@ -186,7 +197,7 @@
   "Wait until the count of transactions in the PowerSync db upload queue for the PowerSync node is 0."
   [_test node]
   (try
-    (-> (str "http://" node ":8089/powersync/upload-queue-wait")
+    (-> (str "http://" node ":8089/" nemesis-path "/uploadQueueWait")
         (http/get {:accept :json})
         :body
         (json/decode true)
@@ -200,7 +211,7 @@
   "Wait until db.currentStatus.downloading is false."
   [_test node]
   (try
-    (-> (str "http://" node ":8089/powersync/downloading-wait")
+    (-> (str "http://" node ":8089/" nemesis-path "/downloadingWait")
         (http/get {:accept :json})
         :body
         (json/decode true)

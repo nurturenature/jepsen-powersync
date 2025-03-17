@@ -17,7 +17,7 @@
 
 (def database-file
   "SQLite3 database file."
-  (str app-dir "/powersync_http.sqlite3"))
+  (str app-dir "/http.sqlite3"))
 
 (def database-files
   "A collection of all SQLite3 database files."
@@ -45,12 +45,12 @@
   (c/exec :rm :-rf database-files))
 
 (defn db
-  "PowerSync `localOnly` database."
+  "PowerSync or PostgreSQL endpoint database."
   []
   (reify db/DB
     (setup!
       [this test node]
-      (info "Setting up powersync_endpoint")
+      (info "Setting up powersync_endpoint db")
 
       ; one client sets up PowerSync
       (locking powersync-setup?
@@ -64,7 +64,7 @@
 
     (teardown!
       [this test node]
-      (info "Tearing down powersync_endpoint")
+      (info "Tearing down powersync_endpoint db")
       (db/kill! this test node)
       (c/su
        (wipe)
@@ -80,23 +80,26 @@
 
     db/Kill
     (start!
-      [_this _test _node]
+      [_this {:keys [postgres-nodes] :as _test} node]
       (if (cu/daemon-running? pid-file)
         :already-running
-        (do
+        (let [endpoint (if (contains? postgres-nodes node)
+                         :postgresql
+                         :powersync)]
           (c/su
            (cu/start-daemon!
             {:chdir   app-dir
              :logfile log-file
              :pidfile pid-file}
-            bin-path))
+            bin-path
+            :--endpoint endpoint))
           :started)))
 
     (kill!
       [_this _test _node]
       (c/su
        (cu/stop-daemon! pid-file)
-       ; TODO: understand why sporadic Exception with exit code of 137 when using Docker
+       ; TODO: understand why sporadic Exception with exit code of 137 when using Docker,
        ;       for now, retrying is effective and safe 
        (u/retry 1 (cu/grepkill! app-ps-name)))
       :killed)

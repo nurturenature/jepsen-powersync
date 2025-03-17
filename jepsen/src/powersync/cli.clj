@@ -20,13 +20,10 @@
   "A map of workload names to functions that take CLI options and return
   workload maps."
   {:ps-rw-pg-rw        workload/ps-rw-pg-rw
-   :ps-rw-pg-fr        workload/ps-rw-pg-fr
-   :powersync-single   workload/powersync-single
    :ps-ro-pg-wo        workload/ps-ro-pg-wo
    :ps-wo-pg-ro        workload/ps-wo-pg-ro
    :ps-rw-pg-ro        workload/ps-rw-pg-ro
    :convergence        workload/convergence
-   :convergence+       workload/convergence+
    :sqlite3-local      workload/sqlite3-local
    :sqlite3-local-noop workload/sqlite3-local-noop
    :none               (fn [_] tests/noop-test)})
@@ -143,23 +140,13 @@
     :parse-fn parse-long
     :validate [pos? "Must be a positive integer"]]
 
-   [nil "--key-count NUM" "Number of keys in active rotation."
+   [nil "--key-count NUM" "The total number of keys."
+    :default  100
     :parse-fn parse-long
     :validate [pos? "Must be a positive integer"]]
 
-   [nil "--key-dist DISTRIBUTION" "Exponential or uniform."
-    :parse-fn keyword
-    :validate [#{:exponential :uniform} "Must be exponential or uniform."]]
-
-   [nil "--max-txn-length NUM" "Maximum number of operations in a transaction."
-    :parse-fn parse-long
-    :validate [pos? "Must be a positive integer"]]
-
-   [nil "--max-writes-per-key NUM" "Maximum number of writes to any given key."
-    :parse-fn parse-long
-    :validate [pos? "Must be a positive integer."]]
-
-   [nil "--min-txn-length NUM" "Minimum number of operations in a transaction."
+   [nil "--keys-txn NUM" "The number of keys to act on in a transactions."
+    :default  4
     :parse-fn parse-long
     :validate [pos? "Must be a positive integer"]]
 
@@ -173,10 +160,6 @@
     :parse-fn read-string
     :validate [pos? "Must be a positive number."]]
 
-   [nil "--postgres-host HOST" "Host name of the PostgreSQL service"
-    :default "pg-db"
-    :parse-fn read-string]
-
    [nil "--postgres-nodes NODES" "List of nodes that should be PostgreSQL clients"
     :parse-fn parse-nodes-spec]
 
@@ -184,10 +167,6 @@
     :default 100
     :parse-fn read-string
     :validate [pos? "Must be a positive number."]]
-
-   [nil "--total-key-count NUM" "Total number of keys to use."
-    :parse-fn parse-long
-    :validate [pos? "Must be a positive integer"]]
 
    ["-w" "--workload NAME" "What workload should we run?"
     :parse-fn keyword

@@ -1,106 +1,8 @@
 (ns powersync.client
   (:require [cheshire.core :as json]
             [clj-http.client :as http]
-            [clojure.string :as str]
             [clojure.tools.logging :refer [info]]
-            [jepsen
-             [client :as client]]
-            [next.jdbc :as jdbc]
-            [slingshot.slingshot :refer [try+ throw+]]))
-
-(defn db-spec
-  [{:keys [postgres-host] :as _opts}]
-  {:dbtype   "postgresql"
-   :host     (or postgres-host "pg-db")
-   :user     "postgres"
-   :password "mypassword"
-   :dbname   "postgres"})
-
-(defn get-jdbc-connection
-  "Tries to get a `jdbc` connection for a total of ms, default 5000, every 1000ms.
-   Throws if no client can be gotten."
-  [db-spec]
-  (let [conn (->> db-spec
-                  jdbc/get-datasource
-                  jdbc/get-connection)]
-    (when (nil? conn)
-      (throw+ {:connection-failure db-spec}))
-    conn))
-
-(defrecord PostgreSQLJDBCClient [db-spec]
-  client/Client
-  (open!
-    [this _test node]
-    (info "PostgreSQL opening: " db-spec)
-    (assoc this
-           :node      node
-           :conn      (get-jdbc-connection db-spec)
-           :result-kw (keyword "mww" "v")))
-
-  (setup!
-    [_this _test])
-
-  (invoke!
-    [{:keys [conn node table result-kw] :as _this} _test {:keys [value] :as op}]
-    (let [op (assoc op
-                    :node node)]
-      (try+
-       (let [mops' (jdbc/with-transaction
-                     [tx conn {:isolation :repeatable-read}]
-                     (->> value
-                          (mapv (fn [[f k v :as mop]]
-                                  (case f
-                                    :r
-                                    (let [v (->> (jdbc/execute! tx [(str "SELECT k,v FROM mww WHERE k = " k)])
-                                                 (map result-kw)
-                                                 first)
-                                          ; v may be nil, '', ' 0...'
-                                          v (cond
-                                              (nil? v)
-                                              nil
-
-                                              (= (str/trim v) "")
-                                              nil
-
-                                              :else
-                                              (let [v (str/trim v)]
-                                                (->> (str/split v #"\s+")
-                                                     (mapv parse-long))))]
-                                      [:r k v])
-
-                                    :append
-                                    (let [insert (->> (jdbc/execute! tx
-                                                                     [(str "INSERT INTO mww (k,v) VALUES (" k "," v ")"
-                                                                           " ON CONFLICT (k) DO UPDATE SET v = concat_ws(' '," table ".v,'" v "')")])
-                                                      first)]
-                                      (assert (= 1 (:next.jdbc/update-count insert)))
-                                      mop))))))]
-         (assoc op
-                :type  :ok
-                :value mops'))
-       (catch (fn [e]
-                (if (and (instance? org.postgresql.util.PSQLException e)
-                         (re-find #"ERROR\: deadlock detected" (.getMessage e)))
-                  true
-                  false)) {}
-         (assoc op
-                :type  :fail
-                :error :deadlock))
-       (catch (fn [e]
-                (if (and (instance? org.postgresql.util.PSQLException e)
-                         (re-find #"ERROR\: could not serialize access due to concurrent update" (.getMessage e)))
-                  true
-                  false)) {}
-         (assoc op
-                :type  :fail
-                :error :concurrent-update)))))
-
-  (teardown!
-    [_this _test])
-
-  (close!
-    [{:keys [conn] :as _client} _test]
-    (.close conn)))
+            [jepsen.client :as client]))
 
 (defn op->json
   "Given an op, encodes it as a json string."
@@ -109,7 +11,14 @@
       (update :value (fn [value]
                        (->> value
                             (mapv (fn [[f k v :as _mop]]
-                                    {:f f :k k :v v})))))
+                                    ; JSON requires Maps with String keys
+                                    (let [v (if (= f :writeSome)
+                                              (->> v
+                                                   (map (fn [[k v]]
+                                                          [(str k) v]))
+                                                   (into {}))
+                                              v)]
+                                      {:f f :k k :v v}))))))
       json/generate-string))
 
 (defn json->op
@@ -117,19 +26,25 @@
   [json-string]
   (-> json-string
       (json/decode true)
+      (select-keys [:type :f :value])
+      (update :type  keyword)
+      (update :f     keyword)
       (update :value (partial mapv (fn [{:keys [f k v]}]
-                                     (let [f (keyword f)]
-                                       (case f
-                                         :append [f k v]
-                                         :r
-                                         (if (nil? v)
-                                           [f k nil]
-                                           [f k (read-string v)]))))))))
+                                     (let [f (keyword f)
+                                           ; JSON Maps had Strings as keys,
+                                           ; which json/decode will have turned into keywords
+                                           v (if (contains? #{:readAll :writeSone} f)
+                                               (->> v
+                                                    (map (fn [[k v]]
+                                                           [(parse-long (name k)) v]))
+                                                    (into {}))
+                                               v)]
+                                       [f k v]))))))
 
 (defn invoke
   "Invokes the op against the endpoint and returns the result."
   [op endpoint]
-  (let [body   (-> (select-keys op [:value]) ; only sending :value, don't expose rest of op map 
+  (let [body   (-> (select-keys op [:type :f :value]) ; don't expose rest of op map 
                    op->json)]
     (try
       (let [result (http/post endpoint
@@ -138,12 +53,10 @@
                                :socket-timeout     1000
                                :connection-timeout 1000
                                :accept             :json})
-            result (:body result)]
-        (merge op
-               {:type  :ok ; always :ok, i.e. no Exception
-                :value (->> result
-                            json->op
-                            :value)}))
+            op'    (->> result
+                        :body
+                        json->op)]
+        (merge op op'))
 
       (catch java.net.ConnectException ex
         (if (= (.getMessage ex) "Connection refused")
@@ -173,13 +86,10 @@
 (defrecord PowerSyncClient [conn]
   client/Client
   (open!
-    [this {:keys [postgres-nodes] :as _test} node]
-    ; PostgreSQL client or PowerSync client
-    (if (contains? postgres-nodes node)
-      (client/open! (PostgreSQLJDBCClient. (db-spec test)) test node)
-      (assoc this
-             :node node
-             :url  (str "http://" node ":8089" "/sql-txn"))))
+    [this _test node]
+    (assoc this
+           :node node
+           :url  (str "http://" node ":8089" "/sql-txn")))
 
   (setup!
     [_this _test])
