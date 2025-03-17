@@ -66,3 +66,5 @@ services:
     <<: *default-node
     container_name: powersync-fuzz-node
     hostname: powersync-fuzz-node
+    ports:
+      - 8089:8089
