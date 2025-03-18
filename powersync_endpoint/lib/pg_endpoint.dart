@@ -45,9 +45,7 @@ class PGEndpoint extends Endpoint {
       await _postgreSQL.runTx(
         (tx) async {
           late final Map<int, int> readAll;
-          final valueAsFutures = op['value'].map((
-            Map<String, dynamic> mop,
-          ) async {
+          final valueAsFutures = op['value'].map((mop) async {
             final f = sqlTransactionLookup[mop['f']]!;
             switch (f) {
               case SQLTransactions.readAll:
@@ -126,7 +124,7 @@ class PGEndpoint extends Endpoint {
 
       // no retry, just fail transaction, likely concurrent access or deadlock
       log.info('PostgreSQL: exception: ${se.message}, for op: $op');
-      newType = 'error';
+      newType = 'fail';
     }
 
     op['type'] = newType;

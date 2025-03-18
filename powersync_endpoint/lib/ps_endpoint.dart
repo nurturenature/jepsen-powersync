@@ -111,7 +111,7 @@ class PSEndpoint extends Endpoint {
 
             // db is pre-seeded so all keys expected in result when reading
             if (select.length != args['keys']) {
-              op['type'] = 'error';
+              op['type'] = 'fail';
               log.severe(
                 'PowerSyncDatabase: invalid SELECT, tx.getAll(), ResultSet: $select for mop: $mop in op: $op',
               );
@@ -225,7 +225,7 @@ class PSEndpoint extends Endpoint {
           currentStatus = _db.currentStatus;
         }
         if (onTry > maxTries) {
-          newType = 'error';
+          newType = 'info';
           op['type'] = newType; // update op now for better error message
           op['value']['v'] = {
             'error':

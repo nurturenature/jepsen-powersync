@@ -2,7 +2,8 @@
   (:require [cheshire.core :as json]
             [clj-http.client :as http]
             [clojure.tools.logging :refer [info]]
-            [jepsen.client :as client]))
+            [jepsen.client :as client]
+            [slingshot.slingshot :refer [try+]]))
 
 (defn op->json
   "Given an op, encodes it as a json string."
@@ -46,42 +47,46 @@
   [op endpoint]
   (let [body   (-> (select-keys op [:type :f :value]) ; don't expose rest of op map 
                    op->json)]
-    (try
-      (let [result (http/post endpoint
-                              {:body               body
-                               :content-type       :json
-                               :socket-timeout     1000
-                               :connection-timeout 1000
-                               :accept             :json})
-            op'    (->> result
-                        :body
-                        json->op)]
-        (merge op op'))
+    (try+
+     (let [result (http/post endpoint
+                             {:body               body
+                              :content-type       :json
+                              :socket-timeout     3000  ; TODO: correlate with PowerSync pg_endpoint behavior
+                              :connection-timeout 3000  ;       correlate with postgres  run_tx      behavior
+                              :accept             :json})
+           op'    (->> result
+                       :body
+                       json->op)]
+       (merge op op'))
 
-      (catch java.net.ConnectException ex
-        (if (= (.getMessage ex) "Connection refused")
-          (assoc op
-                 :type  :fail
-                 :error (.toString ex))
-          (assoc op
-                 :type  :info
-                 :error (.toString ex))))
-      (catch java.net.SocketException ex
-        (if (= (.getMessage ex) "Connection reset")
-          (assoc op
-                 :type  :info
-                 :error (.toString ex))
-          (assoc op
-                 :type  :info
-                 :error (.toString ex))))
-      (catch java.net.SocketTimeoutException ex
-        (assoc op
-               :type  :info
-               :error (.toString ex)))
-      (catch org.apache.http.NoHttpResponseException ex
-        (assoc op
-               :type  :info
-               :error (.toString ex))))))
+     (catch java.net.ConnectException ex
+       (if (= (.getMessage ex) "Connection refused")
+         (assoc op
+                :type  :fail
+                :error (.toString ex))
+         (assoc op
+                :type  :info
+                :error (.toString ex))))
+     (catch java.net.SocketException ex
+       (if (= (.getMessage ex) "Connection reset")
+         (assoc op
+                :type  :info
+                :error (.toString ex))
+         (assoc op
+                :type  :info
+                :error (.toString ex))))
+     (catch java.net.SocketTimeoutException ex
+       (assoc op
+              :type  :info
+              :error (.toString ex)))
+     (catch org.apache.http.NoHttpResponseException ex
+       (assoc op
+              :type  :info
+              :error (.toString ex)))
+     (catch [:status 500] {}
+       (assoc op
+              :type  :info
+              :error {:status 500})))))
 
 (defrecord PowerSyncClient [conn]
   client/Client

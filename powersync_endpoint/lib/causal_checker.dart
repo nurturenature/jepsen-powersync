@@ -57,9 +57,9 @@ class CausalChecker {
       final clientState = _clientStates[clientNum]!;
       final clientReasons = _clientReasons[clientNum]!;
 
-      // ok for PostgreSQL, clientType pg, to have an error op, e.g. concurrent access
-      if (clientType == 'pg' && type == 'error') {
-        log.info('CausalChecker: ignoring PostgreSQL error op: $op');
+      // ok for PostgreSQL, clientType pg, to have an fail op, e.g. concurrent access
+      if (clientType == 'pg' && type == 'fail') {
+        log.info('CausalChecker: ignoring PostgreSQL fail op: $op');
         return true;
       }
 

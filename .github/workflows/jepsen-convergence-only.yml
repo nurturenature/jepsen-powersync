@@ -22,7 +22,7 @@ on:
         description: 'Time limits (as JSON)'
         type: string
         required: false
-        default: "[ '100', '200', '300' ]"
+        default: "[ '100', '200', '300', '400', '500', '600', '700', '800', '900', '1000', '1100', '1200' ]"
       cli-opts:
         description: 'CLI opts string'
         type: string
@@ -32,7 +32,7 @@ on:
         description: 'A JSON Map of args (workaround GitHub max inputs)'
         type: string
         required: true
-        default: "{'repeat': [ '1' ], 'timeout-minutes': 10, 'powersync-image-tag': 'latest'}"
+        default: "{'repeat': [ '1', '2', '3', '4' ], 'timeout-minutes': 22, 'powersync-image-tag': 'latest'}"
 
 jobs:
   jepsen-convergence-only:
