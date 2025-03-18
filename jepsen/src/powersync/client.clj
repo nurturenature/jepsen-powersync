@@ -33,7 +33,7 @@
                                      (let [f (keyword f)
                                            ; JSON Maps had Strings as keys,
                                            ; which json/decode will have turned into keywords
-                                           v (if (contains? #{:readAll :writeSone} f)
+                                           v (if (contains? #{:readAll :writeSome} f)
                                                (->> v
                                                     (map (fn [[k v]]
                                                            [(parse-long (name k)) v]))

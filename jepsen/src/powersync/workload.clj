@@ -1,8 +1,7 @@
 (ns powersync.workload
   (:require [causal.checker
              [adya :as adya]
-             [opts :as causal-opts]
-             [strong-convergence :as strong-convergence]]
+             [opts :as causal-opts]]
             [clojure.set :as set]
             [jepsen
              [checker :as checker]
@@ -10,7 +9,8 @@
             [powersync
              [client :as client]
              [powersync :as ps]
-             [sqlite3 :as sqlite3]]))
+             [sqlite3 :as sqlite3]]
+            [powersync.checker.strong-convergence :refer [strong-convergence]]))
 
 (defn nodes->processes
   "Given a collection of nodes, returns a set of processes.
@@ -84,7 +84,7 @@
      :final-generator (readAll-final-generator opts)
      :checker         (checker/compose
                        {:causal-consistency (adya/checker opts)
-                        :strong-convergence (strong-convergence/final-reads
+                        :strong-convergence (strong-convergence
                                              (assoc opts :directory "strong-convergence"))})}))
 
 (defn convergence
@@ -92,8 +92,7 @@
   [opts]
   (merge (ps-rw-pg-rw opts)
          {:checker (checker/compose
-                    {:strong-convergence (strong-convergence/final-reads
-                                          (assoc opts :directory "strong-convergence"))})}))
+                    {:strong-convergence (strong-convergence opts)})}))
 
 (defn ps-ro-pg-wo
   "A PowerSync doing reads only, PostgreSQL doing writes only, workload."

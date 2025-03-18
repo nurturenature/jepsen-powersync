@@ -5,6 +5,7 @@
              [strong-convergence :as strong-convergence]]
             [cheshire.core :as json]
             [jepsen
+             [checker :as checker]
              [history :as h]
              [store :as store]]
             [powersync
@@ -12,7 +13,8 @@
              [client :as client]
              [powersync :as powersync]
              [sqlite3 :as sqlite3]
-             [workload :as workload]]))
+             [workload :as workload]]
+            [powersync.checker.strong-convergence :refer [strong-convergence]]))
 
 (def powersync_endpoint
   "http://localhost:8989/sql-txn")
