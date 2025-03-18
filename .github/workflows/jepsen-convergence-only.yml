@@ -2,10 +2,46 @@ name: jepsen-convergence-only
 
 on:
   workflow_dispatch:
+    inputs:
+      workloads:
+        description: Workloads (as JSON)
+        type: string
+        required: false
+        default: "[ 'convergence' ]"
+      nemeses:
+        description: 'Nemeses (as JSON)'
+        type: string
+        required: false
+        default: "[ 'upload-queue' ]"
+      rates:
+        description: 'Rates (as JSON)'
+        type: string
+        required: false
+        default: "[ '10', '20', '30', '40', '50' ]"
+      time-limits:
+        description: 'Time limits (as JSON)'
+        type: string
+        required: false
+        default: "[ '100', '200', '300' ]"
+      cli-opts:
+        description: 'CLI opts string'
+        type: string
+        required: false
+        default: --nodes n1,n2,n3,n4,n5,n6 --postgres-nodes n1
+      args:
+        description: 'A JSON Map of args (workaround GitHub max inputs)'
+        type: string
+        required: true
+        default: "{'repeat': [ '1' ], 'timeout-minutes': 10, 'powersync-image-tag': 'latest'}"
 
 jobs:
   jepsen-convergence-only:
     uses: nurturenature/jepsen-powersync/.github/workflows/jepsen-test-runner.yml@main
     with:
-      workloads: >
-        [ 'convergence' ]
+      workloads: ${{ inputs.workloads}}
+      nemeses: ${{ inputs.nemeses }}
+      rates: ${{ inputs.rates }}
+      time-limits: ${{ inputs.time-limits }}
+      cli-opts: ${{ inputs.cli-opts }}
+      args: ${{ inputs.args }}
+      

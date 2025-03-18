@@ -6,33 +6,33 @@ on:
       workloads:
         description: Workloads (as JSON)
         type: string
-        required: false
+        required: true
         default: "[ 'ps-rw-pg-rw' ]"
       nemeses:
         description: 'Nemeses (as JSON)'
         type: string
-        required: false
+        required: true
         default: "[ 'upload-queue' ]"
       rates:
         description: 'Rates (as JSON)'
         type: string
-        required: false
+        required: true
         default: "[ '10', '20', '30', '40', '50' ]"
       time-limits:
         description: 'Time limits (as JSON)'
         type: string
-        required: false
+        required: true
         default: "[ '100', '200', '300' ]"
       cli-opts:
         description: 'CLI opts string'
         type: string
-        required: false
+        required: true
         default: --nodes n1,n2,n3,n4,n5,n6 --postgres-nodes n1
-      powersync-image-tag:
-        description: PowerSync Image Tag
+      args:
+        description: 'A JSON Map of args (workaround GitHub max inputs)'
         type: string
-        required: false
-        default: latest
+        required: true
+        default: "{'repeat': [ '1' ], 'timeout-minutes': 10, 'powersync-image-tag': 'latest'}"
        
   workflow_call:
     inputs:
@@ -61,11 +61,11 @@ on:
         type: string
         required: false
         default: --nodes n1,n2,n3,n4,n5,n6 --postgres-nodes n1
-      powersync-image-tag:
-        description: PowerSync Image Tag
+      args:
+        description: 'A JSON Map of args (workaround GitHub max inputs)'
         type: string
         required: false
-        default: latest
+        default: "{'repeat': [ '1' ], 'timeout-minutes': 10, 'powersync-image-tag': 'latest'}"
 
 jobs:
   tests:
@@ -74,14 +74,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        workload:          ${{ fromJSON(inputs.workloads) }}
-        nemesis:           ${{ fromJSON(inputs.nemeses) }}
-        rate:              ${{ fromJSON(inputs.rates) }}
-        time-limit:        ${{ fromJSON(inputs.time-limits) }}
+        workload:   ${{ fromJSON(inputs.workloads) }}
+        nemesis:    ${{ fromJSON(inputs.nemeses) }}
+        rate:       ${{ fromJSON(inputs.rates) }}
+        time-limit: ${{ fromJSON(inputs.time-limits) }}
+        repeat:     ${{ fromJSON(inputs.args).repeat }}
 
     env:
-      test-title: ${{ matrix.rate }}tps-${{ matrix.time-limit }}s-${{ matrix.workload }}-${{ matrix.nemesis }}
-      POWERSYNC_IMAGE_TAG: ${{ inputs.powersync-image-tag }}
+      test-title: ${{ matrix.rate }}tps-${{ matrix.time-limit }}s-${{ matrix.workload }}-${{ matrix.nemesis }}-${{ matrix.repeat }}
+      POWERSYNC_IMAGE_TAG: ${{ fromJSON(inputs.args).powersync-image-tag }}
 
     steps:  
       - name: Checkout jepsen-powersync
@@ -94,6 +95,7 @@ jobs:
           ./docker-compose-up.sh
           
       - name: ${{ env.test-title }}
+        timeout-minutes: ${{ fromJSON(inputs.args).timeout-minutes }}
         run: |
           cd $GITHUB_WORKSPACE/docker
           ./docker-run.sh lein run test --workload          ${{ matrix.workload }} \
