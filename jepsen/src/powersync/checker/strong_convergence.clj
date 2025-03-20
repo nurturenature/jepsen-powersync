@@ -7,15 +7,8 @@
    [clojure.set :as set]
    [jepsen
     [checker :as checker]
-    [history :as h]]))
-
-(defn all-processes
-  "Given a history, returns a sorted-set of all processes in it."
-  [history]
-  (->> history
-       (map :process)
-       distinct
-       (into (sorted-set))))
+    [history :as h]]
+   [powersync.checker.util :as util]))
 
 (defn non-monotonic-reads
   "Given a history, returns a sequence of 
@@ -23,13 +16,8 @@
   [history]
   (let [[errors _prev-op _prev-reads]
         (->> history
-             (reduce (fn [[errors prev-op prev-reads] {:keys [value] :as op}]
-                       (let [read-all (->> value
-                                           (reduce (fn [_ [f _k v]]
-                                                     (if (= f :readAll)
-                                                       (reduced v)
-                                                       {}))
-                                                   {}))
+             (reduce (fn [[errors prev-op prev-reads] op]
+                       (let [read-all (util/read-all op)
                              [errors prev-reads] (->> read-all
                                                       (reduce (fn [[errors prev-reads] [k v]]
                                                                 (let [prev-v    (get prev-reads k -1)
@@ -61,7 +49,7 @@
                           h/client-ops
                           h/oks)
 
-            processes           (all-processes history')
+            processes           (util/all-processes history')
             non-monotonic-reads (->> processes
                                      (mapcat (fn [p]
                                                (->> history'
@@ -74,25 +62,15 @@
             final-reads   (->> history'
                                (filter :final-read?))
             final-read-kv (->> history'
-                               (reduce (fn [final-read-kv {:keys [value] :as _op}]
-                                         (let [write-some (->> value
-                                                               (reduce (fn [_ [f _k v]]
-                                                                         (if (= f :writeSome)
-                                                                           (reduced v)
-                                                                           {}))
-                                                                       {}))]
+                               (reduce (fn [final-read-kv op]
+                                         (let [write-some (util/write-some op)]
                                            (merge-with max final-read-kv write-some)))
                                        {}))
 
             ; divergent final reads, {k {:expected v node v ...}}
             divergent-reads (->> final-reads
-                                 (reduce (fn [divergent {:keys [value node] :as _op}]
-                                           (let [read-all (->> value
-                                                               (reduce (fn [_ [f _k v]]
-                                                                         (if (= f :readAll)
-                                                                           (reduced v)
-                                                                           {}))
-                                                                       {}))]
+                                 (reduce (fn [divergent {:keys [node] :as op}]
+                                           (let [read-all (util/read-all op)]
                                              (->> read-all
                                                   (reduce (fn [divergent [k v]]
                                                             (let [expected-v (get final-read-kv k)]

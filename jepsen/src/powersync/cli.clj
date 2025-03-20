@@ -20,8 +20,7 @@
   "A map of workload names to functions that take CLI options and return
   workload maps."
   {:ps-rw-pg-rw        workload/ps-rw-pg-rw
-   :ps-ro-pg-wo        workload/ps-ro-pg-wo
-   :ps-wo-pg-ro        workload/ps-wo-pg-ro
+   :ps-ro-pg-rw        workload/ps-ro-pg-rw
    :ps-rw-pg-ro        workload/ps-rw-pg-ro
    :convergence        workload/convergence
    :sqlite3-local      workload/sqlite3-local

@@ -1,4 +1,4 @@
-name: jepsen-convergence-only
+name: jepsen-ps-ro-pg-rw
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ on:
         description: Workloads (as JSON)
         type: string
         required: false
-        default: "[ 'convergence' ]"
+        default: "[ 'ps-ro-pg-rw' ]"
       nemeses:
         description: 'Nemeses (as JSON)'
         type: string
@@ -35,7 +35,7 @@ on:
         default: "{'repeat': [ '1', '2', '3', '4' ], 'timeout-minutes': 22, 'powersync-image-tag': 'latest'}"
 
 jobs:
-  jepsen-convergence-only:
+  jepsen-ps-ro-pg-rw:
     uses: nurturenature/jepsen-powersync/.github/workflows/jepsen-test-runner.yml@main
     with:
       workloads: ${{ inputs.workloads}}
