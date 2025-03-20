@@ -2,15 +2,15 @@
   "A Causal Consistency checker for:
    - max write wins database
    - using readAll, writeSome transactions"
-  (:require
-   [jepsen
-    [checker :as checker]
-    [history :as h]]
-   [powersync.checker.util :as util]))
+  (:require [clojure.set :as set]
+            [jepsen
+             [checker :as checker]
+             [history :as h]]
+            [powersync.checker.util :as util]))
 
 
 
-(defn reading-writes-in-history
+(defn read-your-writes-in-history
   "Do operations in the given history read their own writes?
    Returns nil or a sequence of errors."
   [history]
@@ -30,6 +30,7 @@
                                                                      :this-read  read-v
                                                                      :op         op}))))
                                                  errors))
+
                              ; every previous write must be <= this read
                              errors (->> prev-writes
                                          (reduce (fn [errors [write-k write-v]]
@@ -41,6 +42,7 @@
                                                                      :this-read  this-read
                                                                      :op         op}))))
                                                  errors))]
+
                          [errors (merge prev-writes writes)]))
                      [nil nil]))]
     errors))
@@ -53,7 +55,48 @@
        (mapcat (fn [process]
                  (->> history
                       (h/filter #(= (:process %) process))
-                      (reading-writes-in-history))))))
+                      (read-your-writes-in-history))))))
+
+(defn monotonic-reads-in-history
+  "Do operations in the given history monotonically read?
+   Returns nil or a sequence of errors."
+  [history]
+  (let [[errors _prev-reads]
+        (->> history
+             (reduce (fn [[errors prev-reads] op]
+                       (let [reads  (util/read-all  op)
+                             ; every read must be >= previous read
+                             errors (->> reads
+                                         (reduce (fn [errors [read-k read-v]]
+                                                   (let [prev-read (get prev-reads read-k -1)]
+                                                     (if (<= prev-read read-v)
+                                                       errors
+                                                       (conj errors {:read-k    read-k
+                                                                     :prev-read prev-read
+                                                                     :this-read read-v
+                                                                     :op        op}))))
+                                                 errors))
+
+                             ; every previous read must be in this read
+                             missing-read-keys (set/difference (set (keys prev-reads)) (set (keys reads)))
+                             errors (if (seq missing-read-keys)
+                                      (conj errors {:missing-read-keys missing-read-keys
+                                                    :op                op})
+                                      errors)]
+
+                         [errors (merge prev-reads reads)]))
+                     [nil nil]))]
+    errors))
+
+(defn monotonic-reads
+  "Does each process in a history monotonically read?
+   Returns nil or a sequence of errors."
+  [all-processes history]
+  (->> all-processes
+       (mapcat (fn [process]
+                 (->> history
+                      (h/filter #(= (:process %) process))
+                      (monotonic-reads-in-history))))))
 
 (defn causal-consistency
   "Check
@@ -66,10 +109,15 @@
                                h/oks)
             all-processes (util/all-processes history')
 
-            read-your-writes (read-your-writes all-processes history')]
+            read-your-writes (read-your-writes all-processes history')
+            monotonic-reads  (monotonic-reads  all-processes history')]
 
         ; result map
         (cond-> {:valid? true}
           (seq read-your-writes)
           (assoc :valid? false
-                 :read-your-writes read-your-writes))))))
+                 :read-your-writes read-your-writes)
+
+          (seq monotonic-reads)
+          (assoc :valid? false
+                 :monotonic-reads monotonic-reads))))))
