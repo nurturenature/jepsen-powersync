@@ -1,4 +1,4 @@
-name: jepsen-disconnect
+name: jepsen-kill
 
 on:
   workflow_dispatch:
@@ -12,7 +12,7 @@ on:
         description: 'Nemeses (as JSON)'
         type: string
         required: false
-        default: "[ 'disconnect-connect,upload-queue' ]"
+        default: "[ 'kill,upload-queue' ]"
       rates:
         description: 'Rates (as JSON)'
         type: string
@@ -34,8 +34,9 @@ on:
         required: true
         default: "{'repeat': [ '1', '2', '3', '4' ], 'timeout-minutes': 22, 'powersync-image-tag': 'latest'}"
 
+
 jobs:
-  jepsen-disconnect:
+  jepsen-kill:
     uses: nurturenature/jepsen-powersync/.github/workflows/jepsen-test-runner.yml@main
     with:
       workloads: ${{ inputs.workloads}}
