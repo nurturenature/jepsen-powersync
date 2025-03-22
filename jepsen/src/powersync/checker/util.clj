@@ -3,6 +3,10 @@
    - max write wins database
    - using readAll, writeSome transactions")
 
+(def key-count
+  "The total number of keys."
+  100)
+
 (defn all-processes
   "Given a history, returns a sorted-set of all processes in it."
   [history]

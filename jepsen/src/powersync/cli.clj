@@ -2,7 +2,6 @@
   "Command-line entry point for PowerSync tests."
   (:require [clojure.set :as set]
             [clojure.string :as str]
-            [elle.consistency-model :as cm]
             [jepsen
              [checker :as checker]
              [cli :as cli]
@@ -14,7 +13,8 @@
              [nemesis :as nemesis]
              [powersync :as ps]
              [stats :as stats]
-             [workload :as workload]]))
+             [workload :as workload]
+             [util :as util]]))
 
 (def workloads
   "A map of workload names to functions that take CLI options and return
@@ -65,17 +65,11 @@
        (map str/trim)
        (into #{})))
 
-(def short-consistency-name
-  "A map of consistency model names to a short name."
-  {:strong-session-consistent-view "Consistent-View"})
-
 (defn test-name
   "Given opts, returns a meaningful test name."
-  [{:keys [consistency-models nemesis nodes postgres-nodes rate time-limit workload] :as _opts}]
+  [{:keys [nemesis nodes postgres-nodes rate time-limit workload] :as _opts}]
   (let [nodes (into #{} nodes)]
     (str (name workload)
-         " " (str/join "," (->> consistency-models
-                                (map #(short-consistency-name % (name %)))))
          " " (str/join "," (map name nemesis))
          " " (count postgres-nodes) "pg"
          "-" (count (set/difference nodes postgres-nodes)) "ps"
@@ -130,17 +124,8 @@
 
 (def cli-opts
   "Command line options"
-  [[nil "--consistency-models MODELS" "What consistency models to check for."
-    :parse-fn parse-nemesis-spec
-    :validate [(partial every? cm/all-models)
-               (str "Must be one or more of " cm/all-models)]]
-
-   [nil "--cycle-search-timeout MS" "How long, in milliseconds, to look for a certain cycle in any given SCC."
-    :parse-fn parse-long
-    :validate [pos? "Must be a positive integer"]]
-
-   [nil "--key-count NUM" "The total number of keys."
-    :default  100
+  [[nil "--key-count NUM" "The total number of keys."
+    :default  util/key-count
     :parse-fn parse-long
     :validate [pos? "Must be a positive integer"]]
 
