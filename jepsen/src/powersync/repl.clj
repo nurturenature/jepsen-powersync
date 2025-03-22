@@ -11,19 +11,15 @@
             [powersync
              [cli :as cli]
              [client :as client]
+             [nemesis :as nemesis]
              [powersync :as powersync]
              [sqlite3 :as sqlite3]
+             [util :as util]
              [workload :as workload]]
-            [powersync.checker.strong-convergence :refer [strong-convergence]]))
+            [powersync.checker.stats :refer [completions-by-node]]
+            [powersync.checker.strong-convergence :refer [strong-convergence]]
+            [powersync.checker.causal-consistency :refer [causal-consistency]]))
 
 (def powersync_endpoint
   "http://localhost:8989/sql-txn")
 
-(def sample-op
-  {:type :invoke
-   :f    :txn
-   :value [[:r 0 nil]
-           [:append 0 0]
-           [:r 0 nil]
-           [:append 0 1]
-           [:r 0 nil]]})

@@ -1,4 +1,4 @@
-(ns powersync.stats
+(ns powersync.checker.stats
   (:require
    [jepsen
     [checker :as checker]

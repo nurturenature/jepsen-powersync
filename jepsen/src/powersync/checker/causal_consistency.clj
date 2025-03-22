@@ -6,7 +6,7 @@
             [jepsen
              [checker :as checker]
              [history :as h]]
-            [powersync.checker.util :as util]
+            [powersync.util :as util]
             [slingshot.slingshot :refer [throw+]]))
 
 

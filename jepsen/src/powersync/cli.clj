@@ -12,9 +12,9 @@
             [powersync
              [nemesis :as nemesis]
              [powersync :as ps]
-             [stats :as stats]
              [workload :as workload]
-             [util :as util]]))
+             [util :as util]]
+            [powersync.checker.stats :as stats]))
 
 (def workloads
   "A map of workload names to functions that take CLI options and return

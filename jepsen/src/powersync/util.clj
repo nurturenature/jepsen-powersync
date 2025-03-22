@@ -1,5 +1,5 @@
-(ns powersync.checker.util
-  "Utilities for checkers for:
+(ns powersync.util
+  "Utilities for:
    - max write wins database
    - using readAll, writeSome transactions")
 
