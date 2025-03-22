@@ -39,7 +39,7 @@
 (defn mw-wfr->process-state
   "Update the process-state with monotonic writes and write follows reads
    based on the reads in the op."
-  [reads process-state mw-wfr-states]
+  [op reads process-state mw-wfr-states]
   (->> reads
        (reduce (fn [process-state [read-k read-v :as read-kv]]
                  (if (= read-v -1)
@@ -53,7 +53,8 @@
                                      [v why]))
                                  process-state mw-wfr-state)
                      (throw+ {:error   :read-of-unwritten-kv
-                              :read-kv read-kv}))))
+                              :read-kv read-kv
+                              :op      op}))))
                process-state)))
 
 (defn ryw-mw-wfr-mr
@@ -81,7 +82,7 @@
                              p-state (get p-states process)
 
                              ; update process state to include monotonic writes and writes follow reads
-                             p-state (mw-wfr->process-state reads p-state mw-wfr-states)
+                             p-state (mw-wfr->process-state op reads p-state mw-wfr-states)
 
                              ; check reads against process state
                              errors (->> reads
