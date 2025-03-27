@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math';
 import 'package:postgres/postgres.dart' as postgres;
 import 'package:powersync/powersync.dart';
 import 'args.dart';
@@ -7,7 +6,7 @@ import 'auth.dart';
 import 'log.dart';
 import 'utils.dart';
 
-/// A `PowerSyncBackendConnector` with:
+/// A no-op `PowerSyncBackendConnector` with:
 /// - permissive auth
 /// - logs error and exits if `uploadData()` called
 class NoOpConnector extends PowerSyncBackendConnector {
@@ -37,18 +36,28 @@ const _retryablePgErrors = {
   '40P01', // deadlock_detected
 };
 
-// retry/delay strategy
-// - delay diversity
-//   - random uniform distribution
-//   - not too big to keep MWW fair(er)
-// - persistent retries
-//   - relative large max to keep MWW fair(er)
-const _minRetryDelay = 32; // in ms, each retry delay is min <= random <= max
-const _maxRetryDelay = 512;
+// be persistent with retries
+// relatively large max as MWW transactions should always go through
 const _maxRetries = 64;
-final _rng = Random();
 
-dynamic _txWithRetries(postgres.Connection pg, List<CrudEntry> crud) async {
+// Transactions are:
+//
+// Tightly coupled to a PostgreSQL transaction
+// - transactions retried as appropriate
+//
+// Consistency:
+// - Atomic transactions
+//
+// Exception handling:
+// - are treated as unrecoverable
+//   - indicates architectural/implementation flaws
+//   - not safe to proceed
+//     - `exit` to force app restart and resync
+Future<void> _txWithRetries(
+  postgres.Connection pg,
+  List<CrudEntry> crud,
+) async {
+  final BackOff backOff = BackOff();
   for (var i = 0; i < _maxRetries; i++) {
     try {
       // execute the PowerSync transaction in a PostgreSQL transaction
@@ -115,7 +124,10 @@ dynamic _txWithRetries(postgres.Connection pg, List<CrudEntry> crud) async {
       // truly fatal
       if (se.severity == postgres.Severity.panic ||
           se.severity == postgres.Severity.fatal) {
-        return ['error', 'Fatal error from Postgres: ${se.message}'];
+        log.severe(
+          'uploadData: txn: ${crud.first.transactionId} PostgreSQL fatal ServerException: $se, in transaction: $crud',
+        );
+        exit(30);
       }
 
       // retryable?
@@ -124,30 +136,32 @@ dynamic _txWithRetries(postgres.Connection pg, List<CrudEntry> crud) async {
           "uploadData: txn: ${crud.first.transactionId} retrying due to PostgreSQL: ${se.message}",
         );
 
-        await futureSleep(
-          _rng.nextInt(_maxRetryDelay - _minRetryDelay + 1) + _minRetryDelay,
-        );
+        await backOff.backOffAndWait();
 
         continue;
       }
 
       // not retryable, recoverable
-      return [
-        'error',
-        'Unrecoverable ServerException, severity: ${se.severity}, code: ${se.code}, ServerException: $se',
-      ];
+      log.severe(
+        'uploadData: txn: ${crud.first.transactionId} PostgreSQL unrecoverable ServerException: $se, in transaction: $crud',
+      );
+      exit(30);
     } catch (ex) {
-      // TODO: some exceptions, such as connection failures should be thrown for PowerSync to catch and then retry
-      //       experimentally expose these through fault injection in the tests first, then implement catch/recover
-      return ['error', 'Unexpected Exception: $ex'];
+      log.severe(
+        'uploadData: txn: ${crud.first.transactionId} PostgreSQL unexpected Exception: $ex, in transaction: $crud',
+      );
+      exit(30);
     }
 
     // transaction completed and committed successfully
-    return 'ok';
+    return;
   }
 
   // retried and failed
-  return ['error', 'Max retries, $_maxRetries, exceeded'];
+  log.severe(
+    'uploadData: txn: ${crud.first.transactionId} PostgreSQL max retries exceeded: $_maxRetries, in transaction: $crud',
+  );
+  exit(30);
 }
 
 /// A `PowerSyncBackendConnector` with:
@@ -157,23 +171,10 @@ dynamic _txWithRetries(postgres.Connection pg, List<CrudEntry> crud) async {
 /// Eagerly consumes `CrudTransaction`s
 /// - clears upload queue so local db can receive updates
 /// - uploads data until `getNextCrudTransaction` is `null`
-///
-/// Tightly coupled to a PostgreSQL transaction
-/// - transactions retried as appropriate
-///
-/// Consistency:
-/// - Atomic transactions
-///
-/// Exception handling:
-/// - recoverable
-///   - `throw` to signal PowerSync to retry
-/// - unrecoverable
-///   - indicates architectural/implementation flaws
-///   - not safe to proceed
-///     - `exit` to force app restart and resync
 class CrudTransactionConnector extends PowerSyncBackendConnector {
   final postgres.Connection _pg;
   final PowerSyncDatabase _db;
+  final Set<int> _transactionIds = {};
 
   CrudTransactionConnector._(this._pg, this._db);
 
@@ -215,25 +216,38 @@ class CrudTransactionConnector extends PowerSyncBackendConnector {
       crudTransaction != null;
       crudTransaction = await _db.getNextCrudTransaction()
     ) {
-      switch (await _txWithRetries(_pg, crudTransaction.crud)) {
-        case 'ok':
-          await crudTransaction.complete();
-          log.finer(
-            'uploadData: txn: ${crudTransaction.transactionId} complete',
-          );
-
-          break;
-
-        case ['error', final String cause]:
-          log.severe(
-            'Unable to process transaction: $crudTransaction, cause: $cause',
-          );
-          exit(30);
-
-        case final unknown:
-          log.severe('Invalid transaction result: $unknown');
-          exit(100);
+      // it's an error to try and upload the same transaction
+      if (_transactionIds.contains(crudTransaction.transactionId)) {
+        log.severe(
+          'uploadData: txn: ${crudTransaction.transactionId} Already uploaded!, transaction: $crudTransaction',
+        );
+        exit(32);
       }
+      _transactionIds.add(crudTransaction.transactionId!);
+
+      log.finer('uploadData: txn: ${crudTransaction.transactionId} begin');
+      await _txWithRetries(_pg, crudTransaction.crud);
+      await crudTransaction.complete();
+      log.finer('uploadData: txn: ${crudTransaction.transactionId} end');
     }
+  }
+}
+
+/// backoff doubles from min to max then wraps-around back to min
+class BackOff {
+  static const _minRetryDelay = 16;
+  static const _maxRetryDelay = 512;
+
+  int _delay = 0;
+
+  Future<void> backOffAndWait() async {
+    _delay = _delay * 2;
+
+    // first use or > max wraparound?
+    if (_delay == 0 || _delay > _maxRetryDelay) {
+      _delay = _minRetryDelay;
+    }
+
+    await futureSleep(_delay);
   }
 }

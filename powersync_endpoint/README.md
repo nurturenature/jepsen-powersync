@@ -178,7 +178,8 @@ Usage: dart powersync_(http|fuzz).dart <flags> [arguments]
 
 <tr><td>21</td><td>PostgreSQL error</td></tr>
 
-<tr><td>30</td><td>BackendConnector upload failure</td></tr>
+<tr><td>30</td><td>BackendConnector upload failed executing the CRUD transaction in PostgreSQL</td></tr>
+<tr><td>32</td><td>BackendConnector upload called multiple times for the same CRUD transaction id</td></tr>
 
 <tr><td>100</td><td>invalid state due to coding error</td></tr>
 </table>
