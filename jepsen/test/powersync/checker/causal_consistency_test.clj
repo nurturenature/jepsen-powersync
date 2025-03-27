@@ -5,6 +5,29 @@
              [history :as h]]
             [powersync.checker.causal-consistency :refer [causal-consistency]]))
 
+(def invalid-read-unwritten-write
+  (->> [{:process 0, :type :invoke, :f :txn, :value [[:readAll nil {}] [:writeSome nil {0 0 1 0}]], :node "n1", :index 0, :time -1}
+        {:process 0, :type :ok, :f :txn, :value [[:readAll nil {0 -1 1 -1 2 -1}] [:writeSome nil {0 0 1 0}]], :node "n1", :index 1, :time -1}
+
+        {:process 1, :type :invoke, :f :txn, :value [[:readAll nil {}] [:writeSome nil {1 1 2 1}]], :node "n2", :index 2, :time -1}
+        {:process 1, :type :ok, :f :txn, :value [[:readAll nil {0 -1 1 -1 2 -1}] [:writeSome nil {1 1 2 1}]], :node "n2", :index 3, :time -1}
+
+        {:process 1, :type :invoke, :f :txn, :value [[:readAll nil {}] [:writeSome nil {}]], :node "n2", :index 4, :time -1}
+        {:process 1, :type :ok, :f :txn, :value [[:readAll nil {0 1 1 1 2 1}] [:writeSome nil {}]], :node "n2", :index 5, :time -1}]
+       h/history))
+
+(deftest read-unwritten-write-test
+  (testing "read unwritten write"
+    (let [opts     {:key-count 3}
+          test-map {:name "read-unwritten-write" :start-time 0 :nodes ["n1" "n2"]}]
+      (is (= {:valid? false,
+              :read-unwritten-write (list {:read-unwritten-write #{[0 1]},
+                                           :op (h/op {:index 5, :time -1, :type :ok, :process 1, :f :txn, :value [[:readAll nil {0 1, 1 1, 2 1}] [:writeSome nil {}]], :node "n2"})})}
+             (checker/check (causal-consistency opts)
+                            test-map
+                            invalid-read-unwritten-write
+                            opts))))))
+
 (def valid-read-your-writes
   (->> [{:process 0, :type :invoke, :f :txn, :value [[:readAll nil {}] [:writeSome nil {0 0 1 0}]], :node "n1", :index 0, :time -1}
         {:process 0, :type :ok, :f :txn, :value [[:readAll nil {0 -1 1 -1 2 -1}] [:writeSome nil {0 0 1 0}]], :node "n1", :index 1, :time -1}

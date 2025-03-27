@@ -6,9 +6,37 @@
             [jepsen
              [checker :as checker]
              [history :as h]]
-            [powersync.util :as util]
-            [slingshot.slingshot :refer [throw+]]))
+            [powersync.util :as util]))
 
+(defn read-unwritten-write
+  "Given a history, checks all ok reads against possibly written values
+   returning nil or a sequence of {:read-unwritten-write #{[k v]} :op op}."
+  [history]
+  (let [history' (->> history
+                      h/client-ops)
+
+        all-writes (->> history'
+                        h/possible
+                        (reduce (fn [all-writes op]
+                                  (->> op
+                                       util/write-some
+                                       (into all-writes)))
+                                #{}))
+        invalid-reads (->> history'
+                           h/oks
+                           (reduce (fn [invalid-reads op]
+                                     (let [reads (->> op
+                                                      util/read-all
+                                                      ; remove nil, -1, reads
+                                                      (remove (fn [[_k v]] (= v -1)))
+                                                      (into #{}))
+                                           not-written (set/difference reads all-writes)]
+                                       (if (seq not-written)
+                                         (conj invalid-reads {:read-unwritten-write not-written
+                                                              :op                   op})
+                                         invalid-reads)))
+                                   nil))]
+    invalid-reads))
 
 ; process-state 
 ; {k [v why]}
@@ -39,7 +67,7 @@
 (defn mw-wfr->process-state
   "Update the process-state with monotonic writes and write follows reads
    based on the reads in the op."
-  [op reads process-state mw-wfr-states]
+  [reads process-state mw-wfr-states]
   (->> reads
        (reduce (fn [process-state [read-k read-v :as read-kv]]
                  (if (= read-v -1)
@@ -52,9 +80,9 @@
                                      [v' :writes-follow-reads]
                                      [v why]))
                                  process-state mw-wfr-state)
-                     (throw+ {:error   :read-of-unwritten-kv
-                              :read-kv read-kv
-                              :op      op}))))
+                     ; seeing read before write, likely due to interleaved replication ops
+                     ; ok for now, will be checked by `read-unwritten-write`
+                     process-state)))
                process-state)))
 
 (defn ryw-mw-wfr-mr
@@ -82,7 +110,7 @@
                              p-state (get p-states process)
 
                              ; update process state to include monotonic writes and writes follow reads
-                             p-state (mw-wfr->process-state op reads p-state mw-wfr-states)
+                             p-state (mw-wfr->process-state reads p-state mw-wfr-states)
 
                              ; check reads against process state
                              errors (->> reads
@@ -126,7 +154,8 @@
      - read their own writes?
      - read other's writes monotonically?
      - writes follow reads?
-     - have monotonic reads?"
+     - have monotonic reads?
+     - only read written values"
   [defaults]
   (reify checker/Checker
     (check [_this _test history opts]
@@ -138,10 +167,16 @@
                                h/oks)
             all-processes (util/all-processes history')
 
-            ryw-mw-wfr-mr (ryw-mw-wfr-mr all-keys all-processes history')]
+            ryw-mw-wfr-mr (ryw-mw-wfr-mr all-keys all-processes history')
+
+            read-unwritten-write (read-unwritten-write history)]
 
         ; result map
         (cond-> {:valid? true}
           (seq ryw-mw-wfr-mr)
           (assoc :valid?     false
-                 :ryw-mw-wfr ryw-mw-wfr-mr))))))
+                 :ryw-mw-wfr ryw-mw-wfr-mr)
+
+          (seq read-unwritten-write)
+          (assoc :valid?     false
+                 :read-unwritten-write read-unwritten-write))))))
