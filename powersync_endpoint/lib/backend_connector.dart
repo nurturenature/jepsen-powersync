@@ -222,7 +222,9 @@ class CrudTransactionConnector extends PowerSyncBackendConnector {
       }
       _transactionIds.add(crudTransaction.transactionId!);
 
-      log.finer('uploadData: txn: ${crudTransaction.transactionId} begin');
+      log.finer(
+        'uploadData: txn: ${crudTransaction.transactionId} begin $crudTransaction',
+      );
       await _txWithRetries(_pg, crudTransaction.crud);
       await crudTransaction.complete();
       log.finer('uploadData: txn: ${crudTransaction.transactionId} committed');
