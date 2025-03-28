@@ -173,14 +173,11 @@ Future<void> _txWithRetries(
 /// - uploads data until `getNextCrudTransaction` is `null`
 class CrudTransactionConnector extends PowerSyncBackendConnector {
   final postgres.Connection _pg;
-  final PowerSyncDatabase _db;
   final Set<int> _transactionIds = {};
 
-  CrudTransactionConnector._(this._pg, this._db);
+  CrudTransactionConnector._(this._pg);
 
-  static Future<CrudTransactionConnector> connector(
-    PowerSyncDatabase ps,
-  ) async {
+  static Future<CrudTransactionConnector> connector() async {
     final endpoint = postgres.Endpoint(
       host: args['PG_DATABASE_HOST']!,
       port: args['PG_DATABASE_PORT']!,
@@ -198,7 +195,7 @@ class CrudTransactionConnector extends PowerSyncBackendConnector {
       'PostgreSQL: connected @ ${endpoint.host}:${endpoint.port}/${endpoint.database} as ${endpoint.username}/${endpoint.password} with socket: ${endpoint.isUnixSocket}',
     );
 
-    return CrudTransactionConnector._(pg, ps);
+    return CrudTransactionConnector._(pg);
   }
 
   @override
@@ -209,17 +206,17 @@ class CrudTransactionConnector extends PowerSyncBackendConnector {
   }
 
   @override
-  Future<void> uploadData(PowerSyncDatabase database) async {
+  Future<void> uploadData(PowerSyncDatabase db) async {
     // eagerly process all available PowerSync transactions
     for (
-      CrudTransaction? crudTransaction = await _db.getNextCrudTransaction();
+      CrudTransaction? crudTransaction = await db.getNextCrudTransaction();
       crudTransaction != null;
-      crudTransaction = await _db.getNextCrudTransaction()
+      crudTransaction = await db.getNextCrudTransaction()
     ) {
       // it's an error to try and upload the same transaction
       if (_transactionIds.contains(crudTransaction.transactionId)) {
         log.severe(
-          'uploadData: txn: ${crudTransaction.transactionId} Already uploaded!, transaction: $crudTransaction',
+          'uploadData: txn: ${crudTransaction.transactionId} Duplicate call to uploadData for transaction: $crudTransaction',
         );
         exit(32);
       }
@@ -228,7 +225,7 @@ class CrudTransactionConnector extends PowerSyncBackendConnector {
       log.finer('uploadData: txn: ${crudTransaction.transactionId} begin');
       await _txWithRetries(_pg, crudTransaction.crud);
       await crudTransaction.complete();
-      log.finer('uploadData: txn: ${crudTransaction.transactionId} end');
+      log.finer('uploadData: txn: ${crudTransaction.transactionId} committed');
     }
   }
 }

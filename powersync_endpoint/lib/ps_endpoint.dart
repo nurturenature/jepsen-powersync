@@ -38,7 +38,7 @@ class PSEndpoint extends Endpoint {
       'db: init: initialized with runtimeType: ${_db.runtimeType}, status: ${_db.currentStatus}',
     );
 
-    _connector = await CrudTransactionConnector.connector(_db);
+    _connector = await CrudTransactionConnector.connector();
 
     // retry significantly faster than default of 5s, designed to leverage a Transaction oriented BackendConnector
     // must be set before connecting
