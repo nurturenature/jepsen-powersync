@@ -24,10 +24,10 @@ on:
         required: true
         default: "[ '--no-postgresql', '--postgresql' ]"
       disconnect:
-        description: '--[no-]disconnect (as JSON)'
+        description: '--disconnect none|orderly|random (as JSON)'
         type: string
         required: true
-        default: "[ '--disconnect' ]"
+        default: "[ '--disconnect orderly', '--disconnect random' ]"
       stop-or-kill:
         description: '--[no-]stop --[no-]kill (as JSON)'
         type: string
@@ -52,7 +52,7 @@ on:
         description: 'A JSON Map of args (workaround GitHub max inputs)'
         type: string
         required: true
-        default: "{'repeat': [ '1', '2', '3', '4', '5' ], 'timeout-minutes': 10, 'powersync-image-tag': 'latest'}"
+        default: "{'repeat': [ '1', '2' ], 'timeout-minutes': 10, 'powersync-image-tag': 'latest'}"
 
 jobs:
   fuzz-disconnect:

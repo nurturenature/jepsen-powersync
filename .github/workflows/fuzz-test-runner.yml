@@ -24,10 +24,10 @@ on:
         required: true
         default: "[ '--no-postgresql', '--postgresql' ]"
       disconnect:
-        description: '--[no-]disconnect (as JSON)'
+        description: '--disconnect none|orderly|random (as JSON)'
         type: string
         required: true
-        default: "[ '--no-disconnect', '--disconnect' ]"
+        default: "[ '--disconnect none', '--disconnect orderly' ]"
       stop-or-kill:
         description: '--[no-]stop --[no-]kill (as JSON)'
         type: string
@@ -77,10 +77,10 @@ on:
         required: false
         default: "[ '--no-postgresql', '--postgresql' ]"
       disconnect:
-        description: '--[no-]disconnect (as JSON)'
+        description: '--disconnect none|orderly|random (as JSON)'
         type: string
         required: false
-        default: "[ '--no-disconnect', '--disconnect' ]"
+        default: "[ '--disconnect none', '--disconnect orderly' ]"
       stop-or-kill:
         description: '--[no-]stop --[no-kill] (as JSON)'
         type: string

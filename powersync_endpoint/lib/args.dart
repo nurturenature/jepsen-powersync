@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:args/args.dart';
+import 'nemesis/disconnect.dart';
 
 /// Global args set from CLI or default args.
 Map<String, dynamic> args = {};
@@ -26,7 +27,7 @@ void parseArgs(List<String> arguments) {
     args['time'] = int.parse(results.option('time')!);
     args['maxTxnLen'] = int.parse(results.option('maxTxnLen')!);
     // nemeses
-    args['disconnect'] = results.flag('disconnect');
+    args['disconnect'] = disconnectNemesesLookup[results.option('disconnect')]!;
     args['stop'] = results.flag('stop');
     args['kill'] = results.flag('kill');
     args['partition'] = results.flag('partition');
@@ -94,11 +95,16 @@ ArgParser _buildParser() {
       help: 'time of test in seconds',
     )
     ..addOption('maxTxnLen', defaultsTo: '4', help: 'max transaction length')
-    ..addFlag(
+    ..addOption(
       'disconnect',
-      defaultsTo: false,
-      negatable: true,
-      help: 'call disconnect/connect API at interval',
+      defaultsTo: 'none',
+      allowed: ['none', 'orderly', 'random'],
+      allowedHelp: {
+        'none': 'no disconnecting',
+        'orderly': 'disconnect then reconnect only the disconnected clients',
+        'random':
+            'randomly disconnect or connect clients regardless of their state',
+      },
     )
     ..addFlag(
       'stop',

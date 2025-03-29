@@ -143,7 +143,10 @@ Usage: dart powersync_(http|fuzz).dart <flags> [arguments]
                               (defaults to "100")
     --maxTxnLen               max transaction length
                               (defaults to "4")
-    --[no-]disconnect         call disconnect/connect API at interval
+    --disconnect              
+          [none] (default)    no disconnecting
+          [orderly]           disconnect then reconnect only the disconnected clients
+          [random]            randomly disconnect or connect clients regardless of their state
     --[no-]stop               stop/start Workers at interval
     --[no-]kill               kill/start Workers at interval
     --[no-]partition          partition Workers from PowerSync Service at interval
@@ -188,7 +191,10 @@ Usage: dart powersync_(http|fuzz).dart <flags> [arguments]
 
 ### Nemesis Implementation
 
-#### --disconnect
+#### --disconnect orderly | random
+
+- orderly: disconnect then reconnect only the disconnected clients
+- random:  randomly disconnect or connect clients regardless of their state
 
 ```dart
 await db.disconnect();
@@ -277,7 +283,7 @@ cd jepsen-powersync/docker
 ./powersync-fuzz-down.sh && ./powersync-fuzz-build.sh && ./powersync-fuzz-up.sh
 
 # run a fuzz test on the fuzzing node
-./powersync-fuzz-run.sh ./powersync_fuzz --clients 10 --rate 10 --time 100 --postgresql --disconnect --no-stop --no-kill --partition --no-pause --interval 5
+./powersync-fuzz-run.sh ./powersync_fuzz --clients 10 --rate 10 --time 100 --postgresql --disconnect orderly --no-stop --no-kill --partition --no-pause --interval 5
 
 # download the test run's output from the container to the local host for local analysis
 docker cp powersync-fuzz-node:/jepsen/jepsen-powersync/powersync_endpoint/powersync_fuzz.log .
@@ -311,5 +317,5 @@ cd jepsen-powersync/docker
 
 # simplest CLI args most likely to produce a non-monotonic or empty read
 export SUSPECT_EXIT_CODE=2
-./powersync-fuzz-loop.sh ./powersync_fuzz --clients 10 --rate 10 --time 100 --postgresql --disconnect --no-stop --no-kill --partition --no-pause --interval 5
+./powersync-fuzz-loop.sh ./powersync_fuzz --clients 10 --rate 10 --time 100 --postgresql --disconnect orderly --no-stop --no-kill --partition --no-pause --interval 5
 ```

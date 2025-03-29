@@ -5,6 +5,7 @@ import 'package:list_utilities/list_utilities.dart';
 import 'package:synchronized/synchronized.dart';
 import 'endpoint.dart';
 import 'log.dart';
+import 'nemesis/disconnect.dart';
 import 'utils.dart' as utils;
 import 'worker.dart';
 
@@ -18,7 +19,7 @@ final _locks = Map.fromEntries(
 
 /// Fault injection.
 /// Disconnect, connect, Workers from PowerSync Service:
-///   - --disconnect, db.disconnect()/connect
+///   - --disconnect [none | orderly | random] db.disconnect()/connect
 ///   - --interval, 0 <= random <= 2 * interval
 /// Stop, start, Worker Isolates:
 ///   - --stop, db.close(), Isolate.terminate(immediate)
@@ -39,11 +40,8 @@ class Nemesis {
   late final int _maxInterval;
 
   // disconnect/connect
-  late final bool _disconnect;
-  final ConnectionState _connectionState = ConnectionState();
-  late final Stream<ConnectionStates> Function() _disconnectConnectStream;
-  late final StreamSubscription<ConnectionStates>
-  _disconnectConnectSubscription;
+  late final DisconnectNemeses _disconnect;
+  late final DisconnectNemesis _disconnectNemesis;
 
   // stop/start
   late final bool _stopStart;
@@ -80,7 +78,8 @@ class Nemesis {
     }
     if (args['postgresql']) _allClientNums.add(0);
 
-    _disconnect = args['disconnect'] as bool;
+    // CLI args
+    _disconnect = args['disconnect'] as DisconnectNemeses;
     _stopStart = args['stop'] as bool;
     _killStart = args['kill'] as bool;
     _partition = args['partition'] as bool;
@@ -88,18 +87,10 @@ class Nemesis {
     _interval = args['interval'] as int;
     _maxInterval = _interval * 1000 * 2;
 
-    // Stream of ConnectionStates, flip flops between disconnected and connected
-    // Stream will not emit messages until listened to
-    _disconnectConnectStream = () async* {
-      while (true) {
-        await utils.futureSleep(_rng.nextInt(_maxInterval + 1));
-        yield await _locks[Nemeses.disconnect]!.synchronized<ConnectionStates>(
-          () {
-            return _connectionState.flipFlop();
-          },
-        );
-      }
-    };
+    // only create a DisconnectNemesis if needed
+    if (_disconnect != DisconnectNemeses.none) {
+      _disconnectNemesis = DisconnectNemesis(_disconnect, _clients, _interval);
+    }
 
     // Stream of StopStartStates, flip flops between stopped and started
     // Stream will not emit messages until listened to
@@ -150,7 +141,9 @@ class Nemesis {
 
   /// start injecting faults
   void start() {
-    if (_disconnect) _startDisconnect();
+    if (_disconnect != DisconnectNemeses.none) {
+      _disconnectNemesis.startDisconnect();
+    }
     if (_stopStart) _startStopStart();
     if (_killStart) _startKillStart();
     if (_partition) _startPartition();
@@ -159,78 +152,13 @@ class Nemesis {
 
   /// stop injecting faults
   Future<void> stop() async {
-    if (_disconnect) await _stopDisconnect();
+    if (_disconnect != DisconnectNemeses.none) {
+      await _disconnectNemesis.stopDisconnect();
+    }
     if (_stopStart) await _stopStopStart();
     if (_killStart) await _stopKillStart();
     if (_partition) await _stopPartition();
     if (_pause) await _stopPause();
-  }
-
-  // start injecting disconnect/connect
-  void _startDisconnect() {
-    log.info(
-      'nemesis: disconnect/connect: start listening to stream of disconnected/connected messages',
-    );
-
-    _disconnectConnectSubscription = _disconnectConnectStream().listen((
-      connectionStateMessage,
-    ) async {
-      await _locks[Nemeses.disconnect]!.synchronized(() async {
-        late final Set<Worker> affectedClients;
-        late final Map<String, dynamic> disconnectConnectMessage;
-        switch (connectionStateMessage) {
-          case ConnectionStates.disconnected:
-            // act on 0 to all clients
-            final int numRandomClients = _rng.nextInt(_clients.length + 1);
-            affectedClients = _clients.getRandom(numRandomClients);
-            disconnectConnectMessage = Endpoint.disconnectMessage();
-            break;
-          case ConnectionStates.connected:
-            affectedClients = _clients.getRandom(_clients.length);
-            disconnectConnectMessage = Endpoint.connectMessage();
-            break;
-        }
-
-        final List<Future<Map>> apiFutures = [];
-        for (Worker client in affectedClients) {
-          apiFutures.add(client.executeApi(disconnectConnectMessage));
-        }
-        await apiFutures.wait;
-
-        log.info(
-          'nemesis: disconnect/connect: ${connectionStateMessage.name}: clients: ${affectedClients.map((client) => client.clientNum)}',
-        );
-
-        // log upload queue count for debugging
-        final List<Future<Map>> uploadQueueCountFutures = [];
-        for (Worker client in affectedClients) {
-          uploadQueueCountFutures.add(
-            client.executeApi(Endpoint.uploadQueueCountMessage()),
-          );
-        }
-        await uploadQueueCountFutures.wait;
-      });
-    });
-  }
-
-  // stop injecting disconnect/connect
-  Future<void> _stopDisconnect() async {
-    // stop Stream of disconnected/connected messages
-    await _disconnectConnectSubscription.cancel();
-
-    // let apis catch up
-    await utils.futureSleep(1000);
-
-    // insure all clients are connected
-    final List<Future> connectingClients = [];
-    for (Worker client in _clients) {
-      connectingClients.add(client.executeApi(Endpoint.connectMessage()));
-    }
-    await connectingClients.wait;
-
-    log.info(
-      'nemesis: disconnect/connect: ${ConnectionStates.connected.name}: clients: all',
-    );
   }
 
   // start injecting stop/start
