@@ -213,18 +213,19 @@ class CrudTransactionConnector extends PowerSyncBackendConnector {
       crudTransaction != null;
       crudTransaction = await db.getNextCrudTransaction()
     ) {
-      // it's an error to try and upload the same transaction
-      if (_transactionIds.contains(crudTransaction.transactionId)) {
-        log.severe(
-          'uploadData: txn: ${crudTransaction.transactionId} Duplicate call to uploadData for transaction: $crudTransaction',
-        );
-        exit(32);
-      }
-      _transactionIds.add(crudTransaction.transactionId!);
-
       log.finer(
         'uploadData: txn: ${crudTransaction.transactionId} begin $crudTransaction',
       );
+
+      // it's an error to try and upload the same transaction
+      if (_transactionIds.contains(crudTransaction.transactionId)) {
+        log.severe(
+          'uploadData: txn: ${crudTransaction.transactionId} Duplicate call to uploadData or duplicate getNextCrudTransaction() for transaction id!',
+        );
+        continue;
+      }
+      _transactionIds.add(crudTransaction.transactionId!);
+
       await _txWithRetries(_pg, crudTransaction.crud);
       await crudTransaction.complete();
       log.finer('uploadData: txn: ${crudTransaction.transactionId} committed');
