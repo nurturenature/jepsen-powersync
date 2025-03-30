@@ -11,6 +11,7 @@ import 'utils.dart';
 class PSEndpoint extends Endpoint {
   late final PowerSyncDatabase _db;
   late final PowerSyncBackendConnector _connector;
+  DateTime? _lastSyncedAt;
 
   @override
   Future<void> init({String filePath = '', bool preserveData = false}) async {
@@ -271,6 +272,31 @@ class PSEndpoint extends Endpoint {
   // log PowerSync status changes
   void _logSyncStatus(PowerSyncDatabase db) {
     db.statusStream.listen((syncStatus) {
+      final lastSyncedAt = syncStatus.lastSyncedAt;
+
+      // looking for lastSyncedAt that goes backwards in time
+      if (_lastSyncedAt == null) {
+        _lastSyncedAt = lastSyncedAt;
+      } else if (lastSyncedAt == null) {
+        log.severe(
+          'SyncStatus.lastSyncedAt reverted from $_lastSyncedAt to null',
+        );
+        exit(8);
+      } else {
+        switch (_lastSyncedAt!.compareTo(lastSyncedAt)) {
+          case -1:
+            _lastSyncedAt = lastSyncedAt;
+            break;
+          case 0:
+            break;
+          case 1:
+            log.severe(
+              'SyncStatus.lastSyncedAt went back in time from $_lastSyncedAt to $lastSyncedAt',
+            );
+            exit(8);
+        }
+      }
+
       log.finest('$syncStatus');
     });
   }

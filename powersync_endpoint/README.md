@@ -176,6 +176,8 @@ Usage: dart powersync_(http|fuzz).dart <flags> [arguments]
 <tr><td>2</td><td>Causal Consistency violation in a local SQLite3 txn</td></tr>
 <tr><td>3</td><td>Causal Consistency violation in a PostgreSQL txn</td></tr>
 
+<tr><td>8</td><td>SyncStatus.lastSyncedAt goes backwards in time</td></tr>
+
 <tr><td>10</td><td>invalid data in PowerSync db</td></tr>
 <tr><td>11</td><td>invalid data in PostgreSQL db</td></tr>
 
