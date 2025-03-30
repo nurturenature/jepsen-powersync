@@ -54,6 +54,7 @@ const _maxRetries = 64;
 //   - not safe to proceed
 //     - `exit` to force app restart and resync
 Future<void> _txWithRetries(
+  int callCounter,
   postgres.Connection pg,
   List<CrudEntry> crud,
 ) async {
@@ -80,7 +81,7 @@ Future<void> _txWithRetries(
                         .single // gets and enforces 1 and only 1 affected row
                         .toColumnMap();
                 log.finer(
-                  'uploadData: txn: ${crudEntry.transactionId} put: {$k: $v}',
+                  'uploadData: call: $callCounter txn: ${crudEntry.transactionId} put: {$k: $v}',
                 );
                 break;
 
@@ -96,7 +97,7 @@ Future<void> _txWithRetries(
                         .single // gets and enforces 1 and only 1 affected row
                         .toColumnMap(); // pretty Map
                 log.finer(
-                  'uploadData: txn: ${crudEntry.transactionId} patch: {$k: $v}',
+                  'uploadData: call: $callCounter txn: ${crudEntry.transactionId} patch: {$k: $v}',
                 );
                 break;
 
@@ -110,7 +111,7 @@ Future<void> _txWithRetries(
                         .single // gets and enforces 1 and only 1 affected row
                         .toColumnMap();
                 log.finer(
-                  'uploadData: txn: ${crudEntry.transactionId} delete: {$k: $v}',
+                  'uploadData: call: $callCounter txn: ${crudEntry.transactionId} delete: {$k: $v}',
                 );
                 break;
             }
@@ -125,15 +126,15 @@ Future<void> _txWithRetries(
       if (se.severity == postgres.Severity.panic ||
           se.severity == postgres.Severity.fatal) {
         log.severe(
-          'uploadData: txn: ${crud.first.transactionId} PostgreSQL fatal ServerException: $se, in transaction: $crud',
+          'uploadData: call: $callCounter txn: ${crud.first.transactionId} PostgreSQL fatal ServerException: $se, in transaction: $crud',
         );
         exit(30);
       }
 
       // retryable?
       if (_retryablePgErrors.contains(se.code)) {
-        log.fine(
-          "uploadData: txn: ${crud.first.transactionId} retrying due to PostgreSQL: ${se.message}",
+        log.finer(
+          "uploadData: call: $callCounter txn: ${crud.first.transactionId} retrying due to PostgreSQL: ${se.message}",
         );
 
         await backOff.backOffAndWait();
@@ -143,12 +144,12 @@ Future<void> _txWithRetries(
 
       // not retryable, recoverable
       log.severe(
-        'uploadData: txn: ${crud.first.transactionId} PostgreSQL unrecoverable ServerException: $se, in transaction: $crud',
+        'uploadData: call: $callCounter txn: ${crud.first.transactionId} PostgreSQL unrecoverable ServerException: $se, in transaction: $crud',
       );
       exit(30);
     } catch (ex) {
       log.severe(
-        'uploadData: txn: ${crud.first.transactionId} PostgreSQL unexpected Exception: $ex, in transaction: $crud',
+        'uploadData: call: $callCounter txn: ${crud.first.transactionId} PostgreSQL unexpected Exception: $ex, in transaction: $crud',
       );
       exit(30);
     }
@@ -159,7 +160,7 @@ Future<void> _txWithRetries(
 
   // retried and failed
   log.severe(
-    'uploadData: txn: ${crud.first.transactionId} PostgreSQL max retries exceeded: $_maxRetries, in transaction: $crud',
+    'uploadData: call: $callCounter txn: ${crud.first.transactionId} PostgreSQL max retries exceeded: $_maxRetries, in transaction: $crud',
   );
   exit(30);
 }
@@ -173,10 +174,12 @@ Future<void> _txWithRetries(
 /// - uploads data until `getNextCrudTransaction` is `null`
 class CrudTransactionConnector extends PowerSyncBackendConnector {
   final postgres.Connection _pg;
+  int _callCounter = 0;
   final Set<int> _transactionIds = {};
 
   CrudTransactionConnector._(this._pg);
 
+  /// Create a CrudTransactionConnector with its own PostgreSQL Connection.
   static Future<CrudTransactionConnector> connector() async {
     final endpoint = postgres.Endpoint(
       host: args['PG_DATABASE_HOST']!,
@@ -207,29 +210,43 @@ class CrudTransactionConnector extends PowerSyncBackendConnector {
 
   @override
   Future<void> uploadData(PowerSyncDatabase db) async {
+    // count our calls for debugging purposes
+    _callCounter = _callCounter + 1;
+    final callCounter = _callCounter;
+    log.finer(
+      'uploadData: call: $callCounter begin with UploadQueueStats.count: ${(await db.getUploadQueueStats()).count}',
+    );
+
     // eagerly process all available PowerSync transactions
     for (
       CrudTransaction? crudTransaction = await db.getNextCrudTransaction();
       crudTransaction != null;
       crudTransaction = await db.getNextCrudTransaction()
     ) {
-      log.finer(
-        'uploadData: txn: ${crudTransaction.transactionId} begin $crudTransaction',
-      );
-
       // it's an error to try and upload the same transaction
       if (_transactionIds.contains(crudTransaction.transactionId)) {
         log.severe(
-          'uploadData: txn: ${crudTransaction.transactionId} Duplicate call to uploadData or duplicate getNextCrudTransaction() for transaction id!',
+          'uploadData: call: $callCounter txn: ${crudTransaction.transactionId} Duplicate call to uploadData or duplicate getNextCrudTransaction() for transaction id!',
         );
-        continue;
+        exit(32);
       }
       _transactionIds.add(crudTransaction.transactionId!);
 
-      await _txWithRetries(_pg, crudTransaction.crud);
+      log.finer(
+        'uploadData: call: $callCounter txn: ${crudTransaction.transactionId} begin $crudTransaction',
+      );
+
+      await _txWithRetries(callCounter, _pg, crudTransaction.crud);
       await crudTransaction.complete();
-      log.finer('uploadData: txn: ${crudTransaction.transactionId} committed');
+
+      log.finer(
+        'uploadData: call: $callCounter txn: ${crudTransaction.transactionId} committed',
+      );
     }
+
+    log.finer(
+      'uploadData: call: $callCounter end with UploadQueueStats.count: ${(await db.getUploadQueueStats()).count}',
+    );
   }
 }
 
