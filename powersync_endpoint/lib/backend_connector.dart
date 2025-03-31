@@ -96,8 +96,12 @@ Future<void> _txWithRetries(
                     patch // result of UPDATE
                         .single // gets and enforces 1 and only 1 affected row
                         .toColumnMap(); // pretty Map
+                final reason = switch (patchV < v) {
+                  true => 'greatest($patchV, $v)',
+                  false => '',
+                };
                 log.finer(
-                  'uploadData: call: $callCounter txn: ${crudEntry.transactionId} patch: {$k: $v}',
+                  'uploadData: call: $callCounter txn: ${crudEntry.transactionId} patch: {$k: $v} $reason',
                 );
                 break;
 
