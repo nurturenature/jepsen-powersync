@@ -2,28 +2,69 @@ name: fuzz-kill-start
 
 on:
   workflow_dispatch:
+    inputs:
+      clients:
+        description: 'Clients (as JSON)'
+        type: string
+        required: true
+        default: "[ '5', '10' ]"
+      rates:
+        description: 'Rates (as JSON)'
+        type: string
+        required: true
+        default: "[ '10', '20', '30', '40' ]"
+      times:
+        description: 'Time limits (as JSON)'
+        type: string
+        required: true
+        default: "[ '100', '200', '300' ]"
+      postgresql:
+        description: '--[no-]postgresql (as JSON)'
+        type: string
+        required: true
+        default: "[ '--no-postgresql', '--postgresql' ]"
+      disconnect:
+        description: '--disconnect none|orderly|random (as JSON)'
+        type: string
+        required: true
+        default: "[ '--disconnect none' ]"
+      stop-or-kill:
+        description: '--[no-]stop --[no-]kill (as JSON)'
+        type: string
+        required: true
+        default: "[ '--kill' ]"
+      partition:
+        description: '--[no-]partition (as JSON)'
+        type: string
+        required: true
+        default: "[ '--no-partition' ]"
+      pause:
+        description: '--[no-]pause (as JSON)'
+        type: string
+        required: true
+        default: "[ '--no-pause' ]"
+      cli-opts:
+        description: CLI opts, e.g. '--interval 5', '--log-level INFO' (as JSON)
+        type: string
+        required: true
+        default: "[ '' ]"
+      args:
+        description: 'A JSON Map of args (workaround GitHub max inputs)'
+        type: string
+        required: true
+        default: "{'repeat': [ '1', '2', '3', '4', '5' ], 'timeout-minutes': 10, 'powersync-image-tag': 'latest'}"
 
 jobs:
   fuzz-kill-start:
     uses: nurturenature/jepsen-powersync/.github/workflows/fuzz-test-runner.yml@main
     with:
-      clients: >
-        [ '5', '10' ]
-      rates: >
-        [ '10', '20', '30', '40' ]
-      times: >
-        [ '100', '200', '300' ]
-      postgresql: >
-        [ '--postgresql', '--no-postgresql' ]
-      disconnect: >
-        [ '--disconnect none' ]
-      stop-or-kill: >
-        [ '--kill' ]
-      partition: >
-        [ '--no-partition' ]
-      pause: >
-        [ '--no-pause' ]
-      cli-opts: >
-        [ '' ]
-      args: >
-        {'repeat': [ '1', '2' ], 'timeout-minutes': 10, , 'powersync-image-tag': 'latest'}
+      clients: ${{ inputs.clients }}
+      rates: ${{ inputs.rates }}
+      times: ${{ inputs.times }}
+      postgresql: ${{ inputs.postgresql }}
+      disconnect: ${{ inputs.disconnect }}
+      stop-or-kill: ${{ inputs.stop-or-kill }}
+      partition: ${{ inputs.partition }}
+      pause: ${{ inputs.pause }}
+      cli-opts: ${{ inputs.cli-opts }}
+      args: ${{ inputs.args }}
