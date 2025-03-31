@@ -204,6 +204,7 @@ class PSEndpoint extends Endpoint {
       case APICalls.uploadQueueWait:
         int prevCount = 0;
         int prevTimes = 0;
+        const maxTimes = 5;
 
         int count = (await _db.getUploadQueueStats()).count;
         while (count != 0) {
@@ -211,9 +212,9 @@ class PSEndpoint extends Endpoint {
           if (count == prevCount) {
             prevTimes = prevTimes + 1;
 
-            if (prevTimes > 3) {
+            if (prevTimes > maxTimes) {
               log.severe(
-                'UploadQueueStats.count appears to be stuck at $count',
+                'UploadQueueStats.count appears to be stuck at $count after waiting for ${prevTimes}s',
               );
               exit(9);
             }
