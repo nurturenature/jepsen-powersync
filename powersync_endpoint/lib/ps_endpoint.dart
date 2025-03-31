@@ -202,12 +202,34 @@ class PSEndpoint extends Endpoint {
         break;
 
       case APICalls.uploadQueueWait:
-        while ((await _db.getUploadQueueStats()).count != 0) {
+        int prevCount = 0;
+        int prevTimes = 0;
+
+        int count = (await _db.getUploadQueueStats()).count;
+        while (count != 0) {
+          // check for a stuck count
+          if (count == prevCount) {
+            prevTimes = prevTimes + 1;
+
+            if (prevTimes > 3) {
+              log.severe(
+                'UploadQueueStats.count appears to be stuck at $count',
+              );
+              exit(9);
+            }
+          } else {
+            prevCount = count;
+            prevTimes = 0;
+          }
+
           log.fine(
-            'database api: ${APICalls.uploadQueueWait.name}: waiting on UploadQueueStats.count: ${(await _db.getUploadQueueStats()).count}...',
+            'database api: ${APICalls.uploadQueueWait.name}: waiting on UploadQueueStats.count: $count ...',
           );
           await futureSleep(1000);
+
+          count = (await _db.getUploadQueueStats()).count;
         }
+
         op['value']['v'] = {'db.uploadQueueStats.count': 'queue-empty'};
         break;
 

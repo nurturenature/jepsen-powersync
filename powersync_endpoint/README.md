@@ -178,6 +178,8 @@ Usage: dart powersync_(http|fuzz).dart <flags> [arguments]
 
 <tr><td>8</td><td>SyncStatus.lastSyncedAt goes backwards in time</td></tr>
 
+<tr><td>9</td><td>UploadQueueStats.count appears to be stuck</td></tr>
+
 <tr><td>10</td><td>invalid data in PowerSync db</td></tr>
 <tr><td>11</td><td>invalid data in PostgreSQL db</td></tr>
 
