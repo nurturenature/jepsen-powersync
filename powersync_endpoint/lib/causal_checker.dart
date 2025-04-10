@@ -2,6 +2,7 @@ import 'dart:collection';
 import 'dart:io';
 import 'package:synchronized/synchronized.dart';
 import 'endpoint.dart';
+import 'error_codes.dart';
 import 'log.dart';
 import 'pg_endpoint.dart';
 import 'worker.dart';
@@ -320,6 +321,6 @@ Future<void> checkStrongConvergence(Set<Worker> clients) async {
       log.severe('${client.key} ${client.value}');
     }
     log.severe(':(');
-    exit(1);
+    exit(errorCodes[ErrorReasons.strongConvergence]!);
   }
 }

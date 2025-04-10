@@ -176,17 +176,17 @@ Usage: dart powersync_(http|fuzz).dart <flags> [arguments]
 <tr><td>2</td><td>Causal Consistency violation in a local SQLite3 txn</td></tr>
 <tr><td>3</td><td>Causal Consistency violation in a PostgreSQL txn</td></tr>
 
-<tr><td>8</td><td>SyncStatus.lastSyncedAt goes backwards in time</td></tr>
+<tr><td>10</td><td>`SyncStatus.lastSyncedAt` goes backwards in time</td></tr>
 
-<tr><td>9</td><td>UploadQueueStats.count appears to be stuck</td></tr>
+<tr><td>12</td><td>`UploadQueueStats.count` stuck</td></tr>
 
-<tr><td>10</td><td>invalid data in PowerSync db</td></tr>
-<tr><td>11</td><td>invalid data in PostgreSQL db</td></tr>
+<tr><td>20</td><td>invalid data in local SQLite3 db</td></tr>
+<tr><td>22</td><td>invalid data in PostgreSQL db</td></tr>
 
-<tr><td>21</td><td>PostgreSQL error</td></tr>
+<tr><td>30</td><td>`BackendConnector.uploadData()` or `getNextCrudTransaction()` duplicate transaction id</td></tr>
+<tr><td>32</td><td>`BackendConnector.uploadData()` failed executing the CRUD transaction in PostgreSQL</td></tr>
 
-<tr><td>30</td><td>BackendConnector: upload failed executing the CRUD transaction in PostgreSQL</td></tr>
-<tr><td>32</td><td>BackendConnector: Duplicate call to uploadData or duplicate getNextCrudTransaction() for transaction id</td></tr>
+<tr><td>40</td><td>PostgreSQL error</td></tr>
 
 <tr><td>100</td><td>invalid state due to coding error</td></tr>
 </table>

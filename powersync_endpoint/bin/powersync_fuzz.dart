@@ -5,6 +5,7 @@ import 'package:list_utilities/list_utilities.dart';
 import 'package:powersync_endpoint/args.dart';
 import 'package:powersync_endpoint/causal_checker.dart';
 import 'package:powersync_endpoint/endpoint.dart';
+import 'package:powersync_endpoint/error_codes.dart';
 import 'package:powersync_endpoint/log.dart';
 import 'package:powersync_endpoint/nemesis.dart';
 import 'package:powersync_endpoint/utils.dart' as utils;
@@ -65,7 +66,14 @@ void main(List<String> arguments) async {
 
         if (!await causalChecker.checkOp(op)) {
           log.severe('Causal Consistency check failed for op: $op');
-          exit(2);
+          switch (op['clientType']) {
+            case 'ps':
+              exit(errorCodes[ErrorReasons.sqlite3CausalConsistency]!);
+            case 'pg':
+              exit(errorCodes[ErrorReasons.postgresqlCausalConsistency]!);
+            default:
+              exit(errorCodes[ErrorReasons.codingError]!);
+          }
         }
       })
       .onDone(() async {

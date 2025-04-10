@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:postgres/postgres.dart' as postgres;
 import 'args.dart';
 import 'endpoint.dart';
+import 'error_codes.dart';
 import 'log.dart';
 
 class PGEndpoint extends Endpoint {
@@ -58,7 +59,7 @@ class PGEndpoint extends Endpoint {
                   log.severe(
                     'PostgreSQL: invalid select: $select for mop: $mop in op: $op',
                   );
-                  exit(11);
+                  exit(errorCodes[ErrorReasons.invalidPostgresqlData]!);
                 }
 
                 // return mop['v'] as a {k: v} map containing all read k/v
@@ -96,7 +97,7 @@ class PGEndpoint extends Endpoint {
                     log.severe(
                       'PostgreSQL: invalid update: $update for key: ${kv.key} in mop: $mop in op: $op',
                     );
-                    exit(11);
+                    exit(errorCodes[ErrorReasons.invalidPostgresqlData]!);
                   }
                 }
 
@@ -119,7 +120,7 @@ class PGEndpoint extends Endpoint {
       if (se.severity == postgres.Severity.panic ||
           se.severity == postgres.Severity.fatal) {
         log.severe('PostgreSQL: fatal error: ${se.message}');
-        exit(21);
+        exit(errorCodes[ErrorReasons.postgresqlError]!);
       }
 
       // no retry, just fail transaction, likely concurrent access or deadlock

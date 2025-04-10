@@ -4,6 +4,7 @@ import 'package:powersync/powersync.dart';
 import 'args.dart';
 import 'backend_connector.dart';
 import 'endpoint.dart';
+import 'error_codes.dart';
 import 'log.dart';
 import 'schema.dart';
 import 'utils.dart';
@@ -116,7 +117,7 @@ class PSEndpoint extends Endpoint {
               log.severe(
                 'PowerSyncDatabase: invalid SELECT, tx.getAll(), ResultSet: $select for mop: $mop in op: $op',
               );
-              exit(10);
+              exit(errorCodes[ErrorReasons.invalidSqlite3Data]!);
             }
 
             // return mop['v'] as a {k: v} map containing all read k/v
@@ -149,7 +150,7 @@ class PSEndpoint extends Endpoint {
                 log.severe(
                   'PowerSyncDatabase: invalid update: $update for key: ${kv.key} in mop: $mop in op: $op',
                 );
-                exit(10);
+                exit(errorCodes[ErrorReasons.invalidSqlite3Data]!);
               }
             }
 
@@ -216,7 +217,7 @@ class PSEndpoint extends Endpoint {
               log.severe(
                 'UploadQueueStats.count appears to be stuck at $count after waiting for ${prevTimes}s',
               );
-              exit(9);
+              exit(errorCodes[ErrorReasons.uploadQueueStatsCount]!);
             }
           } else {
             prevCount = count;
@@ -304,7 +305,7 @@ class PSEndpoint extends Endpoint {
         log.severe(
           'SyncStatus.lastSyncedAt reverted from $_lastSyncedAt to null',
         );
-        exit(8);
+        exit(errorCodes[ErrorReasons.syncStatusLastSyncedAt]!);
       } else {
         switch (_lastSyncedAt!.compareTo(lastSyncedAt)) {
           case -1:
@@ -316,7 +317,7 @@ class PSEndpoint extends Endpoint {
             log.severe(
               'SyncStatus.lastSyncedAt went back in time from $_lastSyncedAt to $lastSyncedAt',
             );
-            exit(8);
+            exit(errorCodes[ErrorReasons.syncStatusLastSyncedAt]!);
         }
       }
 

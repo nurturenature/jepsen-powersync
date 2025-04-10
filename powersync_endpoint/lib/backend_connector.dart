@@ -3,6 +3,7 @@ import 'package:postgres/postgres.dart' as postgres;
 import 'package:powersync/powersync.dart';
 import 'args.dart';
 import 'auth.dart';
+import 'error_codes.dart';
 import 'log.dart';
 import 'utils.dart';
 
@@ -25,7 +26,7 @@ class NoOpConnector extends PowerSyncBackendConnector {
   Future<void> uploadData(PowerSyncDatabase database) async {
     log.severe('localOnly:true should never uploadData!');
 
-    exit(100);
+    exit(errorCodes[ErrorReasons.codingError]!);
   }
 }
 
@@ -132,7 +133,7 @@ Future<void> _txWithRetries(
         log.severe(
           'uploadData: call: $callCounter txn: ${crud.first.transactionId} PostgreSQL fatal ServerException: $se, in transaction: $crud',
         );
-        exit(30);
+        exit(errorCodes[ErrorReasons.postgresqlError]!);
       }
 
       // retryable?
@@ -150,12 +151,12 @@ Future<void> _txWithRetries(
       log.severe(
         'uploadData: call: $callCounter txn: ${crud.first.transactionId} PostgreSQL unrecoverable ServerException: $se, in transaction: $crud',
       );
-      exit(30);
+      exit(errorCodes[ErrorReasons.postgresqlError]!);
     } catch (ex) {
       log.severe(
         'uploadData: call: $callCounter txn: ${crud.first.transactionId} PostgreSQL unexpected Exception: $ex, in transaction: $crud',
       );
-      exit(30);
+      exit(errorCodes[ErrorReasons.postgresqlError]!);
     }
 
     // transaction completed and committed successfully
@@ -166,7 +167,7 @@ Future<void> _txWithRetries(
   log.severe(
     'uploadData: call: $callCounter txn: ${crud.first.transactionId} PostgreSQL max retries exceeded: $_maxRetries, in transaction: $crud',
   );
-  exit(30);
+  exit(errorCodes[ErrorReasons.backendConnectorUploadDataPostgresql]!);
 }
 
 /// A `PowerSyncBackendConnector` with:
@@ -232,7 +233,7 @@ class CrudTransactionConnector extends PowerSyncBackendConnector {
         log.severe(
           'uploadData: call: $callCounter txn: ${crudTransaction.transactionId} Duplicate call to uploadData or duplicate getNextCrudTransaction() for transaction id!',
         );
-        exit(32);
+        exit(errorCodes[ErrorReasons.backendConnectorUploadDataDuplicateId]!);
       }
       _transactionIds.add(crudTransaction.transactionId!);
 
