@@ -19,8 +19,8 @@ RUN apt-get -qy update && \
     apt-get -qy install \
     git wget xz-utils
 
-RUN wget --no-verbose https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.29.0-stable.tar.xz
-RUN tar -xf ./flutter_linux_3.29.0-stable.tar.xz -C /usr/bin/
+RUN wget --no-verbose https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.29.2-stable.tar.xz
+RUN tar -xf ./flutter_linux_3.29.2-stable.tar.xz -C /usr/bin/
 ENV PATH=/usr/bin/flutter/bin:$PATH
 
 # required by how flutter uses git
