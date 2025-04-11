@@ -67,7 +67,7 @@ class PSEndpoint extends Endpoint {
       log.info('\twith currentStatus: $currentStatus');
 
       // sleep and try again
-      await futureSleep(100);
+      await futureDelay(100);
       currentStatus = _db.currentStatus;
       psKeys = Set.from((await _selectAll()).keys);
     }
@@ -227,7 +227,7 @@ class PSEndpoint extends Endpoint {
           log.fine(
             'database api: ${APICalls.uploadQueueWait.name}: waiting on UploadQueueStats.count: $count ...',
           );
-          await futureSleep(1000);
+          await futureDelay(1000);
 
           count = (await _db.getUploadQueueStats()).count;
         }
@@ -245,7 +245,7 @@ class PSEndpoint extends Endpoint {
           log.fine(
             'database api: ${APICalls.downloadingWait.name}: waiting on SyncStatus.downloading: true...',
           );
-          await futureSleep(waitPerTry);
+          await futureDelay(waitPerTry);
           onTry++;
           currentStatus = _db.currentStatus;
         }

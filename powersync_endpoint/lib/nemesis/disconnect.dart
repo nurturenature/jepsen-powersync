@@ -34,7 +34,7 @@ class DisconnectNemesis {
     // Stream will not emit messages until listened to
     _disconnectConnectStream = () async* {
       while (true) {
-        await utils.futureSleep(_rng.nextInt(maxInterval + 1));
+        await utils.futureDelay(_rng.nextInt(maxInterval + 1));
         yield await _lock.synchronized<DisconnectStates>(() {
           return disconnectState.flipFlop();
         });
@@ -143,7 +143,7 @@ class DisconnectNemesis {
     await _disconnectConnectSubscription.cancel();
 
     // let apis catch up
-    await utils.futureSleep(1000);
+    await utils.futureDelay(1000);
 
     // only act on disconnected clients
     final actOnClients =

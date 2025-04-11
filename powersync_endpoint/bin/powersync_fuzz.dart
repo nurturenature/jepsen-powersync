@@ -82,7 +82,7 @@ void main(List<String> arguments) async {
 
         // quiesce
         log.info('quiesce for 3 seconds...');
-        await utils.futureSleep(3000);
+        await utils.futureDelay(3000);
 
         // wait for upload queue to be empty
         log.info('wait for upload queue to be empty in clients');

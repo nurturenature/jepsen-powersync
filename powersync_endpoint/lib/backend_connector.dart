@@ -270,6 +270,6 @@ class BackOff {
       _delay = _minRetryDelay;
     }
 
-    await futureSleep(_delay);
+    await futureDelay(_delay);
   }
 }

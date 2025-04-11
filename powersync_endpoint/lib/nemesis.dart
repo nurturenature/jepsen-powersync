@@ -96,7 +96,7 @@ class Nemesis {
     // Stream will not emit messages until listened to
     _stopStartStream = () async* {
       while (true) {
-        await utils.futureSleep(_rng.nextInt(_maxInterval + 1));
+        await utils.futureDelay(_rng.nextInt(_maxInterval + 1));
         yield await _locks[Nemeses.stop]!.synchronized<StopStartStates>(() {
           return _stopStartState.flipFlop();
         });
@@ -107,7 +107,7 @@ class Nemesis {
     // Stream will not emit messages until listened to
     _killStartStream = () async* {
       while (true) {
-        await utils.futureSleep(_rng.nextInt(_maxInterval + 1));
+        await utils.futureDelay(_rng.nextInt(_maxInterval + 1));
         yield await _locks[Nemeses.kill]!.synchronized<KillStartStates>(() {
           return _killStartState.flipFlop();
         });
@@ -118,7 +118,7 @@ class Nemesis {
     // Stream will not emit messages until listened to
     _partitionStream = () async* {
       while (true) {
-        await utils.futureSleep(_rng.nextInt(_maxInterval + 1));
+        await utils.futureDelay(_rng.nextInt(_maxInterval + 1));
         yield await _locks[Nemeses.partition]!.synchronized<PartitionStates>(
           () {
             return _partitionState.flipFlop();
@@ -131,7 +131,7 @@ class Nemesis {
     // Stream will not emit messages until listened to
     _pauseStream = () async* {
       while (true) {
-        await utils.futureSleep(_rng.nextInt(_maxInterval + 1));
+        await utils.futureDelay(_rng.nextInt(_maxInterval + 1));
         yield await _locks[Nemeses.pause]!.synchronized<PauseStates>(() {
           return _pauseState.flipFlop();
         });
@@ -222,7 +222,7 @@ class Nemesis {
     await _stopStartSubscription.cancel();
 
     // let apis catch up
-    await utils.futureSleep(1000);
+    await utils.futureDelay(1000);
 
     // insure all clients are started, act on clients in parallel
     final List<Future<bool>> affectedClientFutures = [];
@@ -309,7 +309,7 @@ class Nemesis {
     await _killStartSubscription.cancel();
 
     // let apis catch up
-    await utils.futureSleep(1000);
+    await utils.futureDelay(1000);
 
     // insure all clients are started, act on clients in parallel
     final List<Future<bool>> affectedClientFutures = [];
@@ -358,7 +358,7 @@ class Nemesis {
     await _partitionSubscription.cancel();
 
     // let apis catch up
-    await utils.futureSleep(1000);
+    await utils.futureDelay(1000);
 
     // insure no partition
     await Partition.partition(powerSyncHost, PartitionStates.none);
@@ -406,7 +406,7 @@ class Nemesis {
     await _pauseSubscription.cancel();
 
     // let apis catch up
-    await utils.futureSleep(1000);
+    await utils.futureDelay(1000);
 
     // insure all clients are running
     Set<int> affectedClientNums = {};
