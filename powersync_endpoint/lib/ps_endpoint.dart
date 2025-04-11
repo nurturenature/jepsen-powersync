@@ -35,7 +35,15 @@ class PSEndpoint extends Endpoint {
       "db: init: created db with schemas: ${_db.schema.tables.map((table) => {table.name: table.columns.map((column) => '${column.name} ${column.type.name}')})}, path: $filePath",
     );
 
-    await _db.initialize();
+    await _db.initialize().timeout(
+      powerSyncTimeoutDuration,
+      onTimeout: () {
+        log.severe(
+          'db: init: failed to initialize PowerSync Database, call to initialize() timed out after $powerSyncTimeoutDuration',
+        );
+        exit(errorCodes[ErrorReasons.powersyncDatabaseApiTimeout]!);
+      },
+    );
     log.info(
       'db: init: initialized with runtimeType: ${_db.runtimeType}, status: ${_db.currentStatus}',
     );

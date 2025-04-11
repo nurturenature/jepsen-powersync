@@ -9,6 +9,7 @@ enum ErrorReasons {
   invalidPostgresqlData,
   backendConnectorUploadDataDuplicateId,
   backendConnectorUploadDataPostgresql,
+  powersyncDatabaseApiTimeout,
   postgresqlError,
   codingError,
 }
@@ -24,6 +25,7 @@ const errorCodes = {
   ErrorReasons.invalidPostgresqlData: 22,
   ErrorReasons.backendConnectorUploadDataDuplicateId: 30,
   ErrorReasons.backendConnectorUploadDataPostgresql: 32,
-  ErrorReasons.postgresqlError: 40,
+  ErrorReasons.powersyncDatabaseApiTimeout: 40,
+  ErrorReasons.postgresqlError: 50,
   ErrorReasons.codingError: 100,
 };

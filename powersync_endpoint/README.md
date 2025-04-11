@@ -186,7 +186,9 @@ Usage: dart powersync_(http|fuzz).dart <flags> [arguments]
 <tr><td>30</td><td>`BackendConnector.uploadData()` or `getNextCrudTransaction()` duplicate transaction id</td></tr>
 <tr><td>32</td><td>`BackendConnector.uploadData()` failed executing the CRUD transaction in PostgreSQL</td></tr>
 
-<tr><td>40</td><td>PostgreSQL error</td></tr>
+<tr><td>40</td><td>PowerSync Database API timeout</td></tr>
+
+<tr><td>50</td><td>PostgreSQL error</td></tr>
 
 <tr><td>100</td><td>invalid state due to coding error</td></tr>
 </table>
