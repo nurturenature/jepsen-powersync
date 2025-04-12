@@ -301,9 +301,12 @@ class PSEndpoint extends Endpoint {
     }
   }
 
-  // log PowerSync status changes
+  // Log PowerSync status changes.
+  // Check that lastSyncedAt always goes forward in time.
   void _logSyncStatus(PowerSyncDatabase db) {
     db.statusStream.listen((syncStatus) {
+      log.finest('$syncStatus');
+
       final lastSyncedAt = syncStatus.lastSyncedAt;
 
       // looking for lastSyncedAt that goes backwards in time
@@ -328,8 +331,6 @@ class PSEndpoint extends Endpoint {
             exit(errorCodes[ErrorReasons.syncStatusLastSyncedAt]!);
         }
       }
-
-      log.finest('$syncStatus');
     });
   }
 
