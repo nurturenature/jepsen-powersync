@@ -228,6 +228,10 @@ class CrudTransactionConnector extends PowerSyncBackendConnector {
       crudTransaction != null;
       crudTransaction = await db.getNextCrudTransaction()
     ) {
+      log.finer(
+        'uploadData: call: $callCounter txn: ${crudTransaction.transactionId} begin $crudTransaction',
+      );
+
       // it's an error to try and upload the same transaction
       if (_transactionIds.contains(crudTransaction.transactionId)) {
         log.severe(
@@ -236,10 +240,6 @@ class CrudTransactionConnector extends PowerSyncBackendConnector {
         exit(errorCodes[ErrorReasons.backendConnectorUploadDataDuplicateId]!);
       }
       _transactionIds.add(crudTransaction.transactionId!);
-
-      log.finer(
-        'uploadData: call: $callCounter txn: ${crudTransaction.transactionId} begin $crudTransaction',
-      );
 
       await _txWithRetries(callCounter, _pg, crudTransaction.crud);
       await crudTransaction.complete();
