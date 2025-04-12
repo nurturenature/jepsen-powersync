@@ -213,7 +213,7 @@ class PSEndpoint extends Endpoint {
       case APICalls.uploadQueueWait:
         int prevCount = 0;
         int prevTimes = 0;
-        const maxTimes = 5;
+        const maxTimes = 10;
 
         int count = (await _db.getUploadQueueStats()).count;
         while (count != 0) {
