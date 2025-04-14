@@ -362,10 +362,10 @@ packages:
     dependency: "direct main"
     description:
       name: postgres
-      sha256: "2d288499a05388313ce214438eb9da34313e482a8a31649776b812da5b408964"
+      sha256: "9aaa6f4872956adef653535a4e2133b167465c1a68c22b9bd0744ef1244e9393"
       url: "https://pub.dev"
     source: hosted
-    version: "3.5.5"
+    version: "3.5.6"
   powersync:
     dependency: "direct main"
     description:
