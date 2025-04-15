@@ -315,13 +315,14 @@ The test artifacts can be large. They contain:
 
 In the `docker` directory there's a script that builds a fuzzing environment and just loops until it finds:
 - exit code > $SUSPECT_EXIT_CODE
-  - exit code  1: divergent final reads, i.e. not Strong Convergence
-  - exit code  2: non-monotonic read, i.e. the database state goes back in time
-  - exit code 10: read of a suddenly empty local database
+- most common errors in order
+  - exit code 30: `BackendConnector.uploadData()` or `getNextCrudTransaction()` duplicate transaction id
+  - exit code 10: `SyncStatus.lastSyncedAt` goes backwards in time
+  - exit code 12: `UploadQueueStats.count` stuck
 ```bash
 cd jepsen-powersync/docker
 
-# simplest CLI args most likely to produce a non-monotonic or empty read
-export SUSPECT_EXIT_CODE=2
+# simplest CLI args most likely to produce an error
+export SUSPECT_EXIT_CODE=1
 ./powersync-fuzz-loop.sh ./powersync_fuzz --clients 10 --rate 10 --time 100 --postgresql --disconnect orderly --no-stop --no-kill --partition --no-pause --interval 5
 ```
