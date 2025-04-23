@@ -33,80 +33,101 @@ The initial implementations of the PowerSync client and backend connector take a
 clients do straight ahead SQL transactions: 
 ```dart
 await db.writeTransaction((tx) async {
-  final select = await tx.getOptional('SELECT * from lww where k = ?', [mop['k']]);
-  await tx.execute(
-    'INSERT OR REPLACE INTO lww (k,v) VALUES (?,?) ON CONFLICT (k) DO UPDATE SET v = lww.v || \' \' || ?',
-    [k, v, v]);
-  });
+  // SQLTransactions.readAll
+  final select = await tx.getAll('SELECT k,v FROM mww ORDER BY k;');
+  
+  // SQLTransactions.writeSome
+  final update = await tx.execute(
+    "UPDATE mww SET v = ${kv.value} WHERE k = ${kv.key} RETURNING *;",
+  );
+});
 ```
 
 backend replication is transaction based:
 ```dart
-PowerSyncDatabase.getNextCrudTransaction();
+CrudTransaction? crudTransaction = await db.getNextCrudTransaction();
 
-Connection.runInTransaction();
+await pg.runTx(
+  // max write wins, so GREATEST() value of v
+  final patchV = crudEntry.opData!['v'] as int;
+  final patch = await tx.execute(
+    'UPDATE mww SET v = GREATEST($patchV, mww.v) WHERE id = \'${crudEntry.id}\' RETURNING *',
+  );
+);
 ```
-
-The implementation will evolve to use other data models and APIs to find the different consistency levels, performance, and usability trade-offs.
 
 ----
 
 ### Progressive Test Enhancement
 
-Single user, generic SQLite3 db, no PowerSync
+✔️ Single user, generic SQLite3 db, no PowerSync
 - tests the tests
 - demonstrates test fidelity, i.e. accurately represent the database
- 
-Single user, PowerSync db, local only
+- 🗸 as expected, tests show totally availability with strict serializability 
+
+✔️ Multi user, generic SQLite3 shared db, no PowerSync
+- tests the tests
+- demonstrates test fidelity, i.e. accurately represent the database
+- 🗸 as expected, tests show totally availability with strict serializability 
+
+✔️ Single user, PowerSync db, local only
 - expectation is total availability and strict serializability
 - SQLite3 is tight and using PowerSync APIs should reflect that
+- 🗸 as expected, tests show totally availability with strict serializability 
 
-Single user, PowerSync db, with replication
-- expectation stays the same
+✔️ Single user, PowerSync db, with replication
+- expectation is total availability and strict serializability
+- SQLite3 is tight and using PowerSync APIs should reflect that
+- 🗸 as expected, tests show total availability with strict serializability 
 
-Multi user, generic SQLite3 shared db, no PowerSync
-- tests the tests
-- demonstrates test fidelity, i.e. accurately represent the database
-
-Multi user, PowerSync db, with replication, using example backend connector
+✔️ Multi user, PowerSync db, with replication, using `getCrudBatch()` backend connector
 - expectation is
   - read committed vs Causal
   - non-atomic transactions with intermediate reads
   - strong convergence
+- 🗸 as expected, tests show read committed, non-atomic with intermediate reads transactions, and all replicated databases strongly converge
 
-Multi user, PowerSync db, with replication, using newly developed Causal connector 
+✔️ Multi user, PowerSync db, with replication, using newly developed Causal `getNextCrudTransaction()` backend connector 
 - expectation is
-  - Causal Consistency
   - Atomic transactions
+  - Causal Consistency
   - Strong Convergence
+- 🗸 as expected, tests show Atomic transactions with Causal Consistency, and all replicated databases strongly converge
 
-Multi user, Active/Active PostgreSQL/SQLite, with replication
+✔️ Multi user, Active/Active PostgreSQL/SQLite3, with replication, using newly developed Causal `getNextCrudTransaction()` backend connector
 - mix of clients, some PostgreSQL, some PowerSync
-- expectation remains Causal+
+- expectation is
+  - Atomic transactions
+  - Causal Consistency
+  - Strong Convergence
+- 🗸 as expected, tests show Atomic transactions with Causal Consistency, and all replicated databases strongly converge
 
 ----
 
 ### Clients
 
 The client will be a simple Dart CLI PowerSync implementation.
-It will also expose an http endpoint for Jepsen to post transactions to and receive the results.
 
 Clients are expected to have total sticky availability
 - throughout the session, each client uses the
   - same API
   - same connection
-- clients are expected to be available, liveness, unless explicitly killed or paused
+- clients are expected to be totally available, liveness, unless explicitly stopped, killed or paused
 
 Observe and interact with the database
 - `PowerSyncDatabase` driver
-  - single `writeTransaction` with multiple statements
-  - split `readTransaction` \ `writeTransaction`
-- `watch` query stream
-  - reactive UI should receive a Causal+ view
-- PostgreSQL
-  - most used Dart pub.dev driver 
-- `SqliteDatabase` driver
-  - TODO: confirm this is appropriate, i.e. direct access to a sync'd SQLite3
+- single `db.writeTransaction()` with multiple SQL statements
+  - `tx.getAll('SELECT')`
+  - `tx.execute('UPDATE')`
+- PostgreSQL driver
+  - most used Dart pub.dev driver
+  - single `pg.runTx()` with multiple SQL statements
+      - `tx.execute('SELECT')`
+      - `tx.execute('UPDATE')`
+
+The client will expose an endpoint for SQL transactions and `PowerSyncDatabase` API calls
+- HTTP for Jepsen
+- `Isolate` `ReceivePort` for Dart Fuzzer
 
 ----
 
@@ -114,17 +135,22 @@ Observe and interact with the database
 
 LoFi and distributed systems live in a rough and tumble environment.
 
-Successful applications, amount/duration of use, will be exposed to faults. Reality is like that. 
+Successful applications, applications that receive a meaningful amount or duration of use, will be exposed to faults. Reality is like that. 
 
 Faults are applied
 - to random clients
 - at random intervals
 - for random durations
 
-We still expect total sticky availability unless the client has been explicitly paused/killed.
+Even during faults, we still expect
+- total sticky availability (unless the client has been explicitly stopped/paused/killed)
+- Atomic transactions
+- Causal Consistency
+- Strong Convergence
 
 #### Offline / Online
 
+`PowerSyncDatabase` API usage
 - `close()`, `connect()`, `disconnect()`, `disconnectAndClose()`
 
 #### Network
@@ -142,7 +168,12 @@ We still expect total sticky availability unless the client has been explicitly 
 
 ### Conflict Resolution
 
-Last write wins, with last defined as the last transaction executed on the PostgreSQL backend with `repeatable read` isolation.
+Maximum write value for the key wins
+- SQLite3
+  - `MAX()`
+- PostgreSQL
+  - `GREATEST()`
+  - `repeatable read` isolation
 
 The conflict/merge algorithm isn't important to the test.
 It just needs to be
