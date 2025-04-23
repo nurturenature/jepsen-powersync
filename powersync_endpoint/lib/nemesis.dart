@@ -422,23 +422,6 @@ class Nemesis {
   }
 }
 
-/// Disconnected/connected
-
-enum ConnectionStates { connected, disconnected }
-
-class ConnectionState {
-  ConnectionStates _state = ConnectionStates.connected;
-
-  // Flip flop the current state.
-  ConnectionStates flipFlop() {
-    _state = switch (_state) {
-      ConnectionStates.connected => ConnectionStates.disconnected,
-      ConnectionStates.disconnected => ConnectionStates.connected,
-    };
-    return _state;
-  }
-}
-
 /// Stop/start
 
 enum StopStartStates { started, stopped }
