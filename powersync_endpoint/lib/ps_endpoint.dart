@@ -206,7 +206,16 @@ class PSEndpoint extends Endpoint {
         break;
 
       case APICalls.uploadQueueCount:
-        final uploadQueueCount = (await _db.getUploadQueueStats()).count;
+        final uploadQueueCount =
+            (await _db.getUploadQueueStats().timeout(
+              powerSyncTimeoutDuration,
+              onTimeout: () {
+                log.severe(
+                  'db: api: call to db.getUploadQueueStats() timed out after $powerSyncTimeoutDuration',
+                );
+                exit(errorCodes[ErrorReasons.powersyncDatabaseApiTimeout]!);
+              },
+            )).count;
         op['value']['v'] = {'db.uploadQueueStats.count': uploadQueueCount};
         break;
 
