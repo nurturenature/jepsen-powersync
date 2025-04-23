@@ -166,6 +166,16 @@ Even during faults, we still expect
 
 ----
 
+### Not Testing
+
+- auth - using a permissive JWT
+
+- sync filtering - using SELECT *
+
+- Byzantine - natural faults, not malicious behavior
+
+----
+
 ### Conflict Resolution
 
 Maximum write value for the key wins
@@ -197,4 +207,4 @@ GitHub [Actions](https://github.com/nurturenature/jepsen-powersync/actions).
 
 [Docker](./docker/README.md) environment to run tests.
 
-Miscellaneous notes on [usage](./doc/usage.md).
+Non-Jepsen, Dart CLI fuzzer [instructions](./powersync_endpoint/README.md).
