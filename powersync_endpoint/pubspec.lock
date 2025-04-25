@@ -29,10 +29,10 @@ packages:
     dependency: transitive
     description:
       name: asn1lib
-      sha256: e8953f3698626f6f40c32da22c3348b2c6383e0db224402c53c8b8f3215b1e85
+      sha256: "0511d6be23b007e95105ae023db599aea731df604608978dada7f9faf2637623"
       url: "https://pub.dev"
     source: hosted
-    version: "1.6.3"
+    version: "1.6.4"
   async:
     dependency: transitive
     description:
@@ -133,18 +133,18 @@ packages:
     dependency: transitive
     description:
       name: fetch_api
-      sha256: "5198267e748828e3ac6199b7394dc60abba43ad8f6dd203e5351bd7bf3fd9efb"
+      sha256: "24cbd5616f3d4008c335c197bb90bfa0eb43b9e55c6de5c60d1f805092636034"
       url: "https://pub.dev"
     source: hosted
-    version: "2.3.0"
+    version: "2.3.1"
   fetch_client:
     dependency: transitive
     description:
       name: fetch_client
-      sha256: ac87abcf7f71b509b1619b5cae7d23e4abd3912e2c17e542fdee9eac28e6829e
+      sha256: "375253f4efe64303c793fb17fe90771c591320b2ae11fb29cb5b406cc8533c00"
       url: "https://pub.dev"
     source: hosted
-    version: "1.1.3"
+    version: "1.1.4"
   ffi:
     dependency: transitive
     description:
@@ -370,18 +370,18 @@ packages:
     dependency: "direct main"
     description:
       name: powersync
-      sha256: a4d5d62eced58162c009a252477b7a8b44b97b70a979c242064f9a0a8a493908
+      sha256: "4b7e0a234580cecfb5b9b4af289dd6930f50a0d3372f169e114e9e81d0b38818"
       url: "https://pub.dev"
     source: hosted
-    version: "1.12.3"
+    version: "1.12.4"
   powersync_core:
     dependency: transitive
     description:
       name: powersync_core
-      sha256: "675375b203f1350b8aefacb62cc5f5b6365200aaac9cf93aebb6bad1ca38fd0a"
+      sha256: d3ef83ec93d043ca7c3e9aaaeeb2b909df79cb732117c587e09c32d1f24eb647
       url: "https://pub.dev"
     source: hosted
-    version: "1.2.3"
+    version: "1.2.4"
   powersync_flutter_libs:
     dependency: transitive
     description:
