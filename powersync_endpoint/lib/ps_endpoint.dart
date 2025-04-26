@@ -250,6 +250,8 @@ class PSEndpoint extends Endpoint {
           log.fine(
             'database api: ${APICalls.uploadQueueWait.name}: waiting on UploadQueueStats.count: $count ...',
           );
+          log.fine('\tdb.currentStatus: ${_db.currentStatus}');
+
           await futureDelay(1000);
 
           count = (await _db.getUploadQueueStats()).count;
