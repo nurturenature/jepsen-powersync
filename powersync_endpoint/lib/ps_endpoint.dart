@@ -234,6 +234,12 @@ class PSEndpoint extends Endpoint {
               log.severe(
                 'UploadQueueStats.count appears to be stuck at $count after waiting for ${prevTimes}s',
               );
+              log.severe('\tdb.closed: ${_db.closed}');
+              log.severe('\tdb.connected: ${_db.connected}');
+              log.severe('\tdb.currentStatus: ${_db.currentStatus}');
+              log.severe(
+                '\tdb.getUploadQueueStats(): ${await _db.getUploadQueueStats(includeSize: true)}',
+              );
               exit(errorCodes[ErrorReasons.uploadQueueStatsCount]!);
             }
           } else {
