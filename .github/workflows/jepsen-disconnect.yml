@@ -12,7 +12,7 @@ on:
         description: 'Nemeses (as JSON)'
         type: string
         required: false
-        default: "[ 'disconnect-connect,upload-queue' ]"
+        default: "[ 'disconnect-orderly,upload-queue', 'disconnect-random,upload-queue' ]"
       rates:
         description: 'Rates (as JSON)'
         type: string
@@ -32,7 +32,7 @@ on:
         description: 'A JSON Map of args (workaround GitHub max inputs)'
         type: string
         required: true
-        default: "{'repeat': [ '1', '2', '3', '4' ], 'timeout-minutes': 25, 'powersync-image-tag': 'latest'}"
+        default: "{'repeat': [ '1', '2' ], 'timeout-minutes': 25, 'powersync-image-tag': 'latest'}"
 
 jobs:
   jepsen-disconnect:

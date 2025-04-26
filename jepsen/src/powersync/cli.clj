@@ -33,7 +33,8 @@
 
 (def nemeses
   "A collection of valid nemeses."
-  #{:disconnect-connect :partition-sync
+  #{:disconnect-orderly :disconnect-random
+    :partition-sync
     :pause :kill
     :upload-queue})
 
@@ -86,7 +87,8 @@
                   {:db                 db
                    :nodes              (:nodes opts)
                    :faults             (:nemesis opts)
-                   :disconnect-connect {:targets [:majority]}
+                   :disconnect-orderly {:targets nil}
+                   :disconnect-random  {:targets nil}
                    :partition-sync     {:targets [:majority]}
                    :pause              {:targets [:majority]}
                    :kill               {:targets [:majority]}

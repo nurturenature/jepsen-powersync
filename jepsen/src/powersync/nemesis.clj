@@ -12,12 +12,17 @@
   "URI path for nemesis on HTTP server"
   "db-api")
 
-(def api-enum
-  "The actual enum values used in the Dart HTTP server.
-   This value just serves as documentation."
-  #{:connect :disconnect :close
-    :selectAll
-    :uploadQueueCount :uploadQueueWait :downloadingWait})
+(comment
+  (def api-enum
+    "The actual enum values used in the Dart HTTP server.
+     This value just serves as documentation."
+    #{:connect :disconnect :close
+      :selectAll
+      :uploadQueueCount :uploadQueueWait :downloadingWait}))
+
+(def disconnected-nodes
+  "Set of nodes that are currently disconnected as an atom."
+  (atom #{}))
 
 (defn disconnect
   "Disconnect from sync service."
@@ -41,18 +46,19 @@
         :connection-refused
         (throw ex)))))
 
-(defn disconnect-connect-nemesis
-  "A nemesis that disconnects and connects to the sync service.
+(defn disconnect-orderly-nemesis
+  "A nemesis that disconnects and connects to the sync service in an orderly fashion,
+   i.e. only connect to nodes that have been disconnected.
    This nemesis responds to:
   ```
-  {:f :disconnect :value :node-spec}   ; target nodes as interpreted by `db-nodes`
-  {:f :connect    :value nil}
+  {:f :disconnect-orderly :value :node-spec}   ; target nodes as interpreted by `db-nodes`
+  {:f :connect-orderly    :value nil}          ; connects to nodes that were disconnected
    ```"
   [db]
   (reify
     nemesis/Reflection
     (fs [_this]
-      #{:disconnect :connect})
+      #{:disconnect-orderly :connect-orderly})
 
     nemesis/Nemesis
     (setup! [this _test]
@@ -60,41 +66,112 @@
 
     (invoke! [_this test {:keys [f value] :as op}]
       (let [result (case f
-                     :disconnect (let [targets (nc/db-nodes test db value)]
-                                   (c/on-nodes test targets disconnect))
-                     :connect    (c/on-nodes test connect))
+                     :disconnect-orderly (let [_       (assert (not (seq @disconnected-nodes)))
+                                               targets (->> value
+                                                            (nc/db-nodes test db)
+                                                            (into #{}))]
+                                           (swap! disconnected-nodes (fn [_]
+                                                                       targets))
+                                           (c/on-nodes test targets disconnect))
+                     :connect-orderly    (let [; final generator may or may not have any disconnected nodes
+                                               _       (assert (case value
+                                                                 :orderly (seq @disconnected-nodes)
+                                                                 :final   true))
+                                               targets @disconnected-nodes]
+                                           (swap! disconnected-nodes (fn [_]
+                                                                       #{}))
+                                           (c/on-nodes test targets connect)))
             result (into (sorted-map) result)]
         (assoc op :value result)))
 
     (teardown! [_this _test]
       nil)))
 
-(defn disconnect-connect-package
-  "A nemesis and generator package that disconnects and connects to the sync service.
+(defn disconnect-orderly-package
+  "A nemesis and generator package that disconnects and connects in an orderly fashion to the sync service.
    
    Opts:
    ```clj
-   {:disconnect-connect {:targets [...]}}  ; A collection of node specs, e.g. [:one, :all]
+   {:disconnect-orderly {:targets [...]}}  ; A collection of node specs, e.g. [:one, :all]
   ```"
-  [{:keys [db faults interval disconnect-connect] :as _opts}]
-  (when (contains? faults :disconnect-connect)
-    (let [targets    (:targets disconnect-connect (nc/node-specs db))
+  [{:keys [db faults interval disconnect-orderly] :as _opts}]
+  (when (contains? faults :disconnect-orderly)
+    (let [targets    (:targets disconnect-orderly (nc/node-specs db))
           disconnect (fn disconnect [_ _]
                        {:type  :info
-                        :f     :disconnect
+                        :f     :disconnect-orderly
                         :value (rand-nth targets)})
           connect    {:type  :info
-                      :f     :connect
-                      :value nil}
+                      :f     :connect-orderly
+                      :value :orderly}
           gen        (->> (gen/flip-flop disconnect (repeat connect))
                           (gen/stagger (or interval nc/default-interval)))]
       {:generator       gen
-       :final-generator connect
-       :nemesis         (disconnect-connect-nemesis db)
-       :perf            #{{:name  "disconnect-connect"
+       :final-generator (assoc connect :value :final)
+       :nemesis         (disconnect-orderly-nemesis db)
+       :perf            #{{:name  "disconnect-orderly"
                            :fs    #{}
-                           :start #{:disconnect}
-                           :stop  #{:connect}
+                           :start #{:disconnect-orderly}
+                           :stop  #{:connect-orderly}
+                           :color "#D1E8A0"}}})))
+
+(defn disconnect-random-nemesis
+  "A nemesis that disconnects and connects to the sync service in a random fashion,
+   i.e. disconnect random nodes, connect random nodes.
+   This nemesis responds to:
+  ```
+  {:f :disconnect-random :value :node-spec}   ; target nodes as interpreted by `db-nodes`
+  {:f :connect-random    :value :node-spec}   ; target nodes as interpreted by `db-nodes`
+   ```"
+  [db]
+  (reify
+    nemesis/Reflection
+    (fs [_this]
+      #{:disconnect-random :connect-random})
+
+    nemesis/Nemesis
+    (setup! [this _test]
+      this)
+
+    (invoke! [_this test {:keys [f value] :as op}]
+      (let [targets (->> value
+                         (nc/db-nodes test db)
+                         (into #{}))
+            result (case f
+                     :disconnect-random (c/on-nodes test targets disconnect)
+                     :connect-random    (c/on-nodes test targets connect))
+            result (into (sorted-map) result)]
+        (assoc op :value result)))
+
+    (teardown! [_this _test]
+      nil)))
+
+(defn disconnect-random-package
+  "A nemesis and generator package that disconnects and connects in a random fashion to the sync service.
+   
+   Opts:
+   ```clj
+   {:disconnect-random {:targets [...]}}  ; A collection of node specs, e.g. [:one, :all]
+  ```"
+  [{:keys [db faults interval disconnect-random] :as _opts}]
+  (when (contains? faults :disconnect-random)
+    (let [targets    (:targets disconnect-random (nc/node-specs db))
+          disconnect (fn disconnect [_ _]
+                       {:type  :info
+                        :f     :disconnect-random
+                        :value (rand-nth targets)})
+          connect    {:type  :info
+                      :f     :connect-random
+                      :value (rand-nth targets)}
+          gen        (->> (gen/flip-flop disconnect (repeat connect))
+                          (gen/stagger (or interval nc/default-interval)))]
+      {:generator       gen
+       :final-generator (assoc connect :value :all)
+       :nemesis         (disconnect-random-nemesis db)
+       :perf            #{{:name  "disconnect-random"
+                           :fs    #{}
+                           :start #{:disconnect-random}
+                           :stop  #{:connect-random}
                            :color "#D1E8A0"}}})))
 
 (defn partition-sync-service
@@ -291,7 +368,8 @@
   "Constructs combined nemeses and generators into a nemesis package."
   [opts]
   (let [opts (update opts :faults set)]
-    (->> [(disconnect-connect-package opts)
+    (->> [(disconnect-orderly-package opts)
+          (disconnect-random-package opts)
           (partition-sync-service-package opts)
           (upload-queue-package opts)]
          (concat (nc/nemesis-packages opts))
