@@ -1,0 +1,70 @@
+name: fuzz-disconnect-bug
+
+on:
+  workflow_dispatch:
+    inputs:
+      clients:
+        description: 'Clients (as JSON)'
+        type: string
+        required: true
+        default: "[ '10' ]"
+      rates:
+        description: 'Rates (as JSON)'
+        type: string
+        required: true
+        default: "[ '20', '30', '40', '50' ]"
+      times:
+        description: 'Time limits (as JSON)'
+        type: string
+        required: true
+        default: "[ '800', '900', '1000', '1100', '1200' ]"
+      postgresql:
+        description: '--[no-]postgresql (as JSON)'
+        type: string
+        required: true
+        default: "[ '--no-postgresql' ]"
+      disconnect:
+        description: '--disconnect none|orderly|random (as JSON)'
+        type: string
+        required: true
+        default: "[ '--disconnect random' ]"
+      stop-or-kill:
+        description: '--[no-]stop --[no-]kill (as JSON)'
+        type: string
+        required: true
+        default: "[ '--no-stop' ]"
+      partition:
+        description: '--[no-]partition (as JSON)'
+        type: string
+        required: true
+        default: "[ '--no-partition' ]"
+      pause:
+        description: '--[no-]pause (as JSON)'
+        type: string
+        required: true
+        default: "[ '--no-pause' ]"
+      cli-opts:
+        description: CLI opts, e.g. '--interval 5', '--log-level INFO' (as JSON)
+        type: string
+        required: true
+        default: "[ '' ]"
+      args:
+        description: 'A JSON Map of args (workaround GitHub max inputs)'
+        type: string
+        required: true
+        default: "{'repeat': [ '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12' ], 'timeout-minutes': 25, 'powersync-image-tag': 'latest'}"
+
+jobs:
+  fuzz-disconnect-bug:
+    uses: nurturenature/jepsen-powersync/.github/workflows/fuzz-test-runner.yml@main
+    with:
+      clients: ${{ inputs.clients }}
+      rates: ${{ inputs.rates }}
+      times: ${{ inputs.times }}
+      postgresql: ${{ inputs.postgresql }}
+      disconnect: ${{ inputs.disconnect }}
+      stop-or-kill: ${{ inputs.stop-or-kill }}
+      partition: ${{ inputs.partition }}
+      pause: ${{ inputs.pause }}
+      cli-opts: ${{ inputs.cli-opts }}
+      args: ${{ inputs.args }}
