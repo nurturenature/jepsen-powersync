@@ -34,3 +34,13 @@ services:
     image: powersync-node
   n6:
     image: powersync-node
+  n7:
+    image: powersync-node
+  n8:
+    image: powersync-node
+  n9:
+    image: powersync-node
+  n10:
+    image: powersync-node
+  n11:
+    image: powersync-node
