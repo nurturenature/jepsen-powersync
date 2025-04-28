@@ -148,10 +148,70 @@ Even during faults, we still expect
 - Causal Consistency
 - Strong Convergence
 
+----
+
+#### `disconnect()` \ `connect()`
+
+Use the `PowerSyncDatabase` API to repeatedly and randomly disconnect and connect clients to the sync service.
+
+```dart
+await db.disconnect();
+...
+await db.connect(connector: connector);
+```
+
+##### Orderly
+
+- repeatedly
+  - wait a random interval
+  - 1 to all clients are randomly disconnected
+  - wait a random interval
+  - connect disconnected clients
+- at the end of the test connect any disconnected clients
+
+Example of 3 clients being disconnected for ~1.6s: 
+```log
+2025-04-26 03:37:10,938{GMT}	INFO	[jepsen worker nemesis] jepsen.util: :nemesis	:info	:disconnect-orderly	{"n1" :disconnected, "n4" :disconnected, "n6" :disconnected}
+...
+2025-04-26 03:37:12,517{GMT}	INFO	[jepsen worker nemesis] jepsen.util: :nemesis	:info	:connect-orderly	{"n1" :connected, "n4" :connected, "n6" :connected}
+```
+
+##### Random
+
+- repeatedly
+  - wait a random interval
+  - 1 to all clients are randomly disconnected
+  - wait a random interval
+  - 1 to all clients are randomly connected
+- at the end of the test connect any disconnected clients
+
+Example of 3 clients being disconnected, waiting ~2.5s, then connecting 2 clients
+```log
+2025-04-26 03:37:14,623{GMT}	INFO	[jepsen worker nemesis] jepsen.util: :nemesis	:info	:disconnect-random	{"n1" :disconnected, "n2" :disconnected, "n3" :disconnected}
+2025-04-26 03:37:17,193{GMT}	INFO	[jepsen worker nemesis] jepsen.util: :nemesis	:info	:connect-random	{"n1" :connected, "n4" :connected}
+```
+
+##### Upload Que Count
+
+- repeatedly
+  - wait a random interval
+  - query the upload que count
+
+Example of observing differing queue counts for disconnected/connected clients: 
+```log
+2025-04-26 03:38:02,041{GMT}	INFO	[jepsen worker nemesis] jepsen.util: :nemesis	:info	:upload-queue-count	{"n2" 0, "n3" 0, "n4" 0, "n5" 0, "n6" 0}
+...
+2025-04-26 03:38:02,362{GMT}	INFO	[jepsen worker nemesis] jepsen.util: :nemesis	:info	:disconnect-orderly	{"n5" :disconnected, "n6" :disconnected}
+...
+2025-04-26 03:38:07,807{GMT}	INFO	[jepsen worker nemesis] jepsen.util: :nemesis	:info	:upload-queue-count	{"n2" 0, "n3" 0, "n4" 0, "n5" 28, "n6" 28}
+```
+
+----
+
 #### Offline / Online
 
 `PowerSyncDatabase` API usage
-- `close()`, `connect()`, `disconnect()`, `disconnectAndClose()`
+- `close()`, `disconnectAndClose()`
 
 #### Network
 
