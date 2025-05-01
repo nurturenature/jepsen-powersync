@@ -6,6 +6,7 @@ import 'package:synchronized/synchronized.dart';
 import 'endpoint.dart';
 import 'log.dart';
 import 'nemesis/disconnect.dart';
+import 'nemesis/stop.dart';
 import 'utils.dart' as utils;
 import 'worker.dart';
 
@@ -22,7 +23,7 @@ final _locks = Map.fromEntries(
 ///   - --disconnect [none | orderly | random] db.disconnect()/connect
 ///   - --interval, 0 <= random <= 2 * interval
 /// Stop, start, Worker Isolates:
-///   - --stop, db.close(), Isolate.terminate(immediate)
+///   - --stop, db.close(), Isolate.kill()
 ///   - --interval, 0 <= random <= 2 * interval
 /// Kill, start, Worker Isolates:
 ///   - --stop, Isolate.terminate(immediate), no warning/interaction w/Powersync
@@ -45,9 +46,7 @@ class Nemesis {
 
   // stop/start
   late final bool _stopStart;
-  final StopStartState _stopStartState = StopStartState();
-  late final Stream<StopStartStates> Function() _stopStartStream;
-  late final StreamSubscription<StopStartStates> _stopStartSubscription;
+  late final StopStartNemesis _stopStartNemesis;
 
   // kill/start
   late final bool _killStart;
@@ -92,16 +91,10 @@ class Nemesis {
       _disconnectNemesis = DisconnectNemesis(_disconnect, _clients, _interval);
     }
 
-    // Stream of StopStartStates, flip flops between stopped and started
-    // Stream will not emit messages until listened to
-    _stopStartStream = () async* {
-      while (true) {
-        await utils.futureDelay(_rng.nextInt(_maxInterval + 1));
-        yield await _locks[Nemeses.stop]!.synchronized<StopStartStates>(() {
-          return _stopStartState.flipFlop();
-        });
-      }
-    };
+    // only create a StopStartNemesis if needed
+    if (_stopStart) {
+      _stopStartNemesis = StopStartNemesis(_clients, _interval);
+    }
 
     // Stream of KillStartStates, flip flops between started and killed
     // Stream will not emit messages until listened to
@@ -144,7 +137,7 @@ class Nemesis {
     if (_disconnect != DisconnectNemeses.none) {
       _disconnectNemesis.startDisconnect();
     }
-    if (_stopStart) _startStopStart();
+    if (_stopStart) _stopStartNemesis.startStopStart();
     if (_killStart) _startKillStart();
     if (_partition) _startPartition();
     if (_pause) _startPause();
@@ -155,97 +148,10 @@ class Nemesis {
     if (_disconnect != DisconnectNemeses.none) {
       await _disconnectNemesis.stopDisconnect();
     }
-    if (_stopStart) await _stopStopStart();
+    if (_stopStart) await _stopStartNemesis.stopStopStart();
     if (_killStart) await _stopKillStart();
     if (_partition) await _stopPartition();
     if (_pause) await _stopPause();
-  }
-
-  // start injecting stop/start
-  void _startStopStart() {
-    log.info(
-      'nemesis: stop/start: start listening to stream of stop/start messages',
-    );
-
-    _stopStartSubscription = _stopStartStream().listen((
-      stopStartMessage,
-    ) async {
-      await _locks[Nemeses.stop]!.synchronized(() async {
-        // what clients to act on
-        final Set<int> actOnClientNums = {};
-        switch (stopStartMessage) {
-          case StopStartStates.stopped:
-            // act on 0 to all clients
-            final int numRandomClients = _rng.nextInt(_clients.length + 1);
-            actOnClientNums.addAll(
-              _clients
-                  .getRandom(numRandomClients)
-                  .map((client) => client.clientNum),
-            );
-            break;
-          case StopStartStates.started:
-            actOnClientNums.addAll(
-              _allClientNums.getRandom(_allClientNums.length),
-            );
-            break;
-        }
-
-        // act on clients in parallel
-        final List<Future<bool>> affectedClientFutures = [];
-        final List<int> affectedClientNums = [];
-        for (final clientNum in actOnClientNums) {
-          affectedClientFutures.add(
-            StopStart.stopOrStart(_clients, clientNum, stopStartMessage),
-          );
-          affectedClientNums.add(clientNum);
-        }
-
-        // find client nums that were actually acted on
-        Set<int> actuallyAffectedClientNums = {};
-        for (final (index, result)
-            in (await affectedClientFutures.wait).indexed) {
-          if (result) {
-            actuallyAffectedClientNums.add(affectedClientNums[index]);
-          }
-        }
-
-        log.info(
-          'nemesis: stop/start: ${stopStartMessage.name}: clients: $actuallyAffectedClientNums',
-        );
-      });
-    });
-  }
-
-  // stop injecting stop/start
-  Future<void> _stopStopStart() async {
-    // stop Stream of stop/start messages
-    await _stopStartSubscription.cancel();
-
-    // let apis catch up
-    await utils.futureDelay(1000);
-
-    // insure all clients are started, act on clients in parallel
-    final List<Future<bool>> affectedClientFutures = [];
-    final List<int> affectedClientNums = [];
-    for (final clientNum in _allClientNums) {
-      // conditionally, not in _clients, start new client as clientNum
-      affectedClientFutures.add(
-        StopStart.stopOrStart(_clients, clientNum, StopStartStates.started),
-      );
-      affectedClientNums.add(clientNum);
-    }
-
-    // find client nums that were actually started
-    Set<int> actuallyAffectedClientNums = {};
-    for (final (index, result) in (await affectedClientFutures.wait).indexed) {
-      if (result) {
-        actuallyAffectedClientNums.add(affectedClientNums[index]);
-      }
-    }
-
-    log.info(
-      'nemesis: stop/start: ${StopStartStates.started.name}: clients: $actuallyAffectedClientNums',
-    );
   }
 
   // start injecting kill/start
@@ -419,89 +325,6 @@ class Nemesis {
     log.info(
       'nemesis: pause/resume: ${PauseStates.running.name}: clients: $affectedClientNums',
     );
-  }
-}
-
-/// Stop/start
-
-enum StopStartStates { started, stopped }
-
-/// Maintains the stop/start state.
-/// Flip flops between started and stopped.
-class StopStartState {
-  StopStartStates _state = StopStartStates.started;
-
-  // Flip flop the current state.
-  StopStartStates flipFlop() {
-    _state = switch (_state) {
-      StopStartStates.started => StopStartStates.stopped,
-      StopStartStates.stopped => StopStartStates.started,
-    };
-
-    return _state;
-  }
-}
-
-/// Static stop or start function.
-class StopStart {
-  /// Stop or start client per stopStartType.
-  /// Removes or adds client to clients as appropriate.
-  static Future<bool> stopOrStart(
-    Set<Worker> clients,
-    int clientNum,
-    StopStartStates stopStartType,
-  ) async {
-    switch (stopStartType) {
-      case StopStartStates.stopped:
-        // leave PostgreSQL client as is
-        if (clientNum == 0) return false;
-
-        // selects client by num or throws if not present
-        final client = clients.firstWhere(
-          (client) => client.clientNum == clientNum,
-        );
-
-        // preemptively remove client so it doesn't receive any more sql txn messages
-        clients.remove(client);
-
-        // don't interrupt if active txns
-        if (client.activeTxnRequests.isNotEmpty) {
-          clients.add(client);
-          return false;
-        }
-
-        final result = await client.executeApi(Endpoint.closeMessage());
-        if (result['type'] != 'ok') {
-          throw StateError(
-            'Not able to close client: $clientNum, result: $result',
-          );
-        }
-
-        client.closeTxns();
-        client.closeApis();
-
-        if (!client.killIsolate()) {
-          throw StateError('Not able to terminate client: $clientNum!');
-        }
-
-        return true;
-
-      case StopStartStates.started:
-        // clientNum may already exist in clients, i.e. be started
-        if (clients.any((client) => client.clientNum == clientNum)) {
-          return true;
-        }
-
-        clients.add(
-          await Worker.spawn(
-            Endpoints.powersync,
-            clientNum,
-            preserveData: true,
-          ),
-        );
-
-        return true;
-    }
   }
 }
 
