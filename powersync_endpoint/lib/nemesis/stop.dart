@@ -9,22 +9,22 @@ import '../log.dart';
 import '../utils.dart' as utils;
 import '../worker.dart';
 
-enum StopStartStates { stopped, started }
+enum _StopStartStates { stopped, started }
 
 class StopStartNemesis {
   final Set<Worker> _allClients;
   final Set<int> _availableClientNums = {};
   final Set<int> _stoppedClientNums = {};
 
-  late final Stream<StopStartStates> Function() _stopStartStream;
-  late final StreamSubscription<StopStartStates> _stopStartSubscription;
+  late final Stream<_StopStartStates> Function() _stopStartStream;
+  late final StreamSubscription<_StopStartStates> _stopStartSubscription;
 
   final _rng = Random();
   final _lock = Lock();
 
-  StopStartNemesis(this._allClients, interval) {
+  StopStartNemesis(this._allClients, int interval) {
     final maxInterval = interval * 1000 * 2;
-    final StopStartState stopStartState = StopStartState();
+    final stopStartState = _StopStartState();
 
     // all available clientNums except PostgreSQL client
     _availableClientNums.addAll(
@@ -38,8 +38,8 @@ class StopStartNemesis {
     _stopStartStream = () async* {
       while (true) {
         await utils.futureDelay(_rng.nextInt(maxInterval + 1));
-        yield await _lock.synchronized<StopStartStates>(() {
-          return stopStartState.flipFlop();
+        yield await _lock.synchronized<_StopStartStates>(() {
+          return stopStartState._flipFlop();
         });
       }
     };
@@ -57,10 +57,10 @@ class StopStartNemesis {
       await _lock.synchronized(() async {
         Set<int> affectedClientNums;
         switch (stopStateMessage) {
-          case StopStartStates.stopped:
+          case _StopStartStates.stopped:
             affectedClientNums = await _stopClients();
             break;
-          case StopStartStates.started:
+          case _StopStartStates.started:
             affectedClientNums = await _startClients();
             break;
         }
@@ -173,21 +173,21 @@ class StopStartNemesis {
     final affectedClientNums = await _startClients();
 
     log.info(
-      'nemesis: stop/start: ${StopStartStates.started.name}: clients: $affectedClientNums',
+      'nemesis: stop/start: ${_StopStartStates.started.name}: clients: $affectedClientNums',
     );
   }
 }
 
 /// Maintains the stop/start state.
 /// Flip flops between stopped and started StopStartStates
-class StopStartState {
-  StopStartStates _state = StopStartStates.started;
+class _StopStartState {
+  _StopStartStates _state = _StopStartStates.started;
 
   // Flip flop the current state.
-  StopStartStates flipFlop() {
+  _StopStartStates _flipFlop() {
     _state = switch (_state) {
-      StopStartStates.started => StopStartStates.stopped,
-      StopStartStates.stopped => StopStartStates.started,
+      _StopStartStates.started => _StopStartStates.stopped,
+      _StopStartStates.stopped => _StopStartStates.started,
     };
 
     return _state;
