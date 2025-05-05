@@ -6,6 +6,7 @@ import 'endpoint.dart';
 import 'log.dart';
 import 'nemesis/disconnect.dart';
 import 'nemesis/partition.dart';
+import 'nemesis/pause.dart';
 import 'nemesis/stop.dart';
 import 'utils.dart' as utils;
 import 'worker.dart';
@@ -59,10 +60,8 @@ class Nemesis {
   late final PartitionNemesis _partitionNemesis;
 
   // pause/resume
-  late final bool _pause;
-  final PauseState _pauseState = PauseState();
-  late final Stream<PauseStates> Function() _pauseStream;
-  late final StreamSubscription<PauseStates> _pauseSubscription;
+  late final bool _pauseResume;
+  late final PauseResumeNemesis _pauseResumeNemesis;
 
   // source of randomness
   final _rng = Random();
@@ -79,7 +78,7 @@ class Nemesis {
     _stopStart = args['stop'] as bool;
     _killStart = args['kill'] as bool;
     _partition = args['partition'] as bool;
-    _pause = args['pause'] as bool;
+    _pauseResume = args['pause'] as bool;
     _interval = args['interval'] as int;
     _maxInterval = _interval * 1000 * 2;
 
@@ -98,6 +97,11 @@ class Nemesis {
       _partitionNemesis = PartitionNemesis(_interval);
     }
 
+    // only create a PauseResumeNemesis if needed
+    if (_pauseResume) {
+      _pauseResumeNemesis = PauseResumeNemesis(_clients, _interval);
+    }
+
     // Stream of KillStartStates, flip flops between started and killed
     // Stream will not emit messages until listened to
     _killStartStream = () async* {
@@ -105,17 +109,6 @@ class Nemesis {
         await utils.futureDelay(_rng.nextInt(_maxInterval + 1));
         yield await _locks[Nemeses.kill]!.synchronized<KillStartStates>(() {
           return _killStartState.flipFlop();
-        });
-      }
-    };
-
-    // Stream of PauseStates, flip flops between running and paused
-    // Stream will not emit messages until listened to
-    _pauseStream = () async* {
-      while (true) {
-        await utils.futureDelay(_rng.nextInt(_maxInterval + 1));
-        yield await _locks[Nemeses.pause]!.synchronized<PauseStates>(() {
-          return _pauseState.flipFlop();
         });
       }
     };
@@ -129,7 +122,7 @@ class Nemesis {
     if (_stopStart) _stopStartNemesis.startStopStart();
     if (_killStart) _startKillStart();
     if (_partition) _partitionNemesis.startPartition();
-    if (_pause) _startPause();
+    if (_pauseResume) _pauseResumeNemesis.startPause();
   }
 
   /// stop injecting faults
@@ -140,7 +133,7 @@ class Nemesis {
     if (_stopStart) await _stopStartNemesis.stopStopStart();
     if (_killStart) await _stopKillStart();
     if (_partition) await _partitionNemesis.stopPartition();
-    if (_pause) await _stopPause();
+    if (_pauseResume) await _pauseResumeNemesis.stopPause();
   }
 
   // start injecting kill/start
@@ -229,61 +222,6 @@ class Nemesis {
       'nemesis: kill/start: ${KillStartStates.started.name}: clients: $actuallyAffectedClientNums',
     );
   }
-
-  // start injecting pause/resume
-  void _startPause() {
-    log.info(
-      'nemesis: pause/resume: start listening to stream of pause/resume messages',
-    );
-
-    _pauseSubscription = _pauseStream().listen((pauseMessage) async {
-      await _locks[Nemeses.pause]!.synchronized(() {
-        final Set<Worker> affectedClients;
-        switch (pauseMessage) {
-          case PauseStates.paused:
-            // act on 0 to all clients
-            final int numRandomClients = _rng.nextInt(_clients.length + 1);
-            affectedClients = _clients.getRandom(numRandomClients);
-            break;
-          case PauseStates.running:
-            affectedClients = _clients;
-            break;
-        }
-
-        Set<int> affectedClientNums = {};
-        for (Worker client in affectedClients) {
-          if (Pause.pauseOrResume(client, pauseMessage)) {
-            affectedClientNums.add(client.clientNum);
-          }
-        }
-
-        log.info(
-          'nemesis: pause/resume: ${pauseMessage.name}: clients: $affectedClientNums',
-        );
-      });
-    });
-  }
-
-  // stop injecting pause/resume
-  Future<void> _stopPause() async {
-    // stop Stream of pause/resume messages
-    await _pauseSubscription.cancel();
-
-    // let apis catch up
-    await utils.futureDelay(1000);
-
-    // insure all clients are running
-    Set<int> affectedClientNums = {};
-    for (Worker client in _clients) {
-      if (Pause.pauseOrResume(client, PauseStates.running)) {
-        affectedClientNums.add(client.clientNum);
-      }
-    }
-
-    log.info(
-      'nemesis: pause/resume: ${PauseStates.running.name}: clients: $affectedClientNums',
-    );
-  }
 }
 
 /// Kill/start
@@ -358,40 +296,6 @@ class KillStart {
         );
 
         return true;
-    }
-  }
-}
-
-/// Pause/resume
-
-enum PauseStates { running, paused }
-
-/// Maintains the pause state.
-/// Flip flops between running and paused.
-class PauseState {
-  PauseStates _state = PauseStates.running;
-
-  // Flip flop the current state.
-  PauseStates flipFlop() {
-    _state = switch (_state) {
-      PauseStates.running => PauseStates.paused,
-      PauseStates.paused => PauseStates.running,
-    };
-
-    return _state;
-  }
-}
-
-/// Static pause or resume function.
-class Pause {
-  /// Pause or resume client per pauseType
-  static bool pauseOrResume(Worker client, PauseStates pauseType) {
-    switch (pauseType) {
-      case PauseStates.running:
-        return client.resumeIsolate();
-
-      case PauseStates.paused:
-        return client.pauseIsolate();
     }
   }
 }
