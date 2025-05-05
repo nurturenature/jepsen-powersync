@@ -5,8 +5,7 @@
              [generator :as gen]]
             [powersync
              [client :as client]
-             [powersync :as ps]
-             [sqlite3 :as sqlite3]]
+             [powersync :as ps]]
             [powersync.checker.strong-convergence :refer [strong-convergence]]
             [powersync.checker.causal-consistency :refer [causal-consistency]]))
 
@@ -115,21 +114,3 @@
                    (->> (readAll-writeSome-generator opts)
                         (gen/on-threads ps-processes))])})))
 
-(defn sqlite3-local
-  "A local SQLite3, single user, workload."
-  [opts]
-  (let [ps-workload (ps-rw-pg-rw opts)]
-    (merge
-     ps-workload
-     {:db              (sqlite3/db)})))
-
-(defn sqlite3-local-noop
-  "A no-op workload."
-  [opts]
-  (let [ps-workload (ps-rw-pg-rw opts)]
-    (merge
-     ps-workload
-     {:db      (sqlite3/db)
-      :client  (client/->PowerSyncClientNOOP nil)
-      :checker (checker/compose
-                {:unbridled-optimism (checker/unbridled-optimism)})})))

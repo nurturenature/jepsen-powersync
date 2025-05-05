@@ -13,7 +13,6 @@
              [client :as client]
              [nemesis :as nemesis]
              [powersync :as powersync]
-             [sqlite3 :as sqlite3]
              [util :as util]
              [workload :as workload]]
             [powersync.checker.stats :refer [completions-by-node]]

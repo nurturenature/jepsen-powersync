@@ -15,10 +15,9 @@ pom.xml.asc
 .vscode
 .clj-kondo
 .lsp
-sqlite3_endpoint/bin/sqlite3_endpoint.exe
-jepsen/target
 .calva
 powersync_endpoint/libpowersync_x64.so
 powersync_endpoint/powersync.sqlite3*
 powersync_endpoint/powersync_endpoint
 jepsen/store
+jepsen/target

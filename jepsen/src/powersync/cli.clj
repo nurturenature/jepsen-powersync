@@ -23,8 +23,6 @@
    :ps-ro-pg-rw        workload/ps-ro-pg-rw
    :ps-rw-pg-ro        workload/ps-rw-pg-ro
    :convergence        workload/convergence
-   :sqlite3-local      workload/sqlite3-local
-   :sqlite3-local-noop workload/sqlite3-local-noop
    :none               (fn [_] tests/noop-test)})
 
 (def all-workloads

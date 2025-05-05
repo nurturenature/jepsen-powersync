@@ -10,7 +10,7 @@ cd jepsen-powersync/docker
 ./docker-compose-up.sh
 
 # run a test
-./docker-run.sh lein run test --workload sqlite3-local --nodes n1
+./docker-run.sh lein run test --workload ps-rw-pg-rw --nodes n1,n2,n3,n4,n5,n6 --postgres-nodes n1
 
 # bring up a web server for test results
 ./jepsen-web.sh
