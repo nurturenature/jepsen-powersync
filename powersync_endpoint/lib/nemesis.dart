@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:math';
-import 'dart:io';
 import 'package:list_utilities/list_utilities.dart';
 import 'package:synchronized/synchronized.dart';
 import 'endpoint.dart';
 import 'log.dart';
 import 'nemesis/disconnect.dart';
+import 'nemesis/partition.dart';
 import 'nemesis/stop.dart';
 import 'utils.dart' as utils;
 import 'worker.dart';
@@ -56,10 +56,7 @@ class Nemesis {
 
   // partition
   late final bool _partition;
-  static const powerSyncHost = 'powersync';
-  final PartitionState _partitionState = PartitionState();
-  late final Stream<PartitionStates> Function() _partitionStream;
-  late final StreamSubscription<PartitionStates> _partitionSubscription;
+  late final PartitionNemesis _partitionNemesis;
 
   // pause/resume
   late final bool _pause;
@@ -96,6 +93,11 @@ class Nemesis {
       _stopStartNemesis = StopStartNemesis(_clients, _interval);
     }
 
+    // only create a PartitionNemesis if needed
+    if (_partition) {
+      _partitionNemesis = PartitionNemesis(_interval);
+    }
+
     // Stream of KillStartStates, flip flops between started and killed
     // Stream will not emit messages until listened to
     _killStartStream = () async* {
@@ -104,19 +106,6 @@ class Nemesis {
         yield await _locks[Nemeses.kill]!.synchronized<KillStartStates>(() {
           return _killStartState.flipFlop();
         });
-      }
-    };
-
-    // Stream of PartitionStates, flip flops between none and inbound or outbound or bidirectional
-    // Stream will not emit messages until listened to
-    _partitionStream = () async* {
-      while (true) {
-        await utils.futureDelay(_rng.nextInt(_maxInterval + 1));
-        yield await _locks[Nemeses.partition]!.synchronized<PartitionStates>(
-          () {
-            return _partitionState.flipFlop();
-          },
-        );
       }
     };
 
@@ -139,7 +128,7 @@ class Nemesis {
     }
     if (_stopStart) _stopStartNemesis.startStopStart();
     if (_killStart) _startKillStart();
-    if (_partition) _startPartition();
+    if (_partition) _partitionNemesis.startPartition();
     if (_pause) _startPause();
   }
 
@@ -150,7 +139,7 @@ class Nemesis {
     }
     if (_stopStart) await _stopStartNemesis.stopStopStart();
     if (_killStart) await _stopKillStart();
-    if (_partition) await _stopPartition();
+    if (_partition) await _partitionNemesis.stopPartition();
     if (_pause) await _stopPause();
   }
 
@@ -239,37 +228,6 @@ class Nemesis {
     log.info(
       'nemesis: kill/start: ${KillStartStates.started.name}: clients: $actuallyAffectedClientNums',
     );
-  }
-
-  // start injecting partition
-  void _startPartition() {
-    log.info(
-      'nemesis: partition: start listening to stream of partition messages',
-    );
-
-    _partitionSubscription = _partitionStream().listen((
-      partitionStateMessage,
-    ) async {
-      await _locks[Nemeses.partition]!.synchronized(() async {
-        await Partition.partition(powerSyncHost, partitionStateMessage);
-
-        log.info('nemesis: partition: ${partitionStateMessage.name}');
-      });
-    });
-  }
-
-  // stop injecting partition
-  Future<void> _stopPartition() async {
-    // stop Stream of partition messages
-    await _partitionSubscription.cancel();
-
-    // let apis catch up
-    await utils.futureDelay(1000);
-
-    // insure no partition
-    await Partition.partition(powerSyncHost, PartitionStates.none);
-
-    log.info('nemesis: partition: ${PartitionStates.none.name}');
   }
 
   // start injecting pause/resume
@@ -400,123 +358,6 @@ class KillStart {
         );
 
         return true;
-    }
-  }
-}
-
-/// Partition
-
-enum PartitionStates { none, inbound, outbound, bidirectional }
-
-/// Maintains the partition state.
-/// Flip flops between none, initial state, and inbound or outbound or bidirectional.
-class PartitionState {
-  PartitionStates _state = PartitionStates.none;
-
-  // Flip flop the current state.
-  PartitionStates flipFlop() {
-    _state = switch (_state) {
-      PartitionStates.none =>
-        {
-          PartitionStates.inbound,
-          PartitionStates.outbound,
-          PartitionStates.bidirectional,
-        }.getRandom(1).first,
-      PartitionStates.inbound ||
-      PartitionStates.outbound ||
-      PartitionStates.bidirectional => PartitionStates.none,
-    };
-
-    return _state;
-  }
-}
-
-/// Static partition traffic functions.
-class Partition {
-  /// Partition host with partitionType
-  static Future<void> partition(
-    String host,
-    PartitionStates partitionType,
-  ) async {
-    switch (partitionType) {
-      case PartitionStates.none:
-        await none();
-        break;
-      case PartitionStates.inbound:
-        await inbound(host);
-        break;
-      case PartitionStates.outbound:
-        await outbound(host);
-        break;
-      case PartitionStates.bidirectional:
-        await bidirectional(host);
-        break;
-    }
-  }
-
-  /// Partition inbound traffic.
-  static Future<void> inbound(String host) async {
-    final result = await Process.run('/usr/sbin/iptables', [
-      '-A',
-      'INPUT',
-      '-s',
-      host,
-      '-j',
-      'DROP',
-      '-w',
-    ]);
-    if (result.exitCode != 0) {
-      throw Exception('Unexpect result from iptables partition: $result');
-    }
-  }
-
-  /// Partition outbound traffic.
-  static Future<void> outbound(String host) async {
-    final result = await Process.run('/usr/sbin/iptables', [
-      '-A',
-      'OUTPUT',
-      '-d',
-      host,
-      '-j',
-      'DROP',
-      '-w',
-    ]);
-    if (result.exitCode != 0) {
-      throw Exception('Unexpect result from iptables partition: $result');
-    }
-  }
-
-  /// Partition bidirectional traffic.
-  static Future<void> bidirectional(String host) async {
-    await inbound(host);
-    await outbound(host);
-  }
-
-  /// Partition no traffic
-  static Future<void> none() async {
-    final resultF = await Process.run('/usr/sbin/iptables', ['-F', '-w']);
-    if (resultF.exitCode != 0) {
-      throw Exception('Unexpect result from iptables -F: $resultF');
-    }
-
-    final resultX = await Process.run('/usr/sbin/iptables', ['-X', '-w']);
-    if (resultX.exitCode != 0) {
-      throw Exception('Unexpect result from iptables -X: $resultX');
-    }
-  }
-
-  Future<bool> ping(String host) async {
-    final result = await Process.run('/usr/bin/ping', [
-      '-c',
-      '1',
-      '-w',
-      '1',
-      host,
-    ]);
-    if (result.exitCode == 0) {
-      return true;
-    } else {
-      return false;
     }
   }
 }
