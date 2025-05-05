@@ -150,7 +150,7 @@ Even during faults, we still expect
 
 ----
 
-#### `disconnect()` \ `connect()`
+#### Disconnect / Connect
 
 Use the `PowerSyncDatabase` API to repeatedly and randomly disconnect and connect clients to the sync service.
 
@@ -206,22 +206,218 @@ Example of observing differing queue counts for disconnected/connected clients:
 2025-04-26 03:38:07,807{GMT}	INFO	[jepsen worker nemesis] jepsen.util: :nemesis	:info	:upload-queue-count	{"n2" 0, "n3" 0, "n4" 0, "n5" 28, "n6" 28}
 ```
 
+##### Impact on Consistency/Correctness
+
+The update to powersync: 1.12.3, PR #267, shows significant improvements when fuzzing disconnect/connect.
+
+See [issue #253 comment](https://github.com/powersync-ja/powersync.dart/issues/253#issuecomment-2835901911).
+
+The new release eliminates all occurrences of
+- multiple calls to BackendConnector.uploadData() for the same transaction id
+- SyncStatus.lastSyncedAt goes backwards in time
+- reads that appear to go back in time, read of previous versions
+- select * reads that return [], empty database
+
+And although less frequent, and requiring more
+- demanding transaction rates
+- total run times
+- occurrences of disconnect/connecting
+
+than before, it is still possible to fuzz into a state where
+- `UploadQueueStats.count` appears to be stuck for a single client
+- which leads to incomplete replication for that client and divergent final reads
+
+The bug is hard enough to reproduce due to its lower frequency and longer run times that GitHub actions are a more appropriate test bed
+- using Dart Isolates: https://github.com/nurturenature/jepsen-powersync/actions/workflows/fuzz-disconnect.yml
+- using Jepsen: https://github.com/nurturenature/jepsen-powersync/actions/workflows/jepsen-disconnect.yml
+
+As the error behavior usually (always?) presents as a single stuck transaction, is it theorized that
+- replication occasionally gets stuck
+- sometimes the test ends during this stuck phase
+- sometimes the test is ongoing and replication is restarted by further transactions
+
 ----
 
-#### Offline / Online
+#### Stop / Start
 
-`PowerSyncDatabase` API usage
-- `close()`, `disconnectAndClose()`
+Use the `PowerSyncDatabase` API to repeatedly and randomly stop and start clients using the PowerSync sync service.
 
-#### Network
+```dart
+await db.close();
+Isolate.kill();
+...
+// note: create db reusing existing SQLite3 files
+await Isolate.spawn(...);
+db = PowerSyncDatabase(...);
+await db.initialize()/connect()/waitForFirstSync();
+```
 
-- progressively degrade the network up to total partitioning
-- client backend <-> PowerSync service
-- PowerSync service <-> PostgreSQL
+- repeatedly
+  - wait a random interval
+  - 1 to all clients are randomly closed then stopped
+  - wait a random interval
+  - clients that were closed/stopped are restarted reusing existing SQLite3 files
+- at the end of the test restart any clients that are currently closed/stopped reusing existing SQLite3 files
 
-#### Pause / Kill
+##### Impact on Consistency/Correctness
 
-- `kill stop\cont` client process(es)
+In a small, ~0.1% of the tests, the `UploadQueueStats.count` is stuck at the end of the test preventing Strong Convergence.
+
+Similar to disconnect/connect, see above.
+
+See [issue #253 comment](https://github.com/powersync-ja/powersync.dart/issues/253#issuecomment-2835901911) for similar behavior but with stop/start.
+
+----
+
+#### Network Partition
+
+Use `iptables` to partition client hosts from the PowerSync sync service host.
+
+```dart
+// inbound
+await Process.run('/usr/sbin/iptables', [ '-A', 'INPUT', '-s', powersyncServiceHost, '-j', 'DROP', '-w' ]);
+
+// outbound
+await Process.run('/usr/sbin/iptables', [ '-A', 'OUTPUT', '-d', powersyncServiceHost, '-j', 'DROP', '-w' ]);
+
+// bidirectional
+await Process.run('/usr/sbin/iptables', [ '-A', 'INPUT', '-s', powersyncServiceHost, '-j', 'DROP', '-w' ]);
+await Process.run('/usr/sbin/iptables', [ '-A', 'OUTPUT', '-d', powersyncServiceHost, '-j', 'DROP', '-w' ]);
+
+// heal network
+await Process.run('/usr/sbin/iptables', ['-F', '-w']);
+await Process.run('/usr/sbin/iptables', ['-X', '-w']);
+```
+
+- repeatedly
+  - wait a random interval
+  - all clients for `powersync_fuzz`, 1 to all clients for Jepsen, are randomly partitioned from the PowerSync sync service
+  - wait a random interval
+  - all client networks are healed
+- at the end of the test insure all client networks are healed
+
+Example of partitioning nemesis from `powersync_fuzz.log`
+```log
+$ grep nemesis powersync_fuzz.log 
+[2025-05-05 01:21:47.222173] [main] [INFO] nemesis: partition: start listening to stream of partition messages
+[2025-05-05 01:21:49.439494] [main] [INFO] nemesis: partition: starting: outbound
+[2025-05-05 01:21:49.453601] [main] [INFO] nemesis: partition: current: outbound
+[2025-05-05 01:21:52.524497] [main] [INFO] nemesis: partition: starting: none
+[2025-05-05 01:21:52.587868] [main] [INFO] nemesis: partition: current: none
+...
+[2025-05-05 01:22:20.159504] [main] [INFO] nemesis: partition: starting: bidirectional
+[2025-05-05 01:22:20.184578] [main] [INFO] nemesis: partition: current: bidirectional
+[2025-05-05 01:22:26.795546] [main] [INFO] nemesis: partition: starting: none
+[2025-05-05 01:22:26.867787] [main] [INFO] nemesis: partition: current: none
+...
+[2025-05-05 01:22:52.483501] [main] [INFO] nemesis: partition: starting: inbound
+[2025-05-05 01:22:52.495912] [main] [INFO] nemesis: partition: current: inbound
+[2025-05-05 01:22:58.195562] [main] [INFO] nemesis: partition: starting: none
+[2025-05-05 01:22:58.263928] [main] [INFO] nemesis: partition: current: none
+...
+[2025-05-05 01:23:27.223007] [main] [INFO] nemesis: partition: stop listening to stream of partition messages
+[2025-05-05 01:23:33.847571] [main] [INFO] nemesis: partition: starting: none
+[2025-05-05 01:23:33.903830] [main] [INFO] nemesis: partition: current: none
+...
+```
+
+##### Impact on Consistency/Correctness
+
+###### Client `<SyncStatus error: null>`
+
+Unexpectedly, there's often no errors in the client logs
+```bash
+$ grep 'SyncStatus' powersync_fuzz.log | grep 'error: ' | grep -v 'error: null' 
+$
+```
+even when there's consistency errors.
+
+###### Uploading Stops
+
+Clients can end the test with a large number of transactions stuck in the `UploadQueueStats.count`
+```log
+[2025-05-03 04:33:14.152256] [ps-8] [SEVERE] UploadQueueStats.count appears to be stuck at 120 after waiting for 11s
+[2025-05-03 04:33:14.152278] [ps-8] [SEVERE] 	db.closed: false
+[2025-05-03 04:33:14.152288] [ps-8] [SEVERE] 	db.connected: true
+[2025-05-03 04:33:14.152299] [ps-8] [SEVERE] 	db.currentStatus: SyncStatus<connected: true connecting: false downloading: true uploading: false lastSyncedAt: 2025-05-03 04:32:12.685048, hasSynced: true, error: null>
+[2025-05-03 04:33:14.152527] [ps-8] [SEVERE] 	db.getUploadQueueStats(): UploadQueueStats<count: 120 size: 2.34375kB>
+```
+preventing Strong Convergence in ~20% of the tests.
+
+Clients appear to enter and get stuck in a `SyncStatus<downloading: true>` state after the partition is healed and the `BackendConnector.UploadData()` is never called.
+
+###### Replication Stops
+
+Clients can end the test with divergent final reads, i.e. not Strongly Consistent, ~10% of the time.
+
+```log
+# observe client 5 write, then read, then upload {0: 1965}  
+[2025-05-03 04:33:02.952207] [ps-5] [FINE] SQL txn: response: {clientNum: 5, clientType: ps, f: txn, id: 197, type: ok, value: [{f: readAll, v: {0: 1651, ...}}, {f: writeSome, v: {0: 1965, ...}}]}
+[2025-05-03 04:33:03.902696] [ps-5] [FINE] SQL txn: response: {clientNum: 5, clientType: ps, f: txn, id: 198, type: ok, value: [{f: readAll, v: {0: 1965, ...}}, {f: writeSome, v: {...}}]}
+[2025-05-03 04:33:03.940824] [ps-5] [FINER] uploadData: call: 68 txn: 198 patch: {0: 1965} 
+
+# observe write in PostgreSQL
+2025-05-03 04:33:03.937 UTC [144] LOG:  statement: BEGIN ISOLATION LEVEL REPEATABLE READ;
+...
+2025-05-03 04:33:03.940 UTC [144] LOG:  execute s/811/p/811: UPDATE mww SET v = GREATEST(1965, mww.v) WHERE id = '0' RETURNING *
+...
+2025-05-03 04:33:03.941 UTC [144] LOG:  statement: COMMIT;
+
+# but write is missing in most client final reads
+[2025-05-03 04:33:45.722564] [main] [SEVERE] Divergent final reads!:
+[2025-05-03 04:33:45.722652] [main] [SEVERE] pg: {0: 1965, ...}
+[2025-05-03 04:33:45.722717] [main] [SEVERE] ps-1 {0: 1734, ...}
+[2025-05-03 04:33:45.723038] [main] [SEVERE] ps-2 {0: 1386, ...}
+[2025-05-03 04:33:45.723083] [main] [SEVERE] ps-3 {0: 1760, ...}
+[2025-05-03 04:33:45.723125] [main] [SEVERE] ps-4 {0: 1932, ...}
+[2025-05-03 04:33:45.723201] [main] [SEVERE] ps-8 {0: 1566, ...}
+[2025-05-03 04:33:45.723260] [main] [SEVERE] ps-9 {0: 1313, ...}
+[2025-05-03 04:33:45.722793] [main] [SEVERE] ps-10 {0: 1769, ...}
+```
+At some point, individual clients appear to go into, and remain in a `SyncStatus.downloading: true` state but there is no replication from the PowerSync sync service
+```log
+[2025-05-03 04:33:05.960464] [ps-9] [FINEST] SyncStatus<connected: true connecting: false downloading: true uploading: false lastSyncedAt: 2025-05-03 04:31:57.783573, hasSynced: true, error: null>
+...
+[2025-05-03 04:33:15.299509] [ps-9] [FINE] database api: request: {clientNum: 9, f: api, id: 2, type: invoke, value: {f: downloadingWait, v: {}}}
+[2025-05-03 04:33:15.299528] [ps-9] [FINE] database api: downloadingWait: waiting on SyncStatus.downloading: true...
+...
+[2025-05-03 04:33:44.328266] [ps-9] [FINE] database api: downloadingWait: waiting on SyncStatus.downloading: true...
+[2025-05-03 04:33:45.329282] [ps-9] [WARNING] database api: downloadingWait: waited for SyncStatus.downloading: false 31 times every 1000ms
+```
+
+----
+
+#### Client Pause
+
+In `powersync_fuzz`, use
+```dart
+Capability resumeCapability = Isolate.pause();
+...
+// ok to resume an unpaused client
+Isolate.resume(resumeCapability);
+```
+
+In Jepsen, use
+```bash
+$ grepkill stop powersync_http
+...
+# ok to cont an unpaused client
+$ grepkill cont powersync_http
+```
+
+- repeatedly
+  - wait a random interval
+  - 1 to all clients are randomly paused
+  - wait a random interval
+  - resume all clients
+- at the end of the test resume all clients
+
+##### Impact on Consistency/Correctness
+
+----
+
+#### Client Kill
+
 - `kill -9` client process(es)
 
 ----
