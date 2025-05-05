@@ -1,4 +1,4 @@
-name: jepsen-convergence-only
+name: jepsen-kill-start
 
 on:
   workflow_dispatch:
@@ -7,12 +7,12 @@ on:
         description: Workloads (as JSON)
         type: string
         required: false
-        default: "[ 'convergence' ]"
+        default: "[ 'ps-rw-pg-rw' ]"
       nemeses:
         description: 'Nemeses (as JSON)'
         type: string
         required: false
-        default: "[ 'upload-queue' ]"
+        default: "[ 'kill,upload-queue' ]"
       rates:
         description: 'Rates (as JSON)'
         type: string
@@ -34,8 +34,9 @@ on:
         required: true
         default: "{'repeat': [ '1', '2', '3', '4' ], 'timeout-minutes': 25, 'powersync-image-tag': 'latest'}"
 
+
 jobs:
-  jepsen-convergence-only:
+  jepsen-kill-start:
     uses: nurturenature/jepsen-powersync/.github/workflows/jepsen-test-runner.yml@main
     with:
       workloads: ${{ inputs.workloads}}

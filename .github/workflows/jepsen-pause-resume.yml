@@ -1,4 +1,4 @@
-name: jepsen-pause
+name: jepsen-pause-resume
 
 on:
   workflow_dispatch:
@@ -35,7 +35,7 @@ on:
         default: "{'repeat': [ '1', '2', '3', '4' ], 'timeout-minutes': 25, 'powersync-image-tag': 'latest'}"
 
 jobs:
-  jepsen-pause:
+  jepsen-pause-resume:
     uses: nurturenature/jepsen-powersync/.github/workflows/jepsen-test-runner.yml@main
     with:
       workloads: ${{ inputs.workloads}}
