@@ -35,6 +35,7 @@ class NoOpConnector extends PowerSyncBackendConnector {
 const _retryablePgErrors = {
   '40001', // serialization_failure
   '40P01', // deadlock_detected
+  '57014', // canceling statement due to user request, e.g. timeout
 };
 
 // be persistent with retries
