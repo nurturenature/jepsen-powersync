@@ -64,12 +64,15 @@
     (setup! [this _test]
       this)
 
-    (invoke! [_this test {:keys [f value] :as op}]
+    (invoke! [_this {:keys [postgres-nodes] :as test} {:keys [f value] :as op}]
       (let [result (case f
                      :disconnect-orderly (let [_       (assert (not (seq @disconnected-nodes)))
+                                               ; target nodes per db-spec
                                                targets (->> value
                                                             (nc/db-nodes test db)
-                                                            (into #{}))]
+                                                            (into #{}))
+                                               ; ignore PostgreSQL nodes
+                                               targets (set/difference targets postgres-nodes)]
                                            (swap! disconnected-nodes (fn [_]
                                                                        targets))
                                            (c/on-nodes test targets disconnect))
@@ -133,10 +136,13 @@
     (setup! [this _test]
       this)
 
-    (invoke! [_this test {:keys [f value] :as op}]
-      (let [targets (->> value
+    (invoke! [_this {:keys [postgres-nodes] :as test} {:keys [f value] :as op}]
+      (let [; target nodes per db-spec
+            targets (->> value
                          (nc/db-nodes test db)
                          (into #{}))
+            ; ignore PostgreSQL nodes
+            targets (set/difference targets postgres-nodes)
             result (case f
                      :disconnect-random (c/on-nodes test targets disconnect)
                      :connect-random    (c/on-nodes test targets connect))
@@ -215,11 +221,21 @@
     (setup! [this _test]
       this)
 
-    (invoke! [_this test {:keys [f value] :as op}]
+    (invoke! [_this {:keys [nodes postgres-nodes] :as test} {:keys [f value] :as op}]
       (let [result (case f
-                     :partition-sync (let [targets (nc/db-nodes test db value)]
+                     :partition-sync (let [; target nodes per db-spec
+                                           targets (->> value
+                                                        (nc/db-nodes test db)
+                                                        (into #{}))
+                                           ; ignore PostgreSQL nodes
+                                           targets (set/difference targets postgres-nodes)]
                                        (c/on-nodes test targets partition-sync-service))
-                     :heal-sync      (c/on-nodes test heal-sync-service))
+                     :heal-sync      (let [; target all nodes
+                                           targets (->> nodes
+                                                        (into #{}))
+                                           ; ignore PostgreSQL nodes
+                                           targets (set/difference targets postgres-nodes)]
+                                       (c/on-nodes test targets heal-sync-service)))
             result (into (sorted-map) result)]
         (assoc op :value result)))
 

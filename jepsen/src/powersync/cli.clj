@@ -87,7 +87,7 @@
                    :faults             (:nemesis opts)
                    :disconnect-orderly {:targets nil}
                    :disconnect-random  {:targets nil}
-                   :partition-sync     {:targets [:majority]}
+                   :partition-sync     {:targets nil}
                    :pause              {:targets [:majority]}
                    :kill               {:targets [:majority]}
                    :upload-queue       nil
