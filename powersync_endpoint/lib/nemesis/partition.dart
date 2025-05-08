@@ -35,6 +35,9 @@ class PartitionNemesis {
 
   // start injecting partition messages
   void startPartition() {
+    const powerSyncHost = 'powersync';
+    const postgreSQLHost = 'pg-db';
+
     log.info(
       'nemesis: partition: start listening to stream of partition messages',
     );
@@ -44,26 +47,34 @@ class PartitionNemesis {
     ) async {
       log.info('nemesis: partition: starting: ${partitionStateMessage.name}');
 
+      late final Set<String> partitionedHosts;
       await _lock.synchronized(() async {
-        const powerSyncHost = 'powersync';
-
         switch (partitionStateMessage) {
           case _PartitionStates.none:
             await _partitionNone();
+            partitionedHosts = {};
             break;
           case _PartitionStates.inbound:
             await _partitionInbound(powerSyncHost);
+            await _partitionInbound(postgreSQLHost);
+            partitionedHosts = {powerSyncHost, postgreSQLHost};
             break;
           case _PartitionStates.outbound:
             await _partitionOutbound(powerSyncHost);
+            await _partitionOutbound(postgreSQLHost);
+            partitionedHosts = {powerSyncHost, postgreSQLHost};
             break;
           case _PartitionStates.bidirectional:
             await _partitionBidirectional(powerSyncHost);
+            await _partitionBidirectional(postgreSQLHost);
+            partitionedHosts = {powerSyncHost, postgreSQLHost};
             break;
         }
       });
 
-      log.info('nemesis: partition: current: ${partitionStateMessage.name}');
+      log.info(
+        'nemesis: partition: current: ${partitionStateMessage.name}, hosts: $partitionedHosts',
+      );
     });
   }
 
@@ -82,7 +93,9 @@ class PartitionNemesis {
     // insure no partition
     log.info('nemesis: partition: starting: ${_PartitionStates.none.name}');
     await _partitionNone();
-    log.info('nemesis: partition: current: ${_PartitionStates.none.name}');
+    log.info(
+      'nemesis: partition: current: ${_PartitionStates.none.name}, hosts: ${{}}',
+    );
   }
 
   /// Partition inbound traffic.

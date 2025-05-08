@@ -271,18 +271,18 @@ See [issue #253 comment](https://github.com/powersync-ja/powersync.dart/issues/2
 
 #### Network Partition
 
-Use `iptables` to partition client hosts from the PowerSync sync service host.
+Use `iptables` to partition client hosts from the PowerSync sync service and PostgreSQL hosts.
 
 ```dart
 // inbound
-await Process.run('/usr/sbin/iptables', [ '-A', 'INPUT', '-s', powersyncServiceHost, '-j', 'DROP', '-w' ]);
+await Process.run('/usr/sbin/iptables', [ '-A', 'INPUT', '-s', powersyncServiceHost | postgreSQLHost, '-j', 'DROP', '-w' ]);
 
 // outbound
-await Process.run('/usr/sbin/iptables', [ '-A', 'OUTPUT', '-d', powersyncServiceHost, '-j', 'DROP', '-w' ]);
+await Process.run('/usr/sbin/iptables', [ '-A', 'OUTPUT', '-d', powersyncServiceHost | postgreSQLHost, '-j', 'DROP', '-w' ]);
 
 // bidirectional
-await Process.run('/usr/sbin/iptables', [ '-A', 'INPUT', '-s', powersyncServiceHost, '-j', 'DROP', '-w' ]);
-await Process.run('/usr/sbin/iptables', [ '-A', 'OUTPUT', '-d', powersyncServiceHost, '-j', 'DROP', '-w' ]);
+await Process.run('/usr/sbin/iptables', [ '-A', 'INPUT', '-s', powersyncServiceHost | postgreSQLHost, '-j', 'DROP', '-w' ]);
+await Process.run('/usr/sbin/iptables', [ '-A', 'OUTPUT', '-d', powersyncServiceHost | postgreSQLHost, '-j', 'DROP', '-w' ]);
 
 // heal network
 await Process.run('/usr/sbin/iptables', ['-F', '-w']);
@@ -291,7 +291,7 @@ await Process.run('/usr/sbin/iptables', ['-X', '-w']);
 
 - repeatedly
   - wait a random interval
-  - all clients for `powersync_fuzz`, 1 to all clients for Jepsen, are randomly partitioned from the PowerSync sync service
+  - all clients for `powersync_fuzz`, 1 to all clients for Jepsen, are randomly partitioned from the PowerSync sync service and PostgreSQL hosts
   - wait a random interval
   - all client networks are healed
 - at the end of the test insure all client networks are healed
@@ -299,26 +299,22 @@ await Process.run('/usr/sbin/iptables', ['-X', '-w']);
 Example of partitioning nemesis from `powersync_fuzz.log`
 ```log
 $ grep nemesis powersync_fuzz.log 
-[2025-05-05 01:21:47.222173] [main] [INFO] nemesis: partition: start listening to stream of partition messages
-[2025-05-05 01:21:49.439494] [main] [INFO] nemesis: partition: starting: outbound
-[2025-05-05 01:21:49.453601] [main] [INFO] nemesis: partition: current: outbound
-[2025-05-05 01:21:52.524497] [main] [INFO] nemesis: partition: starting: none
-[2025-05-05 01:21:52.587868] [main] [INFO] nemesis: partition: current: none
+[2025-05-08 02:58:38.540582] [main] [INFO] nemesis: partition: start listening to stream of partition messages
+[2025-05-08 02:58:44.308471] [main] [INFO] nemesis: partition: starting: bidirectional
+[2025-05-08 02:58:44.367180] [main] [INFO] nemesis: partition: current: bidirectional hosts: {powersync, pg-db}
+[2025-05-08 02:58:46.957552] [main] [INFO] nemesis: partition: starting: none
+[2025-05-08 02:58:47.031792] [main] [INFO] nemesis: partition: current: none hosts: {}
+[2025-05-08 02:58:49.190407] [main] [INFO] nemesis: partition: starting: outbound
+[2025-05-08 02:58:49.219263] [main] [INFO] nemesis: partition: current: outbound hosts: {powersync, pg-db}
+[2025-05-08 02:58:55.021681] [main] [INFO] nemesis: partition: starting: none
+[2025-05-08 02:58:55.128247] [main] [INFO] nemesis: partition: current: none hosts: {}
 ...
-[2025-05-05 01:22:20.159504] [main] [INFO] nemesis: partition: starting: bidirectional
-[2025-05-05 01:22:20.184578] [main] [INFO] nemesis: partition: current: bidirectional
-[2025-05-05 01:22:26.795546] [main] [INFO] nemesis: partition: starting: none
-[2025-05-05 01:22:26.867787] [main] [INFO] nemesis: partition: current: none
+[2025-05-08 03:00:04.102570] [main] [INFO] nemesis: partition: starting: inbound
+[2025-05-08 03:00:04.120517] [main] [INFO] nemesis: partition: current: inbound hosts: {powersync, pg-db}
 ...
-[2025-05-05 01:22:52.483501] [main] [INFO] nemesis: partition: starting: inbound
-[2025-05-05 01:22:52.495912] [main] [INFO] nemesis: partition: current: inbound
-[2025-05-05 01:22:58.195562] [main] [INFO] nemesis: partition: starting: none
-[2025-05-05 01:22:58.263928] [main] [INFO] nemesis: partition: current: none
-...
-[2025-05-05 01:23:27.223007] [main] [INFO] nemesis: partition: stop listening to stream of partition messages
-[2025-05-05 01:23:33.847571] [main] [INFO] nemesis: partition: starting: none
-[2025-05-05 01:23:33.903830] [main] [INFO] nemesis: partition: current: none
-...
+[2025-05-08 03:00:18.591748] [main] [INFO] nemesis: partition: stop listening to stream of partition messages
+[2025-05-08 03:00:20.257646] [main] [INFO] nemesis: partition: starting: none
+[2025-05-08 03:00:20.282057] [main] [INFO] nemesis: partition: current: none hosts: {}
 ```
 
 ##### Impact on Consistency/Correctness
