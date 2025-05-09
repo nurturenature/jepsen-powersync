@@ -33,15 +33,15 @@
   "A collection of valid nemeses."
   #{:disconnect-orderly :disconnect-random
     :partition-sync
-    :pause :kill
+    :pause-resume :kill
     :upload-queue})
 
 (def all-nemeses
   "Combinations of nemeses for tests"
   [[]
-   [:pause]
+   [:pause-resume]
    [:partition-sync]
-   [:pause :partition-sync]
+   [:pause-resume :partition-sync]
    [:kill]])
 
 (def special-nemeses
@@ -88,7 +88,7 @@
                    :disconnect-orderly {:targets nil}
                    :disconnect-random  {:targets nil}
                    :partition-sync     {:targets nil}
-                   :pause              {:targets [:majority]}
+                   :pause-resume       {:targets nil}
                    :kill               {:targets [:majority]}
                    :upload-queue       nil
                    :interval           (:nemesis-interval opts)})]
