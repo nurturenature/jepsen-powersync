@@ -124,7 +124,12 @@
 
 (def cli-opts
   "Command line options"
-  [[nil "--key-count NUM" "The total number of keys."
+  [[nil "--client-timeout SECS" "The number of seconds to wait before timing out a client connection."
+    :default  3
+    :parse-fn parse-long
+    :validate [pos? "Must be a positive integer"]]
+
+   [nil "--key-count NUM" "The total number of keys."
     :default  util/key-count
     :parse-fn parse-long
     :validate [pos? "Must be a positive integer"]]

@@ -44,15 +44,15 @@
 
 (defn invoke
   "Invokes the op against the endpoint and returns the result."
-  [op endpoint]
+  [op endpoint timeout]
   (let [body   (-> (select-keys op [:type :f :value]) ; don't expose rest of op map 
                    op->json)]
     (try+
      (let [result (http/post endpoint
                              {:body               body
                               :content-type       :json
-                              :socket-timeout     3000  ; TODO: correlate with PowerSync pg_endpoint behavior
-                              :connection-timeout 3000  ;       correlate with postgres  run_tx      behavior
+                              :socket-timeout     timeout  ; TODO: correlate with PowerSync pg_endpoint behavior
+                              :connection-timeout timeout  ;       correlate with postgres  run_tx      behavior
                               :accept             :json})
            op'    (->> result
                        :body
@@ -91,18 +91,19 @@
 (defrecord PowerSyncClient [conn]
   client/Client
   (open!
-    [this _test node]
+    [this {:keys [client-timeout] :as _test} node]
     (assoc this
-           :node node
-           :url  (str "http://" node ":8089" "/sql-txn")))
+           :node    node
+           :url     (str "http://" node ":8089" "/sql-txn")
+           :timeout (* client-timeout 1000)))
 
   (setup!
     [_this _test])
 
   (invoke!
-    [{:keys [node url] :as _this} _test op]
+    [{:keys [node url timeout] :as _this} _test op]
     (let [op (assoc op :node node)]
-      (invoke op url)))
+      (invoke op url timeout)))
 
   (teardown!
     [_this _test])
