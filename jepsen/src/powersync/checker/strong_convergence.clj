@@ -44,59 +44,125 @@
   [_defaults]
   (reify checker/Checker
     (check [_this {:keys [nodes] :as _test} history _opts]
-      (let [nodes    (->> nodes (into (sorted-set)))
-            history' (->> history
-                          h/client-ops
-                          h/oks)
+      (let [nodes            (->> nodes (into (sorted-set)))
 
-            processes           (util/all-processes history')
+            history-client   (->> history
+                                  h/client-ops)
+            history-oks      (->> history-client
+                                  h/oks)
+            history-possible (->> history-client
+                                  h/possible)
+
+            final-reads      (->> history-oks
+                                  (filter :final-read?))
+
+            ; all nodes must have a final read
+            final-nodes   (->> final-reads
+                               (map :node)
+                               (into #{}))
+            missing-nodes (set/difference nodes final-nodes)
+
+            ; {k #{v}} of all possible writes
+            possible-writes (->> history-possible
+                                 (mapcat (fn [op]
+                                           (->> op
+                                                util/write-some
+                                                (map (fn [[k v]] {k #{v}})))))
+                                 (reduce (fn [possible-kv kv]
+                                           (merge-with set/union possible-kv kv))
+                                         {}))
+
+            ; seq of errors {:invalid-reads {k v} :op op}
+            invalid-reads (->> history-oks
+                               (keep (fn [op]
+                                       (let [invalid-reads
+                                             (->> op
+                                                  util/read-all
+                                                  ; -1 are 'nil' reads
+                                                  (remove (fn [[_k v]]
+                                                            (= -1 v)))
+                                                  ; read of a possibly written value
+                                                  (remove (fn [[k v]]
+                                                            (contains? (get possible-writes k) v)))
+                                                  (into (sorted-map)))]
+                                         (when (seq invalid-reads)
+                                           {:invalid-reads invalid-reads
+                                            :op op})))))
+
+            processes           (util/all-processes history-client)
             non-monotonic-reads (->> processes
                                      (mapcat (fn [p]
-                                               (->> history'
+                                               (->> history-oks
                                                     (h/filter (fn [{:keys [process] :as _op}]
                                                                 (= p process)))
                                                     (non-monotonic-reads))))
                                      (into []))
 
-
-            final-reads   (->> history'
-                               (filter :final-read?))
-            final-read-kv (->> history'
-                               (reduce (fn [final-read-kv op]
-                                         (let [write-some (util/write-some op)]
-                                           (merge-with max final-read-kv write-some)))
+            ; max {k v} for all ok writes
+            max-ok-writes (->> history-oks
+                               (reduce (fn [max-ok-writes op]
+                                         (->> op
+                                              util/write-some
+                                              (merge-with max max-ok-writes)))
                                        {}))
+            ; max observed {k v}
+            ;   - max ok writes plus
+            ;   - any ok reads of info writes that are >
+            max-observed (->> history-oks
+                              (reduce (fn [max-observed op]
+                                        (->> op
+                                             util/read-all
+                                             (reduce (fn [max-observed [k v]]
+                                                       (if (and (< (get max-observed k -1) v)
+                                                                (contains? (get possible-writes k) v))
+                                                         (assoc max-observed k v)
+                                                         max-observed))
+                                                     max-observed)))
+                                      max-ok-writes))
 
-            ; divergent final reads, {k {:expected v node v ...}}
-            divergent-reads (->> final-reads
-                                 (reduce (fn [divergent {:keys [node] :as op}]
-                                           (let [read-all (util/read-all op)]
-                                             (->> read-all
-                                                  (reduce (fn [divergent [k v]]
-                                                            (let [expected-v (get final-read-kv k)]
-                                                              (if (= v expected-v)
-                                                                divergent
-                                                                (-> divergent
-                                                                    (update k assoc :expected expected-v)
-                                                                    (update k assoc node      v)))))
-                                                          divergent))))
-                                         (sorted-map)))
-
-            final-nodes   (->> final-reads
-                               (map :node)
-                               (into #{}))
-            missing-nodes (set/difference nodes final-nodes)]
+            ; summarize final reads into {k {v #{node}}}
+            ; - include max-observed as a node
+            k->v->nodes (->> max-observed
+                             (reduce (fn [k->v->nodes [k v]]
+                                       (assoc k->v->nodes k (sorted-map v (sorted-set "max-observed"))))
+                                     (sorted-map)))
+            k->v->nodes (->> final-reads
+                             (reduce (fn [k->v->nodes {:keys [node] :as op}]
+                                       (->> op
+                                            util/read-all
+                                            (reduce (fn [k->v->nodes [k v]]
+                                                      (update-in k->v->nodes [k v] set/union (sorted-set node)))
+                                                    k->v->nodes)))
+                                     k->v->nodes))
+            ; every k must be read by all nodes
+            k->v->nodes (->> k->v->nodes
+                             (reduce (fn [k->v->nodes [k vs]]
+                                       (let [read-nodes    (->> vs vals (apply set/union))
+                                             missing-nodes (set/difference nodes read-nodes)]
+                                         (if (seq missing-nodes)
+                                           (update-in k->v->nodes [k nil] set/union (into (sorted-set) missing-nodes))
+                                           k->v->nodes)))
+                                     k->v->nodes))
+            ; any k that has multiple v's is divergent
+            divergent-final-reads (->> k->v->nodes
+                                       (filter (fn [[_k vs]]
+                                                 (< 1 (count vs))))
+                                       (into (sorted-map)))]
 
         ; result map
         (cond-> {:valid? true}
-          (seq non-monotonic-reads)
-          (assoc :valid? false
-                 :non-monotonic-reads non-monotonic-reads)
-
           (seq missing-nodes)
           (assoc :valid? false
                  :missing-nodes missing-nodes)
 
-          (seq divergent-reads)
+          (seq invalid-reads)
           (assoc :valid? false
-                 :divergent-reads divergent-reads))))))
+                 :invalid-reads (vec invalid-reads))
+
+          (seq non-monotonic-reads)
+          (assoc :valid? false
+                 :non-monotonic-reads non-monotonic-reads)
+
+          (seq divergent-final-reads)
+          (assoc :valid? false
+                 :divergent-final-reads divergent-final-reads))))))
