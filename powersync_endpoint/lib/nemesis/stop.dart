@@ -75,7 +75,7 @@ class StopStartNemesis {
   // stop a random subset of clients
   //   - client must not have active transactions
   Future<Set<int>> _stopClients() async {
-    assert(_stoppedClientNums.isEmpty);
+    utils.alwaysAssert(_stoppedClientNums.isEmpty);
 
     // act on 0 to all clients
     final int numRandomClients = _rng.nextInt(_availableClientNums.length + 1);
