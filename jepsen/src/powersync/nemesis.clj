@@ -5,7 +5,8 @@
             [jepsen
              [control :as c]
              [generator :as gen]
-             [nemesis :as nemesis]]
+             [nemesis :as nemesis]
+             [util :as util]]
             [jepsen.control.util :as cu]
             [jepsen.nemesis.combined :as nc]
             [powersync.powersync :refer [app-ps-name]]))
@@ -276,15 +277,19 @@
 
 (defn pause-node!
   [_test _node]
-  (c/su
-   (cu/grepkill! :stop app-ps-name))
-  :paused)
+  ; TODO: timeout is an attempt to workaround GitHub Action timeout
+  (util/timeout 1000 :grepkill-timeout
+                (c/su
+                 (cu/grepkill! :stop app-ps-name))
+                :paused))
 
 (defn resume-node!
   [_test _node]
-  (c/su
-   (cu/grepkill! :cont app-ps-name))
-  :resumed)
+  ; TODO: timeout is an attempt to workaround GitHub Action timeout
+  (util/timeout 1000 :grepkill-timeout
+                (c/su
+                 (cu/grepkill! :cont app-ps-name))
+                :resumed))
 
 (defn pause-resume-nemesis
   "A nemesis that pauses and resumes nodes.

@@ -85,10 +85,10 @@
                   {:db                 db
                    :nodes              (:nodes opts)
                    :faults             (:nemesis opts)
-                   :disconnect-orderly {:targets nil}
-                   :disconnect-random  {:targets nil}
-                   :partition-sync     {:targets nil}
-                   :pause-resume       {:targets nil}
+                   :disconnect-orderly {:targets [nil]}
+                   :disconnect-random  {:targets [nil]}
+                   :partition-sync     {:targets [nil]}
+                   :pause-resume       {:targets [nil]}
                    :kill               {:targets [:majority]}
                    :upload-queue       nil
                    :interval           (:nemesis-interval opts)})]
