@@ -103,7 +103,7 @@ Future<void> _txWithRetries(
                   false => '',
                 };
                 log.finer(
-                  'uploadData: call: $callCounter txn: ${crudEntry.transactionId} patch: {$k: $v} $reason',
+                  'uploadData: call: $callCounter txn: ${crudEntry.transactionId} patch: {$k: $patchV} $reason',
                 );
                 break;
 
