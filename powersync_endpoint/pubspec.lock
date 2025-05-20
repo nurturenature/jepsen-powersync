@@ -13,10 +13,10 @@ packages:
     dependency: transitive
     description:
       name: analyzer
-      sha256: "13c1e6c6fd460522ea840abec3f677cc226f5fec7872c04ad7b425517ccf54f7"
+      sha256: "904ae5bb474d32c38fb9482e2d925d5454cda04ddd0e55d2e6826bc72f6ba8c0"
       url: "https://pub.dev"
     source: hosted
-    version: "7.4.4"
+    version: "7.4.5"
   args:
     dependency: "direct main"
     description:
@@ -370,26 +370,26 @@ packages:
     dependency: "direct main"
     description:
       name: powersync
-      sha256: "4b7e0a234580cecfb5b9b4af289dd6930f50a0d3372f169e114e9e81d0b38818"
+      sha256: "609c2f9027b42a81ef20bbd3c7727ceba791f3edcce335d959e4459a734d6007"
       url: "https://pub.dev"
     source: hosted
-    version: "1.12.4"
+    version: "1.13.0"
   powersync_core:
     dependency: transitive
     description:
       name: powersync_core
-      sha256: d3ef83ec93d043ca7c3e9aaaeeb2b909df79cb732117c587e09c32d1f24eb647
+      sha256: "1c1e723fb4a19db9f2af3c7806ed450d3e6b0fadcd74908d69fa4fb1b0e68831"
       url: "https://pub.dev"
     source: hosted
-    version: "1.2.4"
+    version: "1.3.0"
   powersync_flutter_libs:
     dependency: transitive
     description:
       name: powersync_flutter_libs
-      sha256: b3f0bdebec683670875cb0233111cd93d4dcef11b5d67449f7a5695eb4353ff2
+      sha256: f1cd9f3a084a39007dd2fb414b03fcc29ab61f0af5d117263fe5f54e407d97d7
       url: "https://pub.dev"
     source: hosted
-    version: "0.4.7"
+    version: "0.4.8"
   pub_semver:
     dependency: transitive
     description:
@@ -583,26 +583,26 @@ packages:
     dependency: "direct dev"
     description:
       name: test
-      sha256: "301b213cd241ca982e9ba50266bd3f5bd1ea33f1455554c5abb85d1be0e2d87e"
+      sha256: "0561f3a2cfd33d10232360f16dfcab9351cfb7ad9b23e6cd6e8c7fb0d62c7ac3"
       url: "https://pub.dev"
     source: hosted
-    version: "1.25.15"
+    version: "1.26.1"
   test_api:
     dependency: transitive
     description:
       name: test_api
-      sha256: fb31f383e2ee25fbbfe06b40fe21e1e458d14080e3c67e7ba0acfde4df4e0bbd
+      sha256: "522f00f556e73044315fa4585ec3270f1808a4b186c936e612cab0b565ff1e00"
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.4"
+    version: "0.7.6"
   test_core:
     dependency: transitive
     description:
       name: test_core
-      sha256: "84d17c3486c8dfdbe5e12a50c8ae176d15e2a771b96909a9442b40173649ccaa"
+      sha256: "8619a9a45be044b71fe2cd6b77b54fd60f1c67904c38d48706e2852a2bda1c60"
       url: "https://pub.dev"
     source: hosted
-    version: "0.6.8"
+    version: "0.6.10"
   typed_data:
     dependency: transitive
     description:

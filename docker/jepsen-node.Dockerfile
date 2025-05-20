@@ -49,5 +49,10 @@ FROM jepsen-setup AS jepsen-final
 WORKDIR /jepsen/jepsen-powersync/powersync_endpoint
 COPY --from=dart-build /app/.env .env
 COPY --from=dart-build /app/libpowersync_x64.so libpowersync_x64.so
+
+# need current version of SQLite3, use pre-built from app source dir
+COPY --from=dart-build /app/libsqlite3.so       libsqlite3.so
+COPY --from=dart-build /app/sqlite3             sqlite3
+
 COPY --from=dart-build /app/powersync_http powersync_http
 COPY --from=dart-build /app/powersync_fuzz powersync_fuzz
