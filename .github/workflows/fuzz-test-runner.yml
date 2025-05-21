@@ -136,8 +136,8 @@ jobs:
       - name: Bring Up Docker Environment
         run: |
           cd $GITHUB_WORKSPACE/docker
-          ./powersync-fuzz-build.sh
-          ./powersync-fuzz-up.sh
+          ./powersync-fuzz-build.sh || exit 256
+          ./powersync-fuzz-up.sh    || exit 256
 
       - name: ${{ env.test-title }}
         timeout-minutes: ${{ fromJSON(inputs.args).timeout-minutes }}
@@ -162,7 +162,8 @@ jobs:
           docker logs pg-db         &> $GITHUB_WORKSPACE/artifacts/pg-db.log         || echo "no docker logs" > $GITHUB_WORKSPACE/artifacts/pg-db.log
           docker logs mongo         &> $GITHUB_WORKSPACE/artifacts/mongo.log         || echo "no docker logs" > $GITHUB_WORKSPACE/artifacts/mongo.log
           docker logs mongo-rs-init &> $GITHUB_WORKSPACE/artifacts/mongo-rs-init.log || echo "no docker logs" > $GITHUB_WORKSPACE/artifacts/mongo-rs-init.log
-          docker cp powersync-fuzz-node:/jepsen/jepsen-powersync/powersync_endpoint/powersync_fuzz.log $GITHUB_WORKSPACE/artifacts
+          docker cp powersync-fuzz-node:/jepsen/jepsen-powersync/powersync_endpoint/powersync_fuzz.log $GITHUB_WORKSPACE/artifacts \
+            || echo "no powersync-fuzz-node log" > $GITHUB_WORKSPACE/artifacts/powersync_fuzz.log
 
       - name: 'PowerSync Fuzz Test Artifacts: powersync_fuzz.log'
         if: ${{ always() }}
