@@ -129,6 +129,28 @@ The client will expose an endpoint for SQL transactions and `PowerSyncDatabase` 
 - HTTP for Jepsen
 - `Isolate` `ReceivePort` for Dart Fuzzer
 
+Tests can use a mix of clients
+- active/active, replicate central PostgreSQL and local client activities
+  - some clients read/write PostgreSQL database
+  - some clients read/write local SQLite3 databases
+- replicate central PostgreSQL activity to local clients
+  - some clients read/write PostgreSQL database
+  - some clients read only local SQLite3 databases
+- replicate local clients to local clients
+  - some clients read only PostgreSQL database (to check for consistency)
+  - some clients read/write local SQLite3 databases
+
+----
+
+### No Fault Environments
+
+PowerSync tests 100% successfully in no fault environments using a test matrix of
+- 5-10 clients
+- 10-50 transactions/second
+- active/active, simultaneous PostgreSQL and/or local SQLite3 client transactions
+- local SQLite3 client transactions
+- complex transactions that read 100 keys and write 4 keys in a single transaction
+
 ----
 
 ### Faults
@@ -240,7 +262,7 @@ As the error behavior usually (always?) presents as a single stuck transaction, 
 
 #### Stop / Start
 
-Use the `PowerSyncDatabase` API to repeatedly and randomly stop and start clients using the PowerSync sync service.
+Use the `PowerSyncDatabase` API to repeatedly and randomly stop and start clients.
 
 ```dart
 await db.close();
@@ -410,11 +432,62 @@ $ grepkill cont powersync_http
 
 ##### Impact on Consistency/Correctness
 
+TODO
+
 ----
 
 #### Client Kill
 
-- `kill -9` client process(es)
+In `powersync_fuzz`, use
+```dart
+Isolate.kill();
+...
+// note: create db reusing existing SQLite3 files
+await Isolate.spawn(...);
+db = PowerSyncDatabase(...);
+await db.initialize()/connect()/waitForFirstSync();
+```
+
+In Jepsen, use
+```bash
+$ grepkill kill powersync_http
+...
+$ ./powersync_http
+```
+
+- repeatedly
+  - wait a random interval
+  - 1 to a majority of clients are randomly killed
+  - wait a random interval
+  - start clients that were killed reusing existing SQLite3 files
+- at the end of the test start any clients that are killed reusing existing SQLite3 files
+
+TODO
+
+##### Impact on Consistency/Correctness
+
+TODO
+
+----
+
+### GitHub Actions 
+
+There's a suite of [GitHub Actions](https://github.com/nurturenature/jepsen-powersync/actions) with an action for every type of fault.
+
+Each action uses a test matrix for
+- number of clients
+- rate of transactions
+- fault characteristics
+- and other common configuration options
+
+Oddly, GitHub Actions can fail
+- pulling Docker images from the GitHub Container Registry
+- building images
+- pause in the middle of a test run and timeout
+
+These failures are Microsoft resource allocation and infrastructure issues and are not related to the tests.
+
+The action will fail with an exit code of 255 and "no logs available" log file contents when this happens.
 
 ----
 
