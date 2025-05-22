@@ -91,9 +91,13 @@ jobs:
       - name: Bring Up Docker Environment
         run: |
           cd $GITHUB_WORKSPACE/docker
-          ./docker-build.sh      || exit 256
-          ./docker-compose-up.sh || exit 256
-          
+          ./docker-build.sh      || $(exit 255)
+          ./docker-compose-up.sh || $(exit 255)
+
+      - name: Confirm Docker Environment
+        run: |
+          docker logs jepsen-control &> /dev/null || $(exit 255)
+  
       - name: ${{ env.test-title }}
         timeout-minutes: ${{ fromJSON(inputs.args).timeout-minutes }}
         run: |

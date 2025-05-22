@@ -136,8 +136,12 @@ jobs:
       - name: Bring Up Docker Environment
         run: |
           cd $GITHUB_WORKSPACE/docker
-          ./powersync-fuzz-build.sh || exit 256
-          ./powersync-fuzz-up.sh    || exit 256
+          ./powersync-fuzz-build.sh || $(exit 255)
+          ./powersync-fuzz-up.sh    || $(exit 255)
+
+      - name: Confirm Docker Environment
+        run: |
+          docker logs powersync-fuzz-node &> /dev/null || $(exit 255)
 
       - name: ${{ env.test-title }}
         timeout-minutes: ${{ fromJSON(inputs.args).timeout-minutes }}
