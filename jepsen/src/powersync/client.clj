@@ -38,7 +38,7 @@
                                                (->> v
                                                     (map (fn [[k v]]
                                                            [(parse-long (name k)) v]))
-                                                    (into {}))
+                                                    (into (sorted-map)))
                                                v)]
                                        [f k v]))))))
 
@@ -76,6 +76,10 @@
                 :type  :info
                 :error (.toString ex))))
      (catch java.net.SocketTimeoutException ex
+       (assoc op
+              :type  :info
+              :error (.toString ex)))
+     (catch org.apache.http.ConnectionClosedException ex
        (assoc op
               :type  :info
               :error (.toString ex)))
