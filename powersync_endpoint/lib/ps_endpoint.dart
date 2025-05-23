@@ -83,6 +83,18 @@ class PSEndpoint extends Endpoint {
       'db: init: db.waitForFirstSync() confirmed with all keys present: $psKeys',
     );
 
+    // another indicator of sync completeness is SyncStatus.downloading: false
+    currentStatus = _db.currentStatus;
+    while (currentStatus.downloading) {
+      log.info('db: init: waiting for SyncStatus.downloading: false');
+      log.info('\twith currentStatus: $currentStatus');
+
+      // sleep and try again
+      await futureDelay(100);
+      currentStatus = _db.currentStatus;
+    }
+    log.info('db: init: SyncStatus.downloading: ${currentStatus.downloading}');
+
     // log PowerSync status changes
     _logSyncStatus(_db);
 
@@ -266,10 +278,12 @@ class PSEndpoint extends Endpoint {
 
         int onTry = 1;
         var currentStatus = _db.currentStatus;
-        while ((currentStatus.downloading) == true && onTry <= maxTries) {
+        while (currentStatus.downloading && (onTry <= maxTries)) {
           log.fine(
-            'database api: ${APICalls.downloadingWait.name}: waiting on SyncStatus.downloading: true...',
+            'database api: ${APICalls.downloadingWait.name}: waiting for SyncStatus.downloading: false...',
           );
+          log.info('\twith currentStatus: $currentStatus');
+
           await futureDelay(waitPerTry);
           onTry++;
           currentStatus = _db.currentStatus;
