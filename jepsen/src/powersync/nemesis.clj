@@ -480,7 +480,6 @@
           (partition-sync-service-package opts)
           (pause-resume-package opts)
           (upload-queue-package opts)]
-         ; TODO: not using any standard nemeses
-         ; (concat (nc/nemesis-packages opts))
+         (concat (nc/nemesis-packages opts))
          (filter :generator)
          nc/compose-packages)))
