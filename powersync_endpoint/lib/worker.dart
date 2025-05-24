@@ -43,7 +43,7 @@ class Worker {
   static Future<Worker> spawn(
     Endpoints endpoint,
     int clientNum, {
-    bool preserveData = false,
+    bool preserveData = true,
   }) async {
     // Create a txn receive port and its initial message handler to receive the send port, e.g. a txn connection
     final initTxnReceivePort = RawReceivePort();

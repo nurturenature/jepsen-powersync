@@ -15,7 +15,7 @@ class PSEndpoint extends Endpoint {
   DateTime? _lastSyncedAt;
 
   @override
-  Future<void> init({String filePath = '', bool preserveData = false}) async {
+  Future<void> init({String filePath = '', bool preserveData = true}) async {
     // delete any preexisting SQLite3 files?
     if (await File(filePath).exists()) {
       log.info('db: init: preexisting SQLite3 file: $filePath');

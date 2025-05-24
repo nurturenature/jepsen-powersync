@@ -10,7 +10,7 @@ class PGEndpoint extends Endpoint {
   late final postgres.Connection _postgreSQL;
 
   @override
-  Future<void> init({String filePath = '', bool preserveData = false}) async {
+  Future<void> init({String filePath = '', bool preserveData = true}) async {
     final endpoint = postgres.Endpoint(
       host: args['PG_DATABASE_HOST']!,
       port: args['PG_DATABASE_PORT']!,

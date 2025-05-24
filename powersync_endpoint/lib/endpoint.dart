@@ -30,7 +30,7 @@ final apiCallLookup = APICalls.values.asNameMap();
 
 abstract class Endpoint {
   /// initialize the database
-  Future<void> init({String filePath = '', bool preserveData = false});
+  Future<void> init({String filePath = '', bool preserveData = true});
 
   /// Execute an sql transaction and return the results:
   /// - request is an operation styled as a  Jepsen op as a SplayTreeMap
