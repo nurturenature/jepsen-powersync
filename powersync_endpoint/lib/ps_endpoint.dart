@@ -299,6 +299,7 @@ class PSEndpoint extends Endpoint {
           log.warning(
             'database api: ${APICalls.downloadingWait.name}: waited for SyncStatus.downloading: false $onTry times every ${waitPerTry}ms',
           );
+          log.warning('\tcurrentStatus: $currentStatus');
         } else {
           op['value']['v'] = {'db.SyncStatus.downloading:': false};
         }
