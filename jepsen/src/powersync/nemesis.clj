@@ -4,6 +4,7 @@
             [clojure.set :as set]
             [jepsen
              [control :as c]
+             [db :as db]
              [generator :as gen]
              [nemesis :as nemesis]
              [util :as util]]
@@ -182,6 +183,93 @@
                            :start #{:disconnect-random}
                            :stop  #{:connect-random}
                            :color "#D1E8A0"}}})))
+
+(defn stop-node!
+  "Stopping a node is
+   - call db.close() on node
+   - kill node"
+  [{:keys [db] :as test} node]
+  (try
+    (http/get (str "http://" node ":8089/" nemesis-path "/close"))
+    (db/kill! db test node)
+    :stopped
+    (catch java.net.ConnectException ex
+      (if (= (.getMessage ex) "Connection refused")
+        :connection-refused
+        (throw ex)))))
+
+(defn start-node!
+  [{:keys [db] :as test} node]
+  ; will return :started or :already-running
+  (db/start! db test node))
+
+(defn stop-start-nemesis
+  "A nemesis that stops and starts nodes.
+   This nemesis responds to:
+  ```
+  {:f :stop-nodes  :value :node-spec}   ; target nodes as interpreted by `db-nodes`
+  {:f :start-nodes :value nil}
+   ```"
+  [db]
+  (reify
+    nemesis/Reflection
+    (fs [_this]
+      #{:stop-nodes :start-nodes})
+
+    nemesis/Nemesis
+    (setup! [this _test]
+      this)
+
+    (invoke! [_this {:keys [nodes postgres-nodes] :as test} {:keys [f value] :as op}]
+      (let [result (case f
+                     :stop-nodes  (let [; target nodes per db-spec
+                                        targets (->> value
+                                                     (nc/db-nodes test db)
+                                                     (into #{}))
+                                        ; ignore PostgreSQL nodes
+                                        targets (set/difference targets postgres-nodes)]
+                                    (c/on-nodes test targets stop-node!))
+                     :start-nodes (let [; target all nodes
+                                        targets (->> nodes
+                                                     (into #{}))
+                                        ; ignore PostgreSQL nodes
+                                        targets (set/difference targets postgres-nodes)]
+                                    (c/on-nodes test targets start-node!)))
+            result (into (sorted-map) result)]
+        (assoc op :value result)))
+
+    (teardown! [_this _test]
+      nil)))
+
+(defn stop-start-package
+  "A nemesis and generator package that stops and starts nodes.
+   
+   Opts:
+   ```clj
+   {:stop-start {:targets [...]}}  ; A collection of node specs, e.g. [:one, :all]
+  ```"
+  [{:keys [db faults interval stop-start] :as _opts}]
+  (when (contains? faults :stop-start)
+    (let [targets     (:targets stop-start (nc/node-specs db))
+          stop-nodes  (fn stop-nodes [_ _]
+                        {:type  :info
+                         :f     :stop-nodes
+                         :value (rand-nth targets)})
+          start-nodes (repeat {:type  :info
+                               :f     :start-nodes
+                               :value nil})
+          gen         (->> (gen/flip-flop
+                            stop-nodes
+                            start-nodes)
+                           (gen/stagger (or interval nc/default-interval)))]
+      {:generator       gen
+       :final-generator (take 1 start-nodes)
+       :nemesis         (stop-start-nemesis db)
+       :perf            #{{:name  "stop-start"
+                           :fs    #{}
+                           :start #{:stop-nodes}
+                           :stop  #{:start-nodes}
+                           :color "#E8DBA0"}}})))
 
 (defn partition-sync-service
   "Partition node from sync service and PostgreSQL."
@@ -477,6 +565,7 @@
   (let [opts (update opts :faults set)]
     (->> [(disconnect-orderly-package opts)
           (disconnect-random-package opts)
+          (stop-start-package opts)
           (partition-sync-service-package opts)
           (pause-resume-package opts)
           (upload-queue-package opts)]

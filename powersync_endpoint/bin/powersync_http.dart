@@ -1,6 +1,7 @@
 import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
+import 'package:powersync/sqlite_async.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart';
 import 'package:shelf_router/shelf_router.dart';
@@ -34,7 +35,13 @@ Future<void> main(List<String> arguments) async {
 
     log.fine('SQL txn: request: $reqOp');
 
-    final resOp = await endpointDb.sqlTxn(reqOp);
+    SplayTreeMap<dynamic, dynamic> resOp;
+    try {
+      resOp = await endpointDb.sqlTxn(reqOp);
+    } on ClosedException {
+      resOp = reqOp;
+      resOp.addAll({'type': 'fail', 'error': 'ClosedException'});
+    }
 
     log.fine('SQL txn: response: $resOp');
 

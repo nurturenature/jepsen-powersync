@@ -32,6 +32,7 @@
 (def nemeses
   "A collection of valid nemeses."
   #{:disconnect-orderly :disconnect-random
+    :stop-start
     :partition-sync
     :pause-resume :kill
     :upload-queue})
@@ -39,6 +40,8 @@
 (def all-nemeses
   "Combinations of nemeses for tests"
   [[]
+   [:disconnect-orderly :disconnect-random]
+   [:stop-start]
    [:pause-resume]
    [:partition-sync]
    [:pause-resume :partition-sync]
@@ -87,6 +90,7 @@
                    :faults             (:nemesis opts)
                    :disconnect-orderly {:targets [nil]}
                    :disconnect-random  {:targets [nil]}
+                   :stop-start         {:targets [nil]}
                    :partition-sync     {:targets [nil]}
                    :pause-resume       {:targets [nil]}
                    :kill               {:targets [:majority]}
