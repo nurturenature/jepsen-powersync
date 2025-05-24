@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:math';
 import 'package:list_utilities/list_utilities.dart';
 import 'package:synchronized/synchronized.dart';
-import '../error_codes.dart';
+import '../errors.dart';
 import '../log.dart';
 import '../utils.dart' as utils;
 
@@ -113,7 +113,7 @@ class PartitionNemesis {
       log.severe(
         'nemesis: partition: unexpected result from iptables: $result',
       );
-      exit(errorCodes[ErrorReasons.codingError]!);
+      errorExit(ErrorReasons.codingError);
     }
   }
 
@@ -132,7 +132,7 @@ class PartitionNemesis {
       log.severe(
         'nemesis: partition: unexpected result from iptables: $result',
       );
-      exit(errorCodes[ErrorReasons.codingError]!);
+      errorExit(ErrorReasons.codingError);
     }
   }
 
@@ -149,7 +149,7 @@ class PartitionNemesis {
       log.severe(
         'nemesis: partition: unexpected result from iptables: $resultF',
       );
-      exit(errorCodes[ErrorReasons.codingError]!);
+      errorExit(ErrorReasons.codingError);
     }
 
     final resultX = await Process.run('/usr/sbin/iptables', ['-X', '-w']);
@@ -157,7 +157,7 @@ class PartitionNemesis {
       log.severe(
         'nemesis: partition: unexpected result from iptables: $resultX',
       );
-      exit(errorCodes[ErrorReasons.codingError]!);
+      errorExit(ErrorReasons.codingError);
     }
   }
 }

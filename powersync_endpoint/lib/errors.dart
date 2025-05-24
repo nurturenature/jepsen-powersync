@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'log.dart';
+
 /// All error exit reasons.
 enum ErrorReasons {
   strongConvergence,
@@ -14,8 +17,8 @@ enum ErrorReasons {
   codingError,
 }
 
-/// All error exit codes.
-const errorCodes = {
+// All error exit codes.
+const _errorCodes = {
   ErrorReasons.strongConvergence: 1,
   ErrorReasons.sqlite3CausalConsistency: 2,
   ErrorReasons.postgresqlCausalConsistency: 3,
@@ -29,3 +32,12 @@ const errorCodes = {
   ErrorReasons.postgresqlError: 50,
   ErrorReasons.codingError: 100,
 };
+
+/// Log severe message with name of reason and exit code for reason.
+/// Exit with exit code for reason.
+void errorExit(ErrorReasons reason) {
+  final exitCode = _errorCodes[reason]!;
+
+  log.severe('Error exit: reason: ${reason.name}, code: $exitCode');
+  exit(exitCode);
+}

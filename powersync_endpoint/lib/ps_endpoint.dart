@@ -4,7 +4,7 @@ import 'package:powersync/powersync.dart';
 import 'args.dart';
 import 'backend_connector.dart';
 import 'endpoint.dart';
-import 'error_codes.dart';
+import 'errors.dart';
 import 'log.dart';
 import 'schema.dart';
 import 'utils.dart';
@@ -41,7 +41,7 @@ class PSEndpoint extends Endpoint {
         log.severe(
           'db: init: failed to initialize PowerSync Database, call to initialize() timed out after $powerSyncTimeoutDuration',
         );
-        exit(errorCodes[ErrorReasons.powersyncDatabaseApiTimeout]!);
+        errorExit(ErrorReasons.powersyncDatabaseApiTimeout);
       },
     );
     log.info(
@@ -137,7 +137,7 @@ class PSEndpoint extends Endpoint {
               log.severe(
                 'PowerSyncDatabase: invalid SELECT, tx.getAll(), ResultSet: $select for mop: $mop in op: $op',
               );
-              exit(errorCodes[ErrorReasons.invalidSqlite3Data]!);
+              errorExit(ErrorReasons.invalidSqlite3Data);
             }
 
             // return mop['v'] as a {k: v} map containing all read k/v
@@ -170,7 +170,7 @@ class PSEndpoint extends Endpoint {
                 log.severe(
                   'PowerSyncDatabase: invalid update: $update for key: ${kv.key} in mop: $mop in op: $op',
                 );
-                exit(errorCodes[ErrorReasons.invalidSqlite3Data]!);
+                errorExit(ErrorReasons.invalidSqlite3Data);
               }
             }
 
@@ -225,7 +225,8 @@ class PSEndpoint extends Endpoint {
                 log.severe(
                   'db: api: call to db.getUploadQueueStats() timed out after $powerSyncTimeoutDuration',
                 );
-                exit(errorCodes[ErrorReasons.powersyncDatabaseApiTimeout]!);
+                errorExit(ErrorReasons.powersyncDatabaseApiTimeout);
+                throw StateError('Unreachable code!');
               },
             )).count;
         op['value']['v'] = {'db.uploadQueueStats.count': uploadQueueCount};
@@ -252,7 +253,7 @@ class PSEndpoint extends Endpoint {
               log.severe(
                 '\tdb.getUploadQueueStats(): ${await _db.getUploadQueueStats(includeSize: true)}',
               );
-              exit(errorCodes[ErrorReasons.uploadQueueStatsCount]!);
+              errorExit(ErrorReasons.uploadQueueStatsCount);
             }
           } else {
             prevCount = count;
@@ -347,7 +348,7 @@ class PSEndpoint extends Endpoint {
         log.severe(
           'SyncStatus.lastSyncedAt reverted from $_lastSyncedAt to null',
         );
-        exit(errorCodes[ErrorReasons.syncStatusLastSyncedAt]!);
+        errorExit(ErrorReasons.syncStatusLastSyncedAt);
       } else {
         switch (_lastSyncedAt!.compareTo(lastSyncedAt)) {
           case -1:
@@ -359,7 +360,7 @@ class PSEndpoint extends Endpoint {
             log.severe(
               'SyncStatus.lastSyncedAt went back in time from $_lastSyncedAt to $lastSyncedAt',
             );
-            exit(errorCodes[ErrorReasons.syncStatusLastSyncedAt]!);
+            errorExit(ErrorReasons.syncStatusLastSyncedAt);
         }
       }
     });

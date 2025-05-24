@@ -1,10 +1,9 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math';
 import 'package:list_utilities/list_utilities.dart';
 import 'package:synchronized/synchronized.dart';
 import '../endpoint.dart';
-import '../error_codes.dart';
+import '../errors.dart';
 import '../log.dart';
 import '../utils.dart' as utils;
 import '../worker.dart';
@@ -118,7 +117,7 @@ class StopStartNemesis {
       log.severe(
         'nemesis: stop/start: unable to close client: ${client.clientNum}, result: $result',
       );
-      exit(errorCodes[ErrorReasons.codingError]!);
+      errorExit(ErrorReasons.codingError);
     }
 
     client.closeTxns();
@@ -129,7 +128,7 @@ class StopStartNemesis {
       log.severe(
         'nemesis: stop/start: unable to kill client ${client.clientNum} Isolate',
       );
-      exit(errorCodes[ErrorReasons.codingError]!);
+      errorExit(ErrorReasons.codingError);
     }
 
     return client.clientNum;
