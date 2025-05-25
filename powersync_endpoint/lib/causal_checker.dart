@@ -6,10 +6,6 @@ import 'log.dart';
 import 'pg_endpoint.dart';
 import 'worker.dart';
 
-// TODO: add a possible writes state
-//  - txn requests may be interrupted by a nemesis before the txn response is sent or received
-//  - check/maintain state as part of checking for the read of an unwritten value
-
 // serialize access to preserve integrity of checks
 // e.g. multiple independent mutations would be a problem
 final _lock = Lock();
@@ -142,8 +138,16 @@ class CausalChecker {
     int v,
     Map<String, dynamic> op,
   ) {
+    // TODO: add a possible writes state
+    //  - txn requests may be interrupted by a nemesis before the txn response is sent or received
+    //  - check/maintain state as part of checking for the read of an unwritten value
     // must read a null, -1, or a value that was written
-    if (v != -1 && !_mwWfrStates.containsKey((k, v))) {
+    // if (v != -1 && !_mwWfrStates.containsKey((k, v))) {
+    //   log.severe('{$k: $v} was never written, yet reading it in op: $op');
+    //   _debug(k, [v]);
+    //   return false;
+    // }
+    if (v < -1) {
       log.severe('{$k: $v} was never written, yet reading it in op: $op');
       _debug(k, [v]);
       return false;
