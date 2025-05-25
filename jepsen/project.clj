@@ -6,7 +6,7 @@
   :dependencies [[org.clojure/clojure "1.12.0"]
                  [jepsen "0.3.9"]
                  [causal "0.1.0-SNAPSHOT"]
-                 [cheshire "5.13.0"]
+                 [cheshire "6.0.0"]
                  [clj-http "3.13.0"]
                  [com.github.seancorfield/next.jdbc "1.3.1002"]
                  [org.postgresql/postgresql "42.7.5"]]
