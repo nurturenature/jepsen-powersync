@@ -80,6 +80,10 @@ class StopStartNemesis {
     final int numRandomClients = _rng.nextInt(_availableClientNums.length + 1);
     final possibleClientNums = _availableClientNums.getRandom(numRandomClients);
 
+    log.info(
+      'nemesis: stop/start: beginning ${_StopStartStates.stopped.name}: for possible clients: $possibleClientNums',
+    );
+
     // stop all clients in parallel
     final List<Future<int>> stoppedClientFutures = [];
     for (final clientNum in possibleClientNums) {
@@ -138,6 +142,10 @@ class StopStartNemesis {
   //   - preserve existing SQLite3 db files
   Future<Set<int>> _startClients() async {
     final Set<int> affectedClientNums = {};
+
+    log.info(
+      'nemesis: stop/start: beginning ${_StopStartStates.started.name}: for possible clients: $_stoppedClientNums',
+    );
 
     // start all clients in parallel
     final List<Future<Worker>> affectedClientFutures = [];

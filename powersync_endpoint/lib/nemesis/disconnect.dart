@@ -14,13 +14,15 @@ enum DisconnectNemeses { none, orderly, random }
 
 final disconnectNemesesLookup = DisconnectNemeses.values.asNameMap();
 
+enum _DisconnectStates { connected, disconnected }
+
 class DisconnectNemesis {
   final DisconnectNemeses _nemesisType;
   final Set<Worker> _allClients;
   final Set<int> _disconnectedClientNums = {};
 
-  late final Stream<DisconnectStates> Function() _disconnectConnectStream;
-  late final StreamSubscription<DisconnectStates>
+  late final Stream<_DisconnectStates> Function() _disconnectConnectStream;
+  late final StreamSubscription<_DisconnectStates>
   _disconnectConnectSubscription;
 
   final _rng = Random();
@@ -28,14 +30,14 @@ class DisconnectNemesis {
 
   DisconnectNemesis(this._nemesisType, this._allClients, interval) {
     final maxInterval = interval * 1000 * 2;
-    final DisconnectState disconnectState = DisconnectState();
+    final _DisconnectState disconnectState = _DisconnectState();
 
     // Stream of DisconnectedStates, flip flops between disconnected and connected
     // Stream will not emit messages until listened to
     _disconnectConnectStream = () async* {
       while (true) {
         await utils.futureDelay(_rng.nextInt(maxInterval + 1));
-        yield await _lock.synchronized<DisconnectStates>(() {
+        yield await _lock.synchronized<_DisconnectStates>(() {
           return disconnectState.flipFlop();
         });
       }
@@ -98,30 +100,38 @@ class DisconnectNemesis {
       await _lock.synchronized(() async {
         // what clients to act on?
         final Set<Worker> actOnClients = switch (connectionStateMessage) {
-          DisconnectStates.disconnected => _selectClientsToDisconnect(
+          _DisconnectStates.disconnected => _selectClientsToDisconnect(
             _nemesisType,
             _allClients,
           ),
-          DisconnectStates.connected => _selectClientsToConnect(
+          _DisconnectStates.connected => _selectClientsToConnect(
             _nemesisType,
             _allClients,
             _disconnectedClientNums,
           ),
         };
 
+        final Set<int> potentialClientNums = Set.from(
+          actOnClients.map((client) => client.clientNum),
+        );
+
+        log.info(
+          'nemesis: disconnect/connect: beginning ${connectionStateMessage.name}: for potential clients: $potentialClientNums',
+        );
+
         // act on clients
         final Set<int> affectedClientNums =
-            await DisconnectConnect.disconnectOrConnect(
+            await _DisconnectConnect.disconnectOrConnect(
               actOnClients,
               connectionStateMessage,
             );
 
         // keep track of disconnected clients
         switch (connectionStateMessage) {
-          case DisconnectStates.disconnected:
+          case _DisconnectStates.disconnected:
             _disconnectedClientNums.addAll(affectedClientNums);
             break;
-          case DisconnectStates.connected:
+          case _DisconnectStates.connected:
             _disconnectedClientNums.removeAll(affectedClientNums);
             break;
         }
@@ -145,6 +155,10 @@ class DisconnectNemesis {
     // let apis catch up
     await utils.futureDelay(1000);
 
+    log.info(
+      'nemesis: disconnect/connect: beginning ${_DisconnectStates.connected.name}: for potential clients: $_disconnectedClientNums',
+    );
+
     // only act on disconnected clients
     final actOnClients =
         _allClients
@@ -155,28 +169,26 @@ class DisconnectNemesis {
 
     // act on clients
     final Set<int> affectedClientNums =
-        await DisconnectConnect.disconnectOrConnect(
+        await _DisconnectConnect.disconnectOrConnect(
           actOnClients,
-          DisconnectStates.connected,
+          _DisconnectStates.connected,
         );
 
     log.info(
-      'nemesis: disconnect/connect: ${DisconnectStates.connected.name}: clients: $affectedClientNums',
+      'nemesis: disconnect/connect: ${_DisconnectStates.connected.name}: clients: $affectedClientNums',
     );
   }
 }
 
-enum DisconnectStates { connected, disconnected }
-
 /// flip flops between connected and disconnected DisconnectStates
-class DisconnectState {
-  DisconnectStates _state = DisconnectStates.connected;
+class _DisconnectState {
+  _DisconnectStates _state = _DisconnectStates.connected;
 
   // Flip flop the current state.
-  DisconnectStates flipFlop() {
+  _DisconnectStates flipFlop() {
     _state = switch (_state) {
-      DisconnectStates.connected => DisconnectStates.disconnected,
-      DisconnectStates.disconnected => DisconnectStates.connected,
+      _DisconnectStates.connected => _DisconnectStates.disconnected,
+      _DisconnectStates.disconnected => _DisconnectStates.connected,
     };
 
     return _state;
@@ -184,16 +196,16 @@ class DisconnectState {
 }
 
 /// Static disconnect or connect function.
-class DisconnectConnect {
+class _DisconnectConnect {
   /// Disconnect or connect clients per disconnectState.
   /// Returns Set of affected clientNums.
   static Future<Set<int>> disconnectOrConnect(
     Set<Worker> clients,
-    DisconnectStates disconnectState,
+    _DisconnectStates disconnectState,
   ) async {
     final disconnectConnectMessage = switch (disconnectState) {
-      DisconnectStates.disconnected => Endpoint.disconnectMessage(),
-      DisconnectStates.connected => Endpoint.connectMessage(),
+      _DisconnectStates.disconnected => Endpoint.disconnectMessage(),
+      _DisconnectStates.connected => Endpoint.connectMessage(),
     };
 
     // act on clients in parallel
