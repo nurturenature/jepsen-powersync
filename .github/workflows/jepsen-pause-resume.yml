@@ -12,7 +12,7 @@ on:
         description: 'Nemeses (as JSON)'
         type: string
         required: false
-        default: "[ 'pause-resume,upload-queue' ]"
+        default: "[ 'pause,upload-queue' ]"
       rates:
         description: 'Rates (as JSON)'
         type: string

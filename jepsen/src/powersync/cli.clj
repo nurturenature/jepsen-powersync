@@ -34,7 +34,7 @@
   #{:disconnect-orderly :disconnect-random
     :stop-start
     :partition-sync
-    :pause-resume :kill
+    :pause :kill
     :upload-queue})
 
 (def all-nemeses
@@ -42,9 +42,9 @@
   [[]
    [:disconnect-orderly :disconnect-random]
    [:stop-start]
-   [:pause-resume]
+   [:pause]
    [:partition-sync]
-   [:pause-resume :partition-sync]
+   [:pause :partition-sync]
    [:kill]])
 
 (def special-nemeses
@@ -92,7 +92,7 @@
                    :disconnect-random  {:targets [nil]}
                    :stop-start         {:targets [nil]}
                    :partition-sync     {:targets [nil]}
-                   :pause-resume       {:targets [nil]}
+                   :pause              {:targets [nil]}
                    :kill               {:targets [:majority]}
                    :upload-queue       nil
                    :interval           (:nemesis-interval opts)})]

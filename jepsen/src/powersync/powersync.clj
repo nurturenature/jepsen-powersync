@@ -34,10 +34,6 @@
 
 (def bin-path (str app-dir "/" app-ps-name))
 
-(def powersync-setup?
-  "Is PowerSync setup?"
-  (atom false))
-
 (defn wipe
   "Wipes local SQLite3 db files.
    Assumes on node and privs for file deletion."
@@ -50,14 +46,7 @@
   (reify db/DB
     (setup!
       [this test node]
-      (info "Setting up powersync_endpoint db")
-
-      ; one client sets up PowerSync
-      (locking powersync-setup?
-        (when-not @powersync-setup?
-          (info "Setting up PowerSync environment")
-
-          (swap! powersync-setup? (fn [_] true))))
+      (info "Setting up powersync_endpoint db " node)
 
       (db/start! this test node)
       (u/sleep 1000)) ; TODO: sleep for 1s to allow endpoint to come up, should be retry http connection
@@ -106,12 +95,17 @@
     db/Pause
     (pause!
       [_this _test _node]
-      (c/su
-       (cu/grepkill! :stop app-ps-name))
-      :paused)
+      ; TODO: timeout is an attempt to workaround GitHub Action timeout
+      (u/timeout 1000 :grepkill-timeout
+                 (c/su
+                  (cu/grepkill! :stop app-ps-name))
+                 :paused))
 
     (resume!
       [_this _test _node]
-      (c/su
-       (cu/grepkill! :cont app-ps-name))
-      :resumed)))
+      ; TODO: timeout is an attempt to workaround GitHub Action timeout
+      (u/timeout 1000 :grepkill-timeout
+                 (c/su
+                  (cu/grepkill! :cont app-ps-name))
+                 :resumed))))
+

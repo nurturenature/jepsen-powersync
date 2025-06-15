@@ -6,11 +6,8 @@
              [control :as c]
              [db :as db]
              [generator :as gen]
-             [nemesis :as nemesis]
-             [util :as util]]
-            [jepsen.control.util :as cu]
-            [jepsen.nemesis.combined :as nc]
-            [powersync.powersync :refer [app-ps-name]]))
+             [nemesis :as nemesis]]
+            [jepsen.nemesis.combined :as nc]))
 
 (def nemesis-path
   "URI path for nemesis on HTTP server"
@@ -363,90 +360,6 @@
                            :stop  #{:heal-sync}
                            :color "#B7A0E8"}}})))
 
-(defn pause-node!
-  [_test _node]
-  ; TODO: timeout is an attempt to workaround GitHub Action timeout
-  (util/timeout 1000 :grepkill-timeout
-                (c/su
-                 (cu/grepkill! :stop app-ps-name))
-                :paused))
-
-(defn resume-node!
-  [_test _node]
-  ; TODO: timeout is an attempt to workaround GitHub Action timeout
-  (util/timeout 1000 :grepkill-timeout
-                (c/su
-                 (cu/grepkill! :cont app-ps-name))
-                :resumed))
-
-(defn pause-resume-nemesis
-  "A nemesis that pauses and resumes nodes.
-   This nemesis responds to:
-  ```
-  {:f :pause-nodes  :value :node-spec}   ; target nodes as interpreted by `db-nodes`
-  {:f :resume-nodes :value nil}
-   ```"
-  [db]
-  (reify
-    nemesis/Reflection
-    (fs [_this]
-      #{:pause-nodes :resume-nodes})
-
-    nemesis/Nemesis
-    (setup! [this _test]
-      this)
-
-    (invoke! [_this {:keys [nodes postgres-nodes] :as test} {:keys [f value] :as op}]
-      (let [result (case f
-                     :pause-nodes  (let [; target nodes per db-spec
-                                         targets (->> value
-                                                      (nc/db-nodes test db)
-                                                      (into #{}))
-                                         ; ignore PostgreSQL nodes
-                                         targets (set/difference targets postgres-nodes)]
-                                     (c/on-nodes test targets pause-node!))
-                     :resume-nodes (let [; target all nodes
-                                         targets (->> nodes
-                                                      (into #{}))
-                                         ; ignore PostgreSQL nodes
-                                         targets (set/difference targets postgres-nodes)]
-                                     (c/on-nodes test targets resume-node!)))
-            result (into (sorted-map) result)]
-        (assoc op :value result)))
-
-    (teardown! [_this _test]
-      nil)))
-
-(defn pause-resume-package
-  "A nemesis and generator package that pauses and resumes nodes.
-   
-   Opts:
-   ```clj
-   {:pause-resume {:targets [...]}}  ; A collection of node specs, e.g. [:one, :all]
-  ```"
-  [{:keys [db faults interval pause-resume] :as _opts}]
-  (when (contains? faults :pause-resume)
-    (let [targets                     (:targets pause-resume (nc/node-specs db))
-          pause-nodes  (fn pause-nodes [_ _]
-                         {:type  :info
-                          :f     :pause-nodes
-                          :value (rand-nth targets)})
-          resume-nodes (repeat {:type  :info
-                                :f     :resume-nodes
-                                :value nil})
-          gen          (->> (gen/flip-flop
-                             pause-nodes
-                             resume-nodes)
-                            (gen/stagger (or interval nc/default-interval)))]
-      {:generator       gen
-       :final-generator (take 1 resume-nodes)
-       :nemesis         (pause-resume-nemesis db)
-       :perf            #{{:name  "pause-resume"
-                           :fs    #{}
-                           :start #{:pause-nodes}
-                           :stop  #{:resume-nodes}
-                           :color "#A0ADE8"}}})))
-
 (defn upload-queue-count
   "Get the count of transactions in the PowerSync db upload queue for the PowerSync node."
   [_test node]
@@ -567,7 +480,6 @@
           (disconnect-random-package opts)
           (stop-start-package opts)
           (partition-sync-service-package opts)
-          (pause-resume-package opts)
           (upload-queue-package opts)]
          (concat (nc/nemesis-packages opts))
          (filter :generator)
