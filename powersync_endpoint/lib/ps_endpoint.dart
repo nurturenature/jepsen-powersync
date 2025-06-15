@@ -51,10 +51,9 @@ class PSEndpoint extends Endpoint {
     _connector = await CrudTransactionConnector.connector();
 
     // retry significantly faster than default of 5s, designed to leverage a Transaction oriented BackendConnector
-    // must be set before connecting
-    _db.retryDelay = Duration(milliseconds: 1000);
+    final syncOptions = SyncOptions(retryDelay: Duration(milliseconds: 1000));
 
-    await _db.connect(connector: _connector);
+    await _db.connect(connector: _connector, options: syncOptions);
     log.info(
       'db: init: connected with connector: $_connector, status: ${_db.currentStatus}',
     );
@@ -218,17 +217,16 @@ class PSEndpoint extends Endpoint {
         break;
 
       case APICalls.uploadQueueCount:
-        final uploadQueueCount =
-            (await _db.getUploadQueueStats().timeout(
-              powerSyncTimeoutDuration,
-              onTimeout: () {
-                log.severe(
-                  'db: api: call to db.getUploadQueueStats() timed out after $powerSyncTimeoutDuration',
-                );
-                errorExit(ErrorReasons.powersyncDatabaseApiTimeout);
-                throw StateError('Unreachable code!');
-              },
-            )).count;
+        final uploadQueueCount = (await _db.getUploadQueueStats().timeout(
+          powerSyncTimeoutDuration,
+          onTimeout: () {
+            log.severe(
+              'db: api: call to db.getUploadQueueStats() timed out after $powerSyncTimeoutDuration',
+            );
+            errorExit(ErrorReasons.powersyncDatabaseApiTimeout);
+            throw StateError('Unreachable code!');
+          },
+        )).count;
         op['value']['v'] = {'db.uploadQueueStats.count': uploadQueueCount};
         break;
 

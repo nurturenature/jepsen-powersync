@@ -3,7 +3,7 @@
   :url "https://github.com/nurturenature/jepsen-powersync"
   :license {:name "Apache License Version 2.0, January 2004"
             :url "http://www.apache.org/licenses/"}
-  :dependencies [[org.clojure/clojure "1.12.0"]
+  :dependencies [[org.clojure/clojure "1.12.1"]
                  [jepsen "0.3.9"]
                  [causal "0.1.0-SNAPSHOT"]
                  [cheshire "6.0.0"]

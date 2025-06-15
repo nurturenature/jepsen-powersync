@@ -100,7 +100,9 @@ class Worker {
     );
   }
 
-  static Future<void> _startRemoteIsolate(message) async {
+  static Future<void> _startRemoteIsolate(
+    (Endpoints, int, Map<String, dynamic>, SendPort, SendPort, bool) message,
+  ) async {
     final (
       Endpoints endpoint,
       int clientNum,
@@ -108,8 +110,7 @@ class Worker {
       SendPort txnSendPort,
       SendPort apiSendPort,
       bool preserveData,
-    ) = message
-            as (Endpoints, int, Map<String, dynamic>, SendPort, SendPort, bool);
+    ) = message;
 
     // initialize worker environment, state
     args = mainArgs; // args must be set first in Isolate
