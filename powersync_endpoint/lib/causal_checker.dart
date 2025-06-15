@@ -294,8 +294,9 @@ Future<void> checkStrongConvergence(Set<Worker> clients) async {
   final Map<String, Map<int, int>> divergent = SplayTreeMap();
 
   for (Worker client in clients) {
-    final Map<int, int> finalPsRead =
-        (await client.executeApi(Endpoint.selectAllMessage()))['value']['v'];
+    final Map<int, int> finalPsRead = (await client.executeApi(
+      Endpoint.selectAllMessage(),
+    ))['value']['v'];
     for (final int k in finalPgRead.keys) {
       final pgV = finalPgRead[k]!;
       final psV = finalPsRead[k]!;

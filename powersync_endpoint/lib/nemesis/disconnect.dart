@@ -160,12 +160,9 @@ class DisconnectNemesis {
     );
 
     // only act on disconnected clients
-    final actOnClients =
-        _allClients
-            .where(
-              (client) => _disconnectedClientNums.contains(client.clientNum),
-            )
-            .toSet();
+    final actOnClients = _allClients
+        .where((client) => _disconnectedClientNums.contains(client.clientNum))
+        .toSet();
 
     // act on clients
     final Set<int> affectedClientNums =

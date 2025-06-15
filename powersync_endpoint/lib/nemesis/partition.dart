@@ -170,12 +170,11 @@ class _PartitionState {
   // Flip flop the current state.
   _PartitionStates _flipFlop() {
     _state = switch (_state) {
-      _PartitionStates.none =>
-        {
-          _PartitionStates.inbound,
-          _PartitionStates.outbound,
-          _PartitionStates.bidirectional,
-        }.getRandom(1).first,
+      _PartitionStates.none => {
+        _PartitionStates.inbound,
+        _PartitionStates.outbound,
+        _PartitionStates.bidirectional,
+      }.getRandom(1).first,
 
       _PartitionStates.inbound ||
       _PartitionStates.outbound ||

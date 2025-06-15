@@ -77,10 +77,9 @@ Future<void> _txWithRetries(
                     crudEntry.opData!['v'],
                   ],
                 );
-                final {'k': int k, 'v': int v} =
-                    put
-                        .single // gets and enforces 1 and only 1 affected row
-                        .toColumnMap();
+                final {'k': int k, 'v': int v} = put
+                    .single // gets and enforces 1 and only 1 affected row
+                    .toColumnMap();
                 log.finer(
                   'uploadData: call: $callCounter txn: ${crudEntry.transactionId} put: {$k: $v}',
                 );
@@ -111,10 +110,9 @@ Future<void> _txWithRetries(
                   'DELETE FROM mww WHERE id = \$1 RETURNING *',
                   parameters: [crudEntry.id],
                 );
-                final {'k': int k, 'v': int v} =
-                    delete
-                        .single // gets and enforces 1 and only 1 affected row
-                        .toColumnMap();
+                final {'k': int k, 'v': int v} = delete
+                    .single // gets and enforces 1 and only 1 affected row
+                    .toColumnMap();
                 log.finer(
                   'uploadData: call: $callCounter txn: ${crudEntry.transactionId} delete: {$k: $v}',
                 );

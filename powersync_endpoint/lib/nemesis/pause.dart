@@ -18,8 +18,9 @@ class PauseResumeNemesis {
 
   PauseResumeNemesis(Set<Worker> allClients, int interval) {
     // all but PostgreSQL client
-    _possibleClients =
-        allClients.where((client) => client.clientNum != 0).toSet();
+    _possibleClients = allClients
+        .where((client) => client.clientNum != 0)
+        .toSet();
 
     final maxInterval = interval * 1000 * 2;
 

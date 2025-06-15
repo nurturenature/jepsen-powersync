@@ -39,15 +39,17 @@ void main(List<String> arguments) async {
 
   // a Stream of sql txn messages
   log.info('starting stream of sql transactions...');
-  final sqlTxnStream = Stream<SplayTreeMap<String, dynamic>>
-  // sent every tps rate
-  .periodic(
-    Duration(milliseconds: (1000 / args['rate']).floor()),
-    // using reads/appends against random keys with a sequential value
-    (value) => Endpoint.readAllWriteSomeTxnMessage(args['maxTxnLen'], value),
-  )
-  // for a total # of txns
-  .take(args['time'] * args['rate']);
+  final sqlTxnStream =
+      Stream<SplayTreeMap<String, dynamic>>
+          // sent every tps rate
+          .periodic(
+            Duration(milliseconds: (1000 / args['rate']).floor()),
+            // using reads/appends against random keys with a sequential value
+            (value) =>
+                Endpoint.readAllWriteSomeTxnMessage(args['maxTxnLen'], value),
+          )
+          // for a total # of txns
+          .take(args['time'] * args['rate']);
 
   // each sql txn message from the Stream is individually sent to a random client
   sqlTxnStream

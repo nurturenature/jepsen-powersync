@@ -47,14 +47,13 @@ Future<void> main(List<String> arguments) async {
 
     final resStr = jsonEncode(
       resOp,
-      toEncodable:
-          (Object? value) =>
-              // JSON requires String keys so convert readAll and writeSome Map<int, int> to <String, int>
-              value is Map<int, int>
-                  ? Map.fromEntries(
-                    value.entries.map((kv) => MapEntry('${kv.key}', kv.value)),
-                  )
-                  : throw UnsupportedError('Cannot convert to JSON: $value'),
+      toEncodable: (Object? value) =>
+          // JSON requires String keys so convert readAll and writeSome Map<int, int> to <String, int>
+          value is Map<int, int>
+          ? Map.fromEntries(
+              value.entries.map((kv) => MapEntry('${kv.key}', kv.value)),
+            )
+          : throw UnsupportedError('Cannot convert to JSON: $value'),
     );
     return Response.ok(resStr);
   }
@@ -68,46 +67,45 @@ Future<void> main(List<String> arguments) async {
     final Map<String, dynamic> response;
     switch (action) {
       case APICalls.connect:
-        response =
-            (await endpointDb.dbApi(Endpoint.connectMessage()))['value']['v'];
+        response = (await endpointDb.dbApi(
+          Endpoint.connectMessage(),
+        ))['value']['v'];
         break;
 
       case APICalls.disconnect:
-        response =
-            (await endpointDb.dbApi(
-              Endpoint.disconnectMessage(),
-            ))['value']['v'];
+        response = (await endpointDb.dbApi(
+          Endpoint.disconnectMessage(),
+        ))['value']['v'];
         break;
 
       case APICalls.close:
-        response =
-            (await endpointDb.dbApi(Endpoint.closeMessage()))['value']['v'];
+        response = (await endpointDb.dbApi(
+          Endpoint.closeMessage(),
+        ))['value']['v'];
         break;
 
       case APICalls.uploadQueueCount:
-        response =
-            (await endpointDb.dbApi(
-              Endpoint.uploadQueueCountMessage(),
-            ))['value']['v'];
+        response = (await endpointDb.dbApi(
+          Endpoint.uploadQueueCountMessage(),
+        ))['value']['v'];
         break;
 
       case APICalls.uploadQueueWait:
-        response =
-            (await endpointDb.dbApi(
-              Endpoint.uploadQueueWaitMessage(),
-            ))['value']['v'];
+        response = (await endpointDb.dbApi(
+          Endpoint.uploadQueueWaitMessage(),
+        ))['value']['v'];
         break;
 
       case APICalls.downloadingWait:
-        response =
-            (await endpointDb.dbApi(
-              Endpoint.downloadingWaitMessage(),
-            ))['value']['v'];
+        response = (await endpointDb.dbApi(
+          Endpoint.downloadingWaitMessage(),
+        ))['value']['v'];
         break;
 
       case APICalls.selectAll:
-        response =
-            (await endpointDb.dbApi(Endpoint.selectAllMessage()))['value']['v'];
+        response = (await endpointDb.dbApi(
+          Endpoint.selectAllMessage(),
+        ))['value']['v'];
         break;
     }
 
@@ -118,10 +116,9 @@ Future<void> main(List<String> arguments) async {
   }
 
   // HTTP API
-  final httpRouter =
-      Router()
-        ..post('/sql-txn', sqlTxn)
-        ..get('/db-api/<action>', dbApi);
+  final httpRouter = Router()
+    ..post('/sql-txn', sqlTxn)
+    ..get('/db-api/<action>', dbApi);
 
   // configure a pipeline that logs requests
   final httpPipeline = Pipeline()
