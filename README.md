@@ -281,9 +281,18 @@ await db.initialize()/connect()/waitForFirstSync();
   - clients that were closed/stopped are restarted reusing existing SQLite3 files
 - at the end of the test restart any clients that are currently closed/stopped reusing existing SQLite3 files
 
+Sample Jepsen log
+```clj
+:nemesis	:info	:stop-nodes	nil
+:nemesis	:info	:stop-nodes	{"n10" :stopped, "n3" :stopped, "n7" :stopped}
+...
+:nemesis	:info	:start-nodes	nil
+:nemesis	:info	:start-nodes	{"n1" :already-running, "n10" :started, "n2" :already-running, "n3" :started, "n4" :already-running, "n5" :already-running, "n6" :already-running, "n7" :started, "n8" :already-running, "n9" :already-running}
+```
+
 ##### Impact on Consistency/Correctness
 
-In a small, ~0.1% of the tests, the `UploadQueueStats.count` is stuck at the end of the test preventing Strong Convergence.
+In a small, ~0.2% of the tests, the `UploadQueueStats.count` is stuck at the end of the test preventing Strong Convergence.
 
 Similar to disconnect/connect, see above.
 
@@ -345,7 +354,7 @@ $ grep nemesis powersync_fuzz.log
 
 Unexpectedly, there's often no errors in the client logs
 ```bash
-$ grep 'SyncStatus' powersync_fuzz.log | grep 'error: ' | grep -v 'error: null' 
+$ grep -P 'error: (?!null)' powersync_fuzz.log 
 $
 ```
 even when there's consistency errors.
@@ -484,6 +493,11 @@ Oddly, GitHub Actions can fail
 - pulling Docker images from the GitHub Container Registry
 - building images
 - pause in the middle of a test run and timeout
+
+Ignorable failure status messages
+- "GitHub Actions has encountered an internal error when running your job."
+- "The action '5c-20tps-100s...' has timed out after 25 minutes."
+- "Process completed with exit code 255."
 
 These failures are Microsoft resource allocation and infrastructure issues and are not related to the tests.
 
