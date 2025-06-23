@@ -34,6 +34,10 @@
 
 (def bin-path (str app-dir "/" app-ps-name))
 
+(def client-impls
+  "Set of valid client implementations"
+  #{"dflt" "dart" "rust"})
+
 (defn wipe
   "Wipes local SQLite3 db files.
    Assumes on node and privs for file deletion."
@@ -69,7 +73,7 @@
 
     db/Kill
     (start!
-      [_this {:keys [postgres-nodes] :as _test} node]
+      [_this {:keys [postgres-nodes client-impl] :as _test} node]
       (if (cu/daemon-running? pid-file)
         :already-running
         (let [endpoint (if (contains? postgres-nodes node)
@@ -81,7 +85,8 @@
              :logfile log-file
              :pidfile pid-file}
             bin-path
-            :--endpoint endpoint))
+            :--endpoint   endpoint
+            :--clientImpl client-impl))
           :started)))
 
     (kill!

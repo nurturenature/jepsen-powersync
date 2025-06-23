@@ -69,9 +69,11 @@
 
 (defn test-name
   "Given opts, returns a meaningful test name."
-  [{:keys [nemesis nodes postgres-nodes rate time-limit workload] :as _opts}]
+  [{:keys [client-impl nemesis nodes postgres-nodes rate time-limit workload] :as _opts}]
   (let [nodes (into #{} nodes)]
     (str (name workload)
+         (when (not= client-impl "dflt")
+           (str " " client-impl))
          " " (str/join "," (map name nemesis))
          " " (count postgres-nodes) "pg"
          "-" (count (set/difference nodes postgres-nodes)) "ps"
@@ -128,7 +130,11 @@
 
 (def cli-opts
   "Command line options"
-  [[nil "--client-timeout SECS" "The number of seconds to wait before timing out a client connection."
+  [[nil "--client-impl IMPL" "Client implementation, e.g. dart, rust, etc."
+    :default  "dflt"
+    :validate [ps/client-impls (cli/one-of ps/client-impls)]]
+
+   [nil "--client-timeout SECS" "The number of seconds to wait before timing out a client connection."
     :default  3
     :parse-fn parse-long
     :validate [pos? "Must be a positive integer"]]
