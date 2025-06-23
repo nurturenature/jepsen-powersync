@@ -8,6 +8,12 @@ enum Endpoints { powersync, postgresql }
 /// lookup Map for Endpoints
 final endpointLookup = Endpoints.values.asNameMap();
 
+/// types of Client Implementations
+enum ClientImpls { dflt, dart, rust }
+
+/// lookup Map for Client Implementations
+final clientImplLookup = ClientImpls.values.asNameMap();
+
 /// types of SQL transactions
 enum SQLTransactions { readAll, writeSome }
 

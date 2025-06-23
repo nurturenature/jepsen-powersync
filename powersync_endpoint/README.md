@@ -132,6 +132,13 @@ Runtime requires manual download of PowerSync's SQLite core `./download-powersyn
 ```bash
 $ ./powersync_fuzz --help
 Usage: dart powersync_(http|fuzz).dart <flags> [arguments]
+    --endpoint                endpoint database
+                              [powersync (default), postgresql]
+    --clientImpl              
+          [dflt] (default)    default client implementation, currently dart
+          [dart]              dart client
+          [rust]              rust client
+
 -c, --clients                 number of PowerSync clients
                               (defaults to "5")
     --[no-]postgresql         include a postgresql client
@@ -147,16 +154,17 @@ Usage: dart powersync_(http|fuzz).dart <flags> [arguments]
           [none] (default)    no disconnecting
           [orderly]           disconnect then reconnect only the disconnected clients
           [random]            randomly disconnect or connect clients regardless of their state
+
     --[no-]stop               stop/start Workers at interval
     --[no-]kill               kill/start Workers at interval
     --[no-]partition          partition Workers from PowerSync Service at interval
     --[no-]pause              pause/resume client Worker Isolates at interval
 -i, --interval                invoke nemeses every 0 <= random <= interval * 2 seconds
                               (defaults to "5")
+-l, --logLevel                log level
+                              [OFF, FINEST, FINER, FINE, CONFIG, INFO, WARNING, SEVERE, ALL (default)]
     --httpPort                http_endpoint port
                               (defaults to "8089")
--l, --logLevel                log level
-                              (defaults to "ALL")
     --PG_DATABASE_HOST        (defaults to "pg-db")
     --PG_DATABASE_PORT        (defaults to "5432")
     --PG_DATABASE_NAME        (defaults to "postgres")

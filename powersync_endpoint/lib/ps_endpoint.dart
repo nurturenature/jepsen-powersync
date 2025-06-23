@@ -12,6 +12,7 @@ import 'utils.dart';
 class PSEndpoint extends Endpoint {
   late final PowerSyncDatabase _db;
   late final PowerSyncBackendConnector _connector;
+  late final SyncOptions _syncOptions;
   DateTime? _lastSyncedAt;
 
   @override
@@ -50,10 +51,17 @@ class PSEndpoint extends Endpoint {
 
     _connector = await CrudTransactionConnector.connector();
 
-    // retry significantly faster than default of 5s, designed to leverage a Transaction oriented BackendConnector
-    final syncOptions = SyncOptions(retryDelay: Duration(milliseconds: 1000));
+    _syncOptions = SyncOptions(
+      syncImplementation: switch (args['clientImpl'] as ClientImpls) {
+        ClientImpls.dflt => SyncClientImplementation.defaultClient,
+        ClientImpls.dart => SyncClientImplementation.defaultClient,
+        ClientImpls.rust => SyncClientImplementation.rust,
+      },
+      // retry significantly faster than default of 5s, designed to leverage a Transaction oriented BackendConnector
+      retryDelay: Duration(milliseconds: 1000),
+    );
 
-    await _db.connect(connector: _connector, options: syncOptions);
+    await _db.connect(connector: _connector, options: _syncOptions);
     log.info(
       'db: init: connected with connector: $_connector, status: ${_db.currentStatus}',
     );
@@ -202,7 +210,7 @@ class PSEndpoint extends Endpoint {
     final f = apiCallLookup[op['value']['f']]!;
     switch (f) {
       case APICalls.connect:
-        await _db.connect(connector: _connector);
+        await _db.connect(connector: _connector, options: _syncOptions);
         op['value']['v'] = {'db': 'connected'};
         break;
 
