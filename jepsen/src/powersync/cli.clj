@@ -131,7 +131,7 @@
 (def cli-opts
   "Command line options"
   [[nil "--client-impl IMPL" "Client implementation, e.g. dart, rust, etc."
-    :default  "dflt"
+    :default  "rust"
     :validate [ps/client-impls (cli/one-of ps/client-impls)]]
 
    [nil "--client-timeout SECS" "The number of seconds to wait before timing out a client connection."

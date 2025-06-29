@@ -72,7 +72,7 @@ ArgParser _buildParser() {
     )
     ..addOption(
       'clientImpl',
-      defaultsTo: 'dflt',
+      defaultsTo: 'rust',
       allowed: ['dflt', 'dart', 'rust'],
       allowedHelp: {
         'dflt': 'default client implementation, currently dart',
