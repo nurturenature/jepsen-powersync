@@ -3,6 +3,11 @@
              [adya :as adya]
              [opts :as causal-opts]
              [strong-convergence :as strong-convergence]]
+            [causal.checker.mww
+             [causal-consistency :refer [causal-consistency]]
+             [stats :refer [completions-by-node]]
+             [strong-convergence :refer [strong-convergence]]
+             [util :as util]]
             [cheshire.core :as json]
             [jepsen
              [checker :as checker]
@@ -13,11 +18,7 @@
              [client :as client]
              [nemesis :as nemesis]
              [powersync :as powersync]
-             [util :as util]
-             [workload :as workload]]
-            [powersync.checker.stats :refer [completions-by-node]]
-            [powersync.checker.strong-convergence :refer [strong-convergence]]
-            [powersync.checker.causal-consistency :refer [causal-consistency]]))
+             [workload :as workload]]))
 
 (def powersync_endpoint
   "http://localhost:8989/sql-txn")

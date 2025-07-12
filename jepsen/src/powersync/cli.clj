@@ -1,6 +1,9 @@
 (ns powersync.cli
   "Command-line entry point for PowerSync tests."
-  (:require [clojure.set :as set]
+  (:require [causal.checker.mww
+             [stats :as stats]
+             [util :as util]]
+            [clojure.set :as set]
             [clojure.string :as str]
             [jepsen
              [checker :as checker]
@@ -12,9 +15,7 @@
             [powersync
              [nemesis :as nemesis]
              [powersync :as ps]
-             [workload :as workload]
-             [util :as util]]
-            [powersync.checker.stats :as stats]))
+             [workload :as workload]]))
 
 (def workloads
   "A map of workload names to functions that take CLI options and return

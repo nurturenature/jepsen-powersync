@@ -1,13 +1,14 @@
 (ns powersync.workload
-  (:require [clojure.set :as set]
+  (:require [causal.checker.mww
+             [causal-consistency :refer [causal-consistency]]
+             [strong-convergence :refer [strong-convergence]]]
+            [clojure.set :as set]
             [jepsen
              [checker :as checker]
              [generator :as gen]]
             [powersync
              [client :as client]
-             [powersync :as ps]]
-            [powersync.checker.strong-convergence :refer [strong-convergence]]
-            [powersync.checker.causal-consistency :refer [causal-consistency]]))
+             [powersync :as ps]]))
 
 (defn nodes->processes
   "Given a collection of nodes, returns a set of processes.
