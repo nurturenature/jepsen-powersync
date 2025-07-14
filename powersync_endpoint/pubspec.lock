@@ -13,10 +13,10 @@ packages:
     dependency: transitive
     description:
       name: analyzer
-      sha256: de617bfdc64f3d8b00835ec2957441ceca0a29cdf7881f7ab231bc14f71159c0
+      sha256: abf63d42450c7ad6d8188887d16eeba2f1ff92ea8d8dc673213e99fb3c02b194
       url: "https://pub.dev"
     source: hosted
-    version: "7.5.6"
+    version: "7.5.7"
   args:
     dependency: "direct main"
     description:
@@ -354,18 +354,18 @@ packages:
     dependency: "direct main"
     description:
       name: powersync
-      sha256: a89f571d807a44fa3f22989330276d3de45478421847c075851c8581bd1694d8
+      sha256: d14d8a0d372ae9f4a23ee15f2a2022f346f74d47e5bd3166d2c35148aa04339d
       url: "https://pub.dev"
     source: hosted
-    version: "1.14.0"
+    version: "1.14.1"
   powersync_core:
     dependency: transitive
     description:
       name: powersync_core
-      sha256: df26ecea6a5c6abbd6f177c8e5db06d2ecd67ff37f0bd6bc47a6d891690e5443
+      sha256: dc7390cfe2deddb673b550a7036c44b7ad6657af987666e7012697a42f46103f
       url: "https://pub.dev"
     source: hosted
-    version: "1.4.0"
+    version: "1.4.1"
   powersync_flutter_libs:
     dependency: transitive
     description:
