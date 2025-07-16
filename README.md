@@ -38,7 +38,7 @@ await db.writeTransaction((tx) async {
   
   // SQLTransactions.writeSome
   final update = await tx.execute(
-    "UPDATE mww SET v = ${kv.value} WHERE k = ${kv.key} RETURNING *;",
+    'UPDATE mww SET v = ${kv.value} WHERE k = ${kv.key} RETURNING *;',
   );
 });
 ```
@@ -172,9 +172,9 @@ Even during faults, we still expect
 
 ----
 
-#### Disconnect / Connect
+#### Client Application Disconnect / Connect
 
-Use the `PowerSyncDatabase` API to repeatedly and randomly disconnect and connect clients to the sync service.
+In both `powersync_fuzz` and `Jepsen` use `PowerSyncDatabase.disconnect()/connect()`.
 
 ```dart
 await db.disconnect();
@@ -191,10 +191,12 @@ await db.connect(connector: connector);
   - connect disconnected clients
 - at the end of the test connect any disconnected clients
 
-Example of 3 clients being disconnected for ~1.6s: 
+`Jepsen` example of 3 clients being disconnected for ~1.6s and then the same clients being reconnected: 
 ```log
 2025-04-26 03:37:10,938{GMT}	INFO	[jepsen worker nemesis] jepsen.util: :nemesis	:info	:disconnect-orderly	{"n1" :disconnected, "n4" :disconnected, "n6" :disconnected}
 ...
+
+# note that all disconnected and only disconnected clients are reconnected
 2025-04-26 03:37:12,517{GMT}	INFO	[jepsen worker nemesis] jepsen.util: :nemesis	:info	:connect-orderly	{"n1" :connected, "n4" :connected, "n6" :connected}
 ```
 
@@ -207,9 +209,12 @@ Example of 3 clients being disconnected for ~1.6s:
   - 1 to all clients are randomly connected
 - at the end of the test connect any disconnected clients
 
-Example of 3 clients being disconnected, waiting ~2.5s, then connecting 2 clients
+`Jepsen` example of 3 clients being disconnected, waiting ~2.5s, then only 1 of the disconnected clients and 1 other random client being reconnected
 ```log
 2025-04-26 03:37:14,623{GMT}	INFO	[jepsen worker nemesis] jepsen.util: :nemesis	:info	:disconnect-random	{"n1" :disconnected, "n2" :disconnected, "n3" :disconnected}
+...
+
+# note that only 1 disconnected and a random client are reconnected
 2025-04-26 03:37:17,193{GMT}	INFO	[jepsen worker nemesis] jepsen.util: :nemesis	:info	:connect-random	{"n1" :connected, "n4" :connected}
 ```
 
@@ -219,18 +224,42 @@ Example of 3 clients being disconnected, waiting ~2.5s, then connecting 2 client
   - wait a random interval
   - query the upload que count
 
-Example of observing differing queue counts for disconnected/connected clients: 
+`Jepsen` example of observing differing queue counts for disconnected/connected clients: 
 ```log
 2025-04-26 03:38:02,041{GMT}	INFO	[jepsen worker nemesis] jepsen.util: :nemesis	:info	:upload-queue-count	{"n2" 0, "n3" 0, "n4" 0, "n5" 0, "n6" 0}
 ...
+
 2025-04-26 03:38:02,362{GMT}	INFO	[jepsen worker nemesis] jepsen.util: :nemesis	:info	:disconnect-orderly	{"n5" :disconnected, "n6" :disconnected}
 ...
+
 2025-04-26 03:38:07,807{GMT}	INFO	[jepsen worker nemesis] jepsen.util: :nemesis	:info	:upload-queue-count	{"n2" 0, "n3" 0, "n4" 0, "n5" 28, "n6" 28}
 ```
 
 ##### Impact on Consistency/Correctness
 
-The update to powersync: 1.12.3, PR #267, shows significant improvements when fuzzing disconnect/connect.
+In a small, fraction of a percent, of tests it is possible to fuzz into a state where
+- `UploadQueueStats.count` appears to be stuck
+  - for a single client
+  - for a single transaction
+
+which leads to incomplete replication for that client and divergent final reads.
+
+As the error behavior always presents as a single stuck transaction, is it theorized that
+- replication occasionally gets stuck, is not triggered
+- sometimes the test ends during this stuck phase
+- sometimes the test is ongoing and replication is restarted by further transactions
+
+In no cases have the tests been able to drop any data or order the transactions in a non Causally Consistent fashion.
+
+The bug is hard enough to reproduce due to its lower frequency and longer run times that GitHub actions are a more appropriate test bed than the local fuzzing environment
+- using Dart Isolates: https://github.com/nurturenature/jepsen-powersync/actions/workflows/fuzz-disconnect.yml
+- using Jepsen: https://github.com/nurturenature/jepsen-powersync/actions/workflows/jepsen-disconnect.yml
+
+to reproduce.
+
+##### History
+
+The update to PowerSync: 1.12.3, PR #267, shows significant improvements when fuzzing disconnect/connect.
 
 See [issue #253 comment](https://github.com/powersync-ja/powersync.dart/issues/253#issuecomment-2835901911).
 
@@ -240,23 +269,14 @@ The new release eliminates all occurrences of
 - reads that appear to go back in time, read of previous versions
 - select * reads that return [], empty database
 
-And although less frequent, and requiring more
+And the remaining bug is less frequent requiring more
 - demanding transaction rates
 - total run times
-- occurrences of disconnect/connecting
+- occurrences of disconnecting/connecting
 
-than before, it is still possible to fuzz into a state where
-- `UploadQueueStats.count` appears to be stuck for a single client
-- which leads to incomplete replication for that client and divergent final reads
+The update to PowerSync: 1.14.1, PR #294, brings the Rust implementation to parity with the Dart implementation.
 
-The bug is hard enough to reproduce due to its lower frequency and longer run times that GitHub actions are a more appropriate test bed
-- using Dart Isolates: https://github.com/nurturenature/jepsen-powersync/actions/workflows/fuzz-disconnect.yml
-- using Jepsen: https://github.com/nurturenature/jepsen-powersync/actions/workflows/jepsen-disconnect.yml
-
-As the error behavior usually (always?) presents as a single stuck transaction, is it theorized that
-- replication occasionally gets stuck
-- sometimes the test ends during this stuck phase
-- sometimes the test is ongoing and replication is restarted by further transactions
+See [issue #253 comment](https://github.com/powersync-ja/powersync.dart/issues/253#issuecomment-3076511953).
 
 ----
 
@@ -414,9 +434,10 @@ At some point, individual clients appear to go into, and remain in a `SyncStatus
 
 ----
 
-#### Client Pause
+#### Client Process Pause / Resume
 
-In `powersync_fuzz`, use
+In `powersync_fuzz`, use Dart's `Isolate.pause()/resume()`
+
 ```dart
 Capability resumeCapability = Isolate.pause();
 ...
@@ -424,12 +445,12 @@ Capability resumeCapability = Isolate.pause();
 Isolate.resume(resumeCapability);
 ```
 
-In Jepsen, use
-```bash
-$ grepkill stop powersync_http
+In `Jepsen`, use Jepsen's `control/util/grepkill!` utility
+```clj
+(control/util/grepkill! :stop "powersync_http")
 ...
-# ok to cont an unpaused client
-$ grepkill cont powersync_http
+; ok to cont an unpaused client
+(control/util/grepkill! :cont "powersync_http")
 ```
 
 - repeatedly
@@ -441,11 +462,11 @@ $ grepkill cont powersync_http
 
 ##### Impact on Consistency/Correctness
 
-TODO
+PowerSync tests 100% successful when injecting client process pause/resumes.
 
 ----
 
-#### Client Kill
+#### Client Process Kill / Start
 
 In `powersync_fuzz`, use
 ```dart
