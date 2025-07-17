@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:args/args.dart';
 import 'endpoint.dart';
 import 'nemesis/disconnect.dart';
+import 'nemesis/partition.dart';
 
 /// Global args set from CLI or default args.
 Map<String, dynamic> args = {};
@@ -32,7 +33,7 @@ void parseArgs(List<String> arguments) {
     args['disconnect'] = disconnectNemesesLookup[results.option('disconnect')]!;
     args['stop'] = results.flag('stop');
     args['kill'] = results.flag('kill');
-    args['partition'] = results.flag('partition');
+    args['partition'] = partitionNemesesLookup[results.option('partition')]!;
     args['pause'] = results.flag('pause');
     args['interval'] = int.parse(results.option('interval')!);
     // http_endpoint
@@ -130,11 +131,16 @@ ArgParser _buildParser() {
       negatable: true,
       help: 'kill/start Workers at interval',
     )
-    ..addFlag(
+    ..addOption(
       'partition',
-      defaultsTo: false,
-      negatable: true,
-      help: 'partition Workers from PowerSync Service at interval',
+      defaultsTo: 'none',
+      allowed: ['none', 'sync', 'postgres', 'both'],
+      allowedHelp: {
+        'none': 'no partitioning',
+        'sync': 'partition PowerSync sync service',
+        'postgres': 'partition PostgreSQL',
+        'both': 'partition both PowerSync sync service and PostgreSQL',
+      },
     )
     ..addFlag(
       'pause',

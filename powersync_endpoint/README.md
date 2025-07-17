@@ -135,9 +135,9 @@ Usage: dart powersync_(http|fuzz).dart <flags> [arguments]
     --endpoint                endpoint database
                               [powersync (default), postgresql]
     --clientImpl              
-          [dflt] (default)    default client implementation, currently dart
+          [dflt]              default client implementation, currently dart
           [dart]              dart client
-          [rust]              rust client
+          [rust] (default)    rust client
 
 -c, --clients                 number of PowerSync clients
                               (defaults to "5")
@@ -157,7 +157,12 @@ Usage: dart powersync_(http|fuzz).dart <flags> [arguments]
 
     --[no-]stop               stop/start Workers at interval
     --[no-]kill               kill/start Workers at interval
-    --[no-]partition          partition Workers from PowerSync Service at interval
+    --partition               
+          [none] (default)    no partitioning
+          [sync]              partition PowerSync sync service
+          [postgres]          partition PostgreSQL
+          [both]              partition both PowerSync sync service and PostgreSQL
+
     --[no-]pause              pause/resume client Worker Isolates at interval
 -i, --interval                invoke nemeses every 0 <= random <= interval * 2 seconds
                               (defaults to "5")

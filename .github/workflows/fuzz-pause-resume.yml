@@ -34,10 +34,10 @@ on:
         required: true
         default: "[ '--no-stop' ]"
       partition:
-        description: '--[no-]partition (as JSON)'
+        description: '--partition none|sync|postgres|both (as JSON)'
         type: string
         required: true
-        default: "[ '--no-partition' ]"
+        default: "[ '--partition none' ]"
       pause:
         description: '--[no-]pause (as JSON)'
         type: string

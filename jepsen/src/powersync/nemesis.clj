@@ -268,96 +268,116 @@
                            :stop  #{:start-nodes}
                            :color "#E8DBA0"}}})))
 
-(defn partition-sync-service
-  "Partition node from sync service and PostgreSQL."
+(defn partition-sync
+  "Partition node from PowerSync sync service."
   [_test _node]
   (c/su
    (c/exec :iptables
            :-A :INPUT
            :-s :powersync
            :-j :DROP
-           :-w)
+           :-w))
+  :partitioned-sync)
+
+(defn partition-postgres
+  "Partition node from PostgreSQL."
+  [_test _node]
+  (c/su
    (c/exec :iptables
            :-A :INPUT
            :-s :pg-db
            :-j :DROP
            :-w))
-  :partitioned)
+  :partitioned-postgres)
 
-(defn heal-sync-service
-  "Heal node's network partition with sync service and PostgreSQL."
+(defn partition-both
+  "Partition node from both PowerSync sync service and PostgreSQL."
+  [test node]
+  (partition-sync test node)
+  (partition-postgres test node)
+  :partitioned-both)
+
+
+(defn heal-partition
+  "Heal node's network partition."
   [_test _node]
   (c/su
    (c/exec :iptables :-F :-w)
    (c/exec :iptables :-X :-w))
-  :healed)
+  :partition-healed)
 
-(defn partition-sync-service-nemesis
-  "A nemesis that partitions nodes from the sync service and PostgreSQL.
+(defn partition-nemesis
+  "A nemesis that partitions nodes from the PowerSync sync service and/or PostgreSQL.
    This nemesis responds to:
   ```
-  {:f :partition-sync :value :node-spec}   ; target nodes as interpreted by `db-nodes`
-  {:f :heal-sync      :value nil}
+  {:f :partition-sync     :value :node-spec}   ; target nodes as interpreted by `db-nodes`
+  {:f :partition-postgres :value :node-spec}   ; target nodes as interpreted by `db-nodes`
+  {:f :partition-both     :value :node-spec}   ; target nodes as interpreted by `db-nodes`
+  {:f :heal-partition     :value nil}
    ```"
   [db]
   (reify
     nemesis/Reflection
     (fs [_this]
-      #{:partition-sync :heal-sync})
+      #{:partition-sync :partition-postgres :partition-both :heal-partition})
 
     nemesis/Nemesis
     (setup! [this _test]
       this)
 
     (invoke! [_this {:keys [nodes postgres-nodes] :as test} {:keys [f value] :as op}]
-      (let [result (case f
-                     :partition-sync (let [; target nodes per db-spec
-                                           targets (->> value
-                                                        (nc/db-nodes test db)
-                                                        (into #{}))
-                                           ; ignore PostgreSQL nodes
-                                           targets (set/difference targets postgres-nodes)]
-                                       (c/on-nodes test targets partition-sync-service))
-                     :heal-sync      (let [; target all nodes
-                                           targets (->> nodes
-                                                        (into #{}))
-                                           ; ignore PostgreSQL nodes
-                                           targets (set/difference targets postgres-nodes)]
-                                       (c/on-nodes test targets heal-sync-service)))
-            result (into (sorted-map) result)]
+      (let [targets (if (= f :heal-partition)
+                      ; target all nodes
+                      (->> nodes
+                           (into #{}))
+                      ; target nodes per db-spec
+                      (->> value
+                           (nc/db-nodes test db)
+                           (into #{})))
+            ; ignore PostgreSQL nodes
+            targets (set/difference targets postgres-nodes)
+            result  (case f
+                      :partition-sync     (c/on-nodes test targets partition-sync)
+                      :partition-postgres (c/on-nodes test targets partition-postgres)
+                      :partition-both     (c/on-nodes test targets partition-both)
+                      :heal-partition     (c/on-nodes test targets heal-partition))
+            result  (->> result
+                         (into (sorted-map)))]
         (assoc op :value result)))
 
     (teardown! [_this _test]
       nil)))
 
-(defn partition-sync-service-package
-  "A nemesis and generator package that partitions nodes from the sync service and PostgreSQL.
+(defn partition-package
+  "A nemesis and generator package that partitions nodes from the PowerSync sync service and/or PostgreSQL.
    
    Opts:
    ```clj
-   {:partition-sync {:targets [...]}}  ; A collection of node specs, e.g. [:one, :all]
-  ```"
-  [{:keys [db faults interval partition-sync] :as _opts}]
-  (when (contains? faults :partition-sync)
-    (let [targets                     (:targets partition-sync (nc/node-specs db))
-          partition-sync-service      (fn partition-sync-service [_ _]
-                                        {:type  :info
-                                         :f     :partition-sync
-                                         :value (rand-nth targets)})
-          heal-sync-service           {:type  :info
-                                       :f     :heal-sync
-                                       :value nil}
-          gen                         (->> (gen/flip-flop
-                                            partition-sync-service
-                                            (repeat heal-sync-service))
-                                           (gen/stagger (or interval nc/default-interval)))]
+   {:partition-sync     {:targets [...]}}  ; A collection of node specs, e.g. [:one, :all]
+   {:partition-postgres {:targets [...]}}  ; A collection of node specs, e.g. [:one, :all]
+   {:partition-both     {:targets [...]}}  ; A collection of node specs, e.g. [:one, :all]
+   ```"
+  [{:keys [db faults interval] :as opts}]
+  (when-let [partition-type (some #{:partition-sync :partition-postgres :partition-both} faults)]
+    (let [targets        (:targets (get partition-type opts) (nc/node-specs db))
+          partition      (fn partition [_ _]
+                           {:type  :info
+                            :f     partition-type
+                            :value (rand-nth targets)})
+          heal-partition {:type  :info
+                          :f     :heal-partition
+                          :value nil}
+          gen            (->> (gen/flip-flop
+                               partition
+                               (repeat heal-partition))
+                              (gen/stagger (or interval nc/default-interval)))]
       {:generator       gen
-       :final-generator heal-sync-service
-       :nemesis         (partition-sync-service-nemesis db)
-       :perf            #{{:name  "part-sync"
+       :final-generator heal-partition
+       :nemesis         (partition-nemesis db)
+       :perf            #{{:name  "partition"
                            :fs    #{}
-                           :start #{:partition-sync}
-                           :stop  #{:heal-sync}
+                           :start #{:partition-sync :partition-postgres :partition-both}
+                           :stop  #{:heal-partition}
                            :color "#B7A0E8"}}})))
 
 (defn upload-queue-count
@@ -479,7 +499,7 @@
     (->> [(disconnect-orderly-package opts)
           (disconnect-random-package opts)
           (stop-start-package opts)
-          (partition-sync-service-package opts)
+          (partition-package opts)
           (upload-queue-package opts)]
          (concat (nc/nemesis-packages opts))
          (filter :generator)

@@ -34,7 +34,7 @@
   "A collection of valid nemeses."
   #{:disconnect-orderly :disconnect-random
     :stop-start
-    :partition-sync
+    :partition-sync :partition-postgres :partition-both
     :pause :kill
     :upload-queue})
 
@@ -44,7 +44,7 @@
    [:disconnect-orderly :disconnect-random]
    [:stop-start]
    [:pause]
-   [:partition-sync]
+   [:partition-sync :partition-postgres :partition-both]
    [:pause :partition-sync]
    [:kill]])
 
@@ -95,6 +95,8 @@
                    :disconnect-random  {:targets [nil]}
                    :stop-start         {:targets [nil]}
                    :partition-sync     {:targets [nil]}
+                   :partition-postgres {:targets [nil]}
+                   :partition-both     {:targets [nil]}
                    :pause              {:targets [nil]}
                    :kill               {:targets [:majority]}
                    :upload-queue       nil

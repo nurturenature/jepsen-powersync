@@ -40,7 +40,7 @@ class Nemesis {
   late final KillStartNemesis _killStartNemesis;
 
   // partition
-  late final bool _partition;
+  late final PartitionNemeses _partition;
   late final PartitionNemesis _partitionNemesis;
 
   // pause/resume
@@ -58,7 +58,7 @@ class Nemesis {
     _disconnect = args['disconnect'] as DisconnectNemeses;
     _stopStart = args['stop'] as bool;
     _killStart = args['kill'] as bool;
-    _partition = args['partition'] as bool;
+    _partition = args['partition'] as PartitionNemeses;
     _pauseResume = args['pause'] as bool;
     _interval = args['interval'] as int;
 
@@ -73,8 +73,8 @@ class Nemesis {
     }
 
     // only create a PartitionNemesis if needed
-    if (_partition) {
-      _partitionNemesis = PartitionNemesis(_interval);
+    if (_partition != PartitionNemeses.none) {
+      _partitionNemesis = PartitionNemesis(_partition, _interval);
     }
 
     // only create a PauseResumeNemesis if needed
@@ -95,7 +95,9 @@ class Nemesis {
     }
     if (_stopStart) _stopStartNemesis.startStopStart();
     if (_killStart) _killStartNemesis.startKillStart();
-    if (_partition) _partitionNemesis.startPartition();
+    if (_partition != PartitionNemeses.none) {
+      _partitionNemesis.startPartition();
+    }
     if (_pauseResume) _pauseResumeNemesis.startPause();
   }
 
@@ -106,7 +108,9 @@ class Nemesis {
     }
     if (_stopStart) await _stopStartNemesis.stopStopStart();
     if (_killStart) await _killStartNemesis.stopKillStart();
-    if (_partition) await _partitionNemesis.stopPartition();
+    if (_partition != PartitionNemeses.none) {
+      await _partitionNemesis.stopPartition();
+    }
     if (_pauseResume) await _pauseResumeNemesis.stopPause();
   }
 }

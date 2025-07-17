@@ -7,17 +7,23 @@ import '../errors.dart';
 import '../log.dart';
 import '../utils.dart' as utils;
 
+/// Types of partition nemeses
+enum PartitionNemeses { none, sync, postgres, both }
+
+final partitionNemesesLookup = PartitionNemeses.values.asNameMap();
+
 enum _PartitionStates { none, inbound, outbound, bidirectional }
 
 /// Partition nemesis.
 class PartitionNemesis {
+  final PartitionNemeses _nemesisType;
   late final Stream<_PartitionStates> Function() _partitionStream;
   late final StreamSubscription<_PartitionStates> _partitionSubscription;
 
   final _rng = Random();
   final _lock = Lock();
 
-  PartitionNemesis(int interval) {
+  PartitionNemesis(this._nemesisType, int interval) {
     final maxInterval = interval * 1000 * 2;
     final partitionState = _PartitionState();
 
@@ -37,6 +43,12 @@ class PartitionNemesis {
   void startPartition() {
     const powerSyncHost = 'powersync';
     const postgreSQLHost = 'pg-db';
+    final Set<String> partitionHosts = switch (_nemesisType) {
+      PartitionNemeses.sync => {powerSyncHost},
+      PartitionNemeses.postgres => {postgreSQLHost},
+      PartitionNemeses.both => {powerSyncHost, postgreSQLHost},
+      PartitionNemeses.none => {},
+    };
 
     log.info(
       'nemesis: partition: start listening to stream of partition messages',
@@ -48,6 +60,7 @@ class PartitionNemesis {
       log.info('nemesis: partition: starting: ${partitionStateMessage.name}');
 
       late final Set<String> partitionedHosts;
+
       await _lock.synchronized(() async {
         switch (partitionStateMessage) {
           case _PartitionStates.none:
@@ -55,19 +68,16 @@ class PartitionNemesis {
             partitionedHosts = {};
             break;
           case _PartitionStates.inbound:
-            await _partitionInbound(powerSyncHost);
-            await _partitionInbound(postgreSQLHost);
-            partitionedHosts = {powerSyncHost, postgreSQLHost};
+            await _partitionInbound(partitionHosts);
+            partitionedHosts = partitionHosts;
             break;
           case _PartitionStates.outbound:
-            await _partitionOutbound(powerSyncHost);
-            await _partitionOutbound(postgreSQLHost);
-            partitionedHosts = {powerSyncHost, postgreSQLHost};
+            await _partitionOutbound(partitionHosts);
+            partitionedHosts = partitionHosts;
             break;
           case _PartitionStates.bidirectional:
-            await _partitionBidirectional(powerSyncHost);
-            await _partitionBidirectional(postgreSQLHost);
-            partitionedHosts = {powerSyncHost, postgreSQLHost};
+            await _partitionBidirectional(partitionHosts);
+            partitionedHosts = partitionHosts;
             break;
         }
       });
@@ -99,47 +109,53 @@ class PartitionNemesis {
   }
 
   /// Partition inbound traffic.
-  static Future<void> _partitionInbound(String host) async {
-    final result = await Process.run('/usr/sbin/iptables', [
-      '-A',
-      'INPUT',
-      '-s',
-      host,
-      '-j',
-      'DROP',
-      '-w',
-    ]);
-    if (result.exitCode != 0) {
-      log.severe(
-        'nemesis: partition: unexpected result from iptables: $result',
-      );
-      errorExit(ErrorReasons.codingError);
+  static Future<void> _partitionInbound(Set<String> hosts) async {
+    for (final host in hosts) {
+      final result = await Process.run('/usr/sbin/iptables', [
+        '-A',
+        'INPUT',
+        '-s',
+        host,
+        '-j',
+        'DROP',
+        '-w',
+      ]);
+
+      if (result.exitCode != 0) {
+        log.severe(
+          'nemesis: partition: unexpected result from iptables: $result',
+        );
+        errorExit(ErrorReasons.codingError);
+      }
     }
   }
 
   /// Partition outbound traffic.
-  static Future<void> _partitionOutbound(String host) async {
-    final result = await Process.run('/usr/sbin/iptables', [
-      '-A',
-      'OUTPUT',
-      '-d',
-      host,
-      '-j',
-      'DROP',
-      '-w',
-    ]);
-    if (result.exitCode != 0) {
-      log.severe(
-        'nemesis: partition: unexpected result from iptables: $result',
-      );
-      errorExit(ErrorReasons.codingError);
+  static Future<void> _partitionOutbound(Set<String> hosts) async {
+    for (final host in hosts) {
+      final result = await Process.run('/usr/sbin/iptables', [
+        '-A',
+        'OUTPUT',
+        '-d',
+        host,
+        '-j',
+        'DROP',
+        '-w',
+      ]);
+
+      if (result.exitCode != 0) {
+        log.severe(
+          'nemesis: partition: unexpected result from iptables: $result',
+        );
+        errorExit(ErrorReasons.codingError);
+      }
     }
   }
 
   /// Partition bidirectional traffic.
-  static Future<void> _partitionBidirectional(String host) async {
-    await _partitionInbound(host);
-    await _partitionOutbound(host);
+  static Future<void> _partitionBidirectional(Set<String> hosts) async {
+    await _partitionInbound(hosts);
+    await _partitionOutbound(hosts);
   }
 
   /// Partition no traffic
