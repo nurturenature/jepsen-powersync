@@ -13,10 +13,10 @@ packages:
     dependency: transitive
     description:
       name: analyzer
-      sha256: abf63d42450c7ad6d8188887d16eeba2f1ff92ea8d8dc673213e99fb3c02b194
+      sha256: b1ade5707ab7a90dfd519eaac78a7184341d19adb6096c68d499b59c7c6cf880
       url: "https://pub.dev"
     source: hosted
-    version: "7.5.7"
+    version: "7.7.0"
   args:
     dependency: "direct main"
     description:
@@ -354,26 +354,26 @@ packages:
     dependency: "direct main"
     description:
       name: powersync
-      sha256: d14d8a0d372ae9f4a23ee15f2a2022f346f74d47e5bd3166d2c35148aa04339d
+      sha256: "53d82d2db9966e30efd6e0968216a8b4e03eadd80bea8c17ec311ad608cdbd9a"
       url: "https://pub.dev"
     source: hosted
-    version: "1.14.1"
+    version: "1.15.0"
   powersync_core:
     dependency: transitive
     description:
       name: powersync_core
-      sha256: dc7390cfe2deddb673b550a7036c44b7ad6657af987666e7012697a42f46103f
+      sha256: d8ae292bc77f0a96f44c6cc2911d1b781760a87a919e5045e75458cba83bb759
       url: "https://pub.dev"
     source: hosted
-    version: "1.4.1"
+    version: "1.5.0"
   powersync_flutter_libs:
     dependency: transitive
     description:
       name: powersync_flutter_libs
-      sha256: "77f1a057339e26755a82854f30f46a49a051522817c594fc30c51137d244203c"
+      sha256: "55b8b33b2fd2be934cd191db448491efcc300d5aa2d7316301ee259582694ef8"
       url: "https://pub.dev"
     source: hosted
-    version: "0.4.9"
+    version: "0.4.10"
   pub_semver:
     dependency: transitive
     description:
@@ -495,18 +495,18 @@ packages:
     dependency: transitive
     description:
       name: sqlite3
-      sha256: c0503c69b44d5714e6abbf4c1f51a3c3cc42b75ce785f44404765e4635481d38
+      sha256: "608b56d594e4c8498c972c8f1507209f9fd74939971b948ddbbfbfd1c9cb3c15"
       url: "https://pub.dev"
     source: hosted
-    version: "2.7.6"
+    version: "2.7.7"
   sqlite3_flutter_libs:
     dependency: transitive
     description:
       name: sqlite3_flutter_libs
-      sha256: e07232b998755fe795655c56d1f5426e0190c9c435e1752d39e7b1cd33699c71
+      sha256: "8b4bd239bedd20ee628aed587b4c5b387328e85945c9ecbae19a93bdcd171524"
       url: "https://pub.dev"
     source: hosted
-    version: "0.5.34"
+    version: "0.5.36"
   sqlite3_web:
     dependency: transitive
     description:
