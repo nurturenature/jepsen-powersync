@@ -327,115 +327,201 @@ Stop/start behaves the same as disconnect/connect but with a significantly small
 
 #### Network Partition
 
-For both `powersync_fuzz` and `Jepsen` use `iptables` to partition client hosts from the PowerSync sync service and PostgreSQL hosts.
+For both `powersync_fuzz` and `Jepsen` use `iptables` to partition client hosts from the PowerSync sync service.
 
+`powersync_fuzz` Dart partition implementation
 ```dart
 // inbound
-await Process.run('/usr/sbin/iptables', [ '-A', 'INPUT', '-s', powersyncServiceHost | postgreSQLHost, '-j', 'DROP', '-w' ]);
+await Process.run('/usr/sbin/iptables', [ '-A', 'INPUT', '-s', powersyncServiceHost, '-j', 'DROP', '-w' ]);
 
 // outbound
-await Process.run('/usr/sbin/iptables', [ '-A', 'OUTPUT', '-d', powersyncServiceHost | postgreSQLHost, '-j', 'DROP', '-w' ]);
+await Process.run('/usr/sbin/iptables', [ '-A', 'OUTPUT', '-d', powersyncServiceHost, '-j', 'DROP', '-w' ]);
 
 // bidirectional
-await Process.run('/usr/sbin/iptables', [ '-A', 'INPUT', '-s', powersyncServiceHost | postgreSQLHost, '-j', 'DROP', '-w' ]);
-await Process.run('/usr/sbin/iptables', [ '-A', 'OUTPUT', '-d', powersyncServiceHost | postgreSQLHost, '-j', 'DROP', '-w' ]);
+await Process.run('/usr/sbin/iptables', [ '-A', 'INPUT', '-s', powersyncServiceHost, '-j', 'DROP', '-w' ]);
+await Process.run('/usr/sbin/iptables', [ '-A', 'OUTPUT', '-d', powersyncServiceHost, '-j', 'DROP', '-w' ]);
 
 // heal network
 await Process.run('/usr/sbin/iptables', ['-F', '-w']);
 await Process.run('/usr/sbin/iptables', ['-X', '-w']);
 ```
-
 - repeatedly
-  - wait a random interval
-  - partition all clients for `powersync_fuzz`, and 1 to all clients for `Jepsen`, from the PowerSync sync service and PostgreSQL hosts
-  - wait a random interval
-  - all client networks are healed
-- at the end of the test insure all client networks are healed
+  - 0 to all client hosts are randomly partitioned from the PowerSync sync service host
+    - the client network failure is randomly selected to be none, inbound, outbound, or all traffic 
+  - wait a random interval, 0-10s
+  - heal network partition
+  - wait a random interval, 0-10s
 
-Example of partitioning nemesis from `powersync_fuzz.log`
+At the end of the test:
+- insure network is healed for all clients
+- quiesce for 3s, i.e. no further transactions
+- wait for `db.uploadQueueStats.count: 0` for all clients
+- wait for `db.SyncStatus.downloading: false` for all clients
+- do a final read on all clients and check for Strong Convergence
+  
+Without partitioning, all test runs are successful.
+
+There's no obvious differences between the Dart and Rust sync implementations.
+
+During successful runs you can see:
 ```log
-$ grep nemesis powersync_fuzz.log 
-[2025-05-08 02:58:38.540582] [main] [INFO] nemesis: partition: start listening to stream of partition messages
-[2025-05-08 02:58:44.308471] [main] [INFO] nemesis: partition: starting: bidirectional
-[2025-05-08 02:58:44.367180] [main] [INFO] nemesis: partition: current: bidirectional hosts: {powersync, pg-db}
-[2025-05-08 02:58:46.957552] [main] [INFO] nemesis: partition: starting: none
-[2025-05-08 02:58:47.031792] [main] [INFO] nemesis: partition: current: none hosts: {}
-[2025-05-08 02:58:49.190407] [main] [INFO] nemesis: partition: starting: outbound
-[2025-05-08 02:58:49.219263] [main] [INFO] nemesis: partition: current: outbound hosts: {powersync, pg-db}
-[2025-05-08 02:58:55.021681] [main] [INFO] nemesis: partition: starting: none
-[2025-05-08 02:58:55.128247] [main] [INFO] nemesis: partition: current: none hosts: {}
+# partition clients
+[2025-07-20 02:18:23.222360] [main] [INFO] nemesis: partition: starting: outbound
+[2025-07-20 02:18:23.236820] [main] [INFO] nemesis: partition: current: outbound, hosts: {powersync}
+
+# clients continue with local transactions
+[2025-07-20 02:18:23.254476] [ps-1] [FINE] SQL txn: response: {clientNum: 1, clientType: ps, f: txn, id: 15, type: ok, value: [{f: readAll, v: {0: -1, 1: 42, 2: 21, ...}}, {f: writeSome, v: {16: 62, 53: 62, 50: 62, 33: 62}}]}
+
+# partition is healed
+[2025-07-20 02:18:31.337347] [main] [INFO] nemesis: partition: starting: none
+[2025-07-20 02:18:31.363529] [main] [INFO] nemesis: partition: current: none, hosts: {}
+
+# clients catchup with downloads from sync service
+[2025-07-20 02:18:36.427705] [ps-1] [FINEST] SyncStatus<connected: true connecting: false downloading: true (progress: for total: 4 / 8) uploading: false lastSyncedAt: 2025-07-20 02:18:23.000, hasSynced: true, error: null>
 ...
-[2025-05-08 03:00:04.102570] [main] [INFO] nemesis: partition: starting: inbound
-[2025-05-08 03:00:04.120517] [main] [INFO] nemesis: partition: current: inbound hosts: {powersync, pg-db}
+[2025-07-20 02:18:36.439118] [ps-1] [FINEST] SyncStatus<connected: true connecting: false downloading: true (progress: for total: 20 / 20) uploading: true lastSyncedAt: 2025-07-20 02:18:23.000, hasSynced: true, error: null>
+
+# clients upload to sync service
+[2025-07-20 02:18:36.439257] [ps-1] [FINER] uploadData: call: 17 begin with UploadQueueStats.count: 108
+
+# local transactions, downloading, uploading go on as normal
 ...
-[2025-05-08 03:00:18.591748] [main] [INFO] nemesis: partition: stop listening to stream of partition messages
-[2025-05-08 03:00:20.257646] [main] [INFO] nemesis: partition: starting: none
-[2025-05-08 03:00:20.282057] [main] [INFO] nemesis: partition: current: none hosts: {}
+
+# at the end of the test
+[2025-07-20 02:20:09.373311] [main] [INFO] wait for upload queue to be empty in clients
+[2025-07-20 02:20:09.375017] [ps-1] [FINE] database api: response: {clientNum: 1, clientType: ps, f: api, id: 0, type: ok, value: {f: uploadQueueCount, v: {db.uploadQueueStats.count: 0}}}
+...
+
+[2025-07-20 02:20:09.379592] [main] [INFO] wait for downloading to be false in clients
+[2025-07-20 02:20:09.379765] [ps-1] [FINE] database api: response: {clientNum: 1, clientType: ps, f: api, id: 2, type: ok, value: {f: downloadingWait, v: {db.SyncStatus.downloading:: false}}}
+...
+
+[2025-07-20 02:20:09.380379] [main] [INFO] check for strong convergence in final reads
+[2025-07-20 02:20:09.505932] [ps-1] [FINE] database api: response: {clientNum: 1, clientType: ps, f: api, id: 3, type: ok, value: {f: selectAll, v: {0: 938, 1: 964, 2: 989, ...}}}
+...
+
+[2025-07-20 02:20:09.528708] [main] [INFO] Success!
+[2025-07-20 02:20:09.528714] [main] [INFO] Final reads had Strong Convergence
+[2025-07-20 02:20:09.528717] [main] [INFO] All transactions were Atomic and Causally Consistent
+
+```
+
+As expected, network errors exist in sync service logs:
+```bash
+$ grep -P 'error: (?!null)' powersync_fuzz.log
+$ grep -i 'err' powersync.log 
+{"cause":{"code":"ECONNREFUSED","message":"request to http://localhost:8089/api/auth/keys failed, reason: connect ECONNREFUSED 127.0.0.1:8089","name":"FetchError"},...}
 ```
 
 ##### Impact on Consistency/Correctness
 
-###### Client `<SyncStatus error: null>`
+Transient network partitions can disrupt replication.
 
-Unexpectedly, there's often no errors in the client logs
+Most commonly, the client stops uploading, just indefinitely queuing local writes.
+
+In other cases, less frequently, the tests complete without any indication of errors, local writes are uploaded to PostgreSQL, but only replicated to 0 or a subset of clients.
+
+###### Wedged/Stalled Client Uploads
+
+At the end of the test with:
+- healed partitions
+- no transactions
+
+uploading remains `true`, but the upload queue never clears:
+- note lack of updated `SyncStatus`, or other messages
+- `db.UploadQueueStats.count` is wedged/stuck, never changes
+- we wait 11 seconds with no upload activity before ending the test, but the wait can be indefinite. i.e. client never recovers
+```log
+[2025-07-15 13:27:10.486902] [ps-1] [FINE] database api: uploadQueueWait: waiting on UploadQueueStats.count: 200 ...
+[2025-07-15 13:27:10.486917] [ps-1] [FINE] 	db.currentStatus: SyncStatus<connected: true connecting: false downloading: false (progress: null) uploading: true lastSyncedAt: 2025-07-15 13:26:32.000, hasSynced: true, error: null>
+...
+[2025-07-15 13:27:20.496789] [ps-1] [FINE] database api: uploadQueueWait: waiting on UploadQueueStats.count: 200 ...
+[2025-07-15 13:27:20.496848] [ps-1] [FINE] 	db.currentStatus: SyncStatus<connected: true connecting: false downloading: false (progress: null) uploading: true lastSyncedAt: 2025-07-15 13:26:32.000, hasSynced: true, error: null>
+[2025-07-15 13:27:21.497830] [ps-1] [SEVERE] UploadQueueStats.count appears to be stuck at 200 after waiting for 11s
+[2025-07-15 13:27:21.497843] [ps-1] [SEVERE] 	db.closed: false
+[2025-07-15 13:27:21.497901] [ps-1] [SEVERE] 	db.connected: true
+[2025-07-15 13:27:21.497911] [ps-1] [SEVERE] 	db.currentStatus: SyncStatus<connected: true connecting: false downloading: false (progress: null) uploading: true lastSyncedAt: 2025-07-15 13:26:32.000, hasSynced: true, error: null>
+[2025-07-15 13:27:21.498085] [ps-1] [SEVERE] 	db.getUploadQueueStats(): UploadQueueStats<count: 200 size: 3.90625kB>
+[2025-07-15 13:27:21.498140] [ps-1] [SEVERE] Error exit: reason: uploadQueueStatsCount, code: 12
+```
+
+Unexpectedly, there are no network errors in the logs:
 ```bash
-$ grep -P 'error: (?!null)' powersync_fuzz.log 
-$
+$ grep -P 'error: (?!null)' powersync_fuzz.log
+$ grep -i 'err' powersync.log
 ```
-even when there's consistency errors.
 
-###### Uploading Stops
+###### Divergent Final Reads
 
-Clients can end the test with a large number of transactions stuck in the `UploadQueueStats.count`
+At the end of the test with:
+- healed partitions
+- no transactions
+- `db.uploadQueueStats.count: 0` for all clients
+- `db.SyncStatus.downloading: false` for all clients
+- no errors
+
+there can be divergent final reads:
 ```log
-[2025-05-03 04:33:14.152256] [ps-8] [SEVERE] UploadQueueStats.count appears to be stuck at 120 after waiting for 11s
-[2025-05-03 04:33:14.152278] [ps-8] [SEVERE] 	db.closed: false
-[2025-05-03 04:33:14.152288] [ps-8] [SEVERE] 	db.connected: true
-[2025-05-03 04:33:14.152299] [ps-8] [SEVERE] 	db.currentStatus: SyncStatus<connected: true connecting: false downloading: true uploading: false lastSyncedAt: 2025-05-03 04:32:12.685048, hasSynced: true, error: null>
-[2025-05-03 04:33:14.152527] [ps-8] [SEVERE] 	db.getUploadQueueStats(): UploadQueueStats<count: 120 size: 2.34375kB>
+# client 5 writes {0: 992}
+[2025-07-17 04:07:26.390143] [ps-5] [FINE] SQL txn: response: {clientNum: 5, clientType: ps, f: txn, id: 183, type: ok, value: [{f: readAll, v: {0: 487,...}}, {f: writeSome, v: {0: 992, ...}}]}
+
+# client 5 reads {0: 992}
+[2025-07-17 04:07:26.589324] [ps-5] [FINE] SQL txn: response: {clientNum: 5, clientType: ps, f: txn, id: 184, type: ok, value: [{f: readAll, v: {0: 992, ...}}, {f: writeSome, v: {...}}]}
+
+# client 5 uploads {0: 992}
+[2025-07-17 04:07:36.402584] [ps-5] [FINER] uploadData: call: 48 txn: 184 patch: {0: 992} 
+
+# note: no other client ever observes {0: 992}
+
+# insure network is healed
+[2025-07-17 04:07:30.684918] [main] [INFO] nemesis: partition: current: none, hosts: {}
+
+# quiet time, no more transactions
+[2025-07-17 04:07:30.684950] [main] [INFO] quiesce for 3 seconds...
+
+# wait for `db.uploadQueueStats.count: 0` for all clients
+[2025-07-17 04:07:33.685707] [main] [INFO] wait for upload queue to be empty in clients
+[2025-07-17 04:07:33.687003] [ps-1] [FINE] database api: response: {clientNum: 1, clientType: ps, f: api, id: 0, type: ok, value: {f: uploadQueueCount, v: {db.uploadQueueStats.count: 0}}}
+...
+
+# wait for `db.SyncStatus.downloading: false` for all clients
+[2025-07-17 04:07:36.693082] [main] [INFO] wait for downloading to be false in clients
+[2025-07-17 04:07:36.693400] [ps-1] [FINE] database api: response: {clientNum: 1, clientType: ps, f: api, id: 2, type: ok, value: {f: downloadingWait, v: {db.SyncStatus.downloading:: false}}}
+
+# client 5 still reads {0: 992} for its final read
+[2025-07-17 04:07:36.811193] [ps-5] [FINE] database api: response: {clientNum: 5, clientType: ps, f: api, id: 3, type: ok, value: {f: selectAll, v: {0: 992, ...}}}
+
+# only client 5 and PostgreSQL read {0: 992} during final reads
+# clients 1-4 all read a different value for key 0
+[2025-07-17 04:07:36.811322] [main] [SEVERE] Divergent final reads!:
+[2025-07-17 04:07:36.811342] [main] [SEVERE] PostgreSQL {k: v} for client diversions:
+[2025-07-17 04:07:36.811409] [main] [SEVERE] pg: {0: 992, ...}
+[2025-07-17 04:07:36.811441] [main] [SEVERE] ps-1 {k: v} that diverged from PostgreSQL
+[2025-07-17 04:07:36.811556] [main] [SEVERE] ps-1 {0: 777, ...}
+[2025-07-17 04:07:36.811575] [main] [SEVERE] ps-2 {k: v} that diverged from PostgreSQL
+[2025-07-17 04:07:36.811619] [main] [SEVERE] ps-2 {0: 975, ...}
+[2025-07-17 04:07:36.811625] [main] [SEVERE] ps-3 {k: v} that diverged from PostgreSQL
+[2025-07-17 04:07:36.811651] [main] [SEVERE] ps-3 {0: 929, ...}
+[2025-07-17 04:07:36.811656] [main] [SEVERE] ps-4 {k: v} that diverged from PostgreSQL
+[2025-07-17 04:07:36.811683] [main] [SEVERE] ps-4 {0: 951, ...}
+[2025-07-17 04:07:36.811722] [main] [SEVERE] :(
+[2025-07-17 04:07:36.811736] [main] [SEVERE] Error exit: reason: strongConvergence, code: 1
 ```
-preventing Strong Convergence in ~20% of the tests.
 
-Clients appear to enter and get stuck in a `SyncStatus<downloading: true>` state after the partition is healed and the `BackendConnector.UploadData()` is never called.
-
-###### Replication Stops
-
-Clients can end the test with divergent final reads, i.e. not Strongly Consistent, ~10% of the time.
-
-```log
-# observe client 5 write, then read, then upload {0: 1965}  
-[2025-05-03 04:33:02.952207] [ps-5] [FINE] SQL txn: response: {clientNum: 5, clientType: ps, f: txn, id: 197, type: ok, value: [{f: readAll, v: {0: 1651, ...}}, {f: writeSome, v: {0: 1965, ...}}]}
-[2025-05-03 04:33:03.902696] [ps-5] [FINE] SQL txn: response: {clientNum: 5, clientType: ps, f: txn, id: 198, type: ok, value: [{f: readAll, v: {0: 1965, ...}}, {f: writeSome, v: {...}}]}
-[2025-05-03 04:33:03.940824] [ps-5] [FINER] uploadData: call: 68 txn: 198 patch: {0: 1965} 
-
-# observe write in PostgreSQL
-2025-05-03 04:33:03.937 UTC [144] LOG:  statement: BEGIN ISOLATION LEVEL REPEATABLE READ;
-...
-2025-05-03 04:33:03.940 UTC [144] LOG:  execute s/811/p/811: UPDATE mww SET v = GREATEST(1965, mww.v) WHERE id = '0' RETURNING *
-...
-2025-05-03 04:33:03.941 UTC [144] LOG:  statement: COMMIT;
-
-# but write is missing in most client final reads
-[2025-05-03 04:33:45.722564] [main] [SEVERE] Divergent final reads!:
-[2025-05-03 04:33:45.722652] [main] [SEVERE] pg: {0: 1965, ...}
-[2025-05-03 04:33:45.722717] [main] [SEVERE] ps-1 {0: 1734, ...}
-[2025-05-03 04:33:45.723038] [main] [SEVERE] ps-2 {0: 1386, ...}
-[2025-05-03 04:33:45.723083] [main] [SEVERE] ps-3 {0: 1760, ...}
-[2025-05-03 04:33:45.723125] [main] [SEVERE] ps-4 {0: 1932, ...}
-[2025-05-03 04:33:45.723201] [main] [SEVERE] ps-8 {0: 1566, ...}
-[2025-05-03 04:33:45.723260] [main] [SEVERE] ps-9 {0: 1313, ...}
-[2025-05-03 04:33:45.722793] [main] [SEVERE] ps-10 {0: 1769, ...}
+Unexpectedly, there are no network errors in the logs:
+```bash
+$ grep -P 'error: (?!null)' powersync_fuzz.log
+$ grep -i 'err' powersync.log
 ```
-At some point, individual clients appear to go into, and remain in a `SyncStatus.downloading: true` state but there is no replication from the PowerSync sync service
-```log
-[2025-05-03 04:33:05.960464] [ps-9] [FINEST] SyncStatus<connected: true connecting: false downloading: true uploading: false lastSyncedAt: 2025-05-03 04:31:57.783573, hasSynced: true, error: null>
-...
-[2025-05-03 04:33:15.299509] [ps-9] [FINE] database api: request: {clientNum: 9, f: api, id: 2, type: invoke, value: {f: downloadingWait, v: {}}}
-[2025-05-03 04:33:15.299528] [ps-9] [FINE] database api: downloadingWait: waiting on SyncStatus.downloading: true...
-...
-[2025-05-03 04:33:44.328266] [ps-9] [FINE] database api: downloadingWait: waiting on SyncStatus.downloading: true...
-[2025-05-03 04:33:45.329282] [ps-9] [WARNING] database api: downloadingWait: waited for SyncStatus.downloading: false 31 times every 1000ms
-```
+
+###### Error Rate
+
+Fuzzing with a test matrix of:
+- 5 | 10 clients
+- 10 | 20 | 30 | 40 transactions/second
+- 100 | 200 | 300 second run times
+
+will generate errors in ~30-40% of the tests.
 
 ----
 
