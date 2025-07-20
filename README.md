@@ -280,10 +280,9 @@ See [issue #253 comment](https://github.com/powersync-ja/powersync.dart/issues/2
 
 ----
 
-#### Stop / Start
+#### Client Application Stop / Start
 
-Use the `PowerSyncDatabase` API to repeatedly and randomly stop and start clients.
-
+In `powersync_fuzz` use `PowerSyncDatabase` api and Dart's `Isolate` api
 ```dart
 await db.close();
 Isolate.kill();
@@ -294,14 +293,24 @@ db = PowerSyncDatabase(...);
 await db.initialize()/connect()/waitForFirstSync();
 ```
 
+In `Jepsen` use `PowerSyncDatabase` api and Jepsen's `control/util/grepkill!` and `start-daemon!` utilities
+```clj
+; use Dart API to close
+; db.close()
+(control/util/grepkill! "powersync_http")
+...
+; start powersync_http CLI reusing existing SQLite3 files
+(control/util/start-daemon! "powersync_http")
+```
+
 - repeatedly
   - wait a random interval
-  - 1 to all clients are randomly closed then stopped
+  - 1 to all clients are randomly closed then killed
   - wait a random interval
-  - clients that were closed/stopped are restarted reusing existing SQLite3 files
-- at the end of the test restart any clients that are currently closed/stopped reusing existing SQLite3 files
+  - clients that were closed/killed are restarted reusing existing SQLite3 files
+- at the end of the test restart any clients that are currently closed/killed reusing existing SQLite3 files
 
-Sample Jepsen log
+Sample `Jepsen` log
 ```clj
 :nemesis	:info	:stop-nodes	nil
 :nemesis	:info	:stop-nodes	{"n10" :stopped, "n3" :stopped, "n7" :stopped}
@@ -312,17 +321,13 @@ Sample Jepsen log
 
 ##### Impact on Consistency/Correctness
 
-In a small, ~0.2% of the tests, the `UploadQueueStats.count` is stuck at the end of the test preventing Strong Convergence.
-
-Similar to disconnect/connect, see above.
-
-See [issue #253 comment](https://github.com/powersync-ja/powersync.dart/issues/253#issuecomment-2835901911) for similar behavior but with stop/start.
+Stop/start behaves the same as disconnect/connect but with a significantly smaller frequency of the "stuck queue" bug.
 
 ----
 
 #### Network Partition
 
-Use `iptables` to partition client hosts from the PowerSync sync service and PostgreSQL hosts.
+For both `powersync_fuzz` and `Jepsen` use `iptables` to partition client hosts from the PowerSync sync service and PostgreSQL hosts.
 
 ```dart
 // inbound
@@ -342,7 +347,7 @@ await Process.run('/usr/sbin/iptables', ['-X', '-w']);
 
 - repeatedly
   - wait a random interval
-  - all clients for `powersync_fuzz`, 1 to all clients for Jepsen, are randomly partitioned from the PowerSync sync service and PostgreSQL hosts
+  - partition all clients for `powersync_fuzz`, and 1 to all clients for `Jepsen`, from the PowerSync sync service and PostgreSQL hosts
   - wait a random interval
   - all client networks are healed
 - at the end of the test insure all client networks are healed
@@ -434,10 +439,9 @@ At some point, individual clients appear to go into, and remain in a `SyncStatus
 
 ----
 
-#### Client Process Pause / Resume
+#### Client Application Process Pause / Resume
 
 In `powersync_fuzz`, use Dart's `Isolate.pause()/resume()`
-
 ```dart
 Capability resumeCapability = Isolate.pause();
 ...
