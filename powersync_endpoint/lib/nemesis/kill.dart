@@ -10,6 +10,9 @@ import '../worker.dart';
 
 enum _KillStartStates { started, killed }
 
+/// Do not use. Use Jepsen to test kill/start.
+/// `Isolate.kill()`'s behavior appears to be heavy handed, have side effects,
+/// that are not fully understood leading to almost 100% of tests failing.
 class KillStartNemesis {
   final Set<Worker> _allClients;
   final Set<int> _availableClientNums = {};
@@ -22,6 +25,15 @@ class KillStartNemesis {
   final _lock = Lock();
 
   KillStartNemesis(this._allClients, int interval) {
+    // will always throw, coded this way to pass analyzer
+    if (interval != 0) {
+      throw UnsupportedError(
+        '''Isolate.kill()'s behavior is not fully understood and inappropriately leads to test failures.
+           Use Jepsen to test kill/start.
+        ''',
+      );
+    }
+
     final maxInterval = interval * 1000 * 2;
     final killStartState = _KillStartState();
 
