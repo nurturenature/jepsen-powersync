@@ -556,37 +556,201 @@ PowerSync tests 100% successful when injecting client process pause/resumes.
 
 ----
 
-#### Client Process Kill / Start
+#### Client Application Process Kill / Start
 
-In `powersync_fuzz`, use
-```dart
-Isolate.kill();
+Client application process kills can happen when
+- someone's phone running out of battery
+- a user turning off their laptop without shutting down
+- force quitting an app
+- etc
+
+Not available in `powersync_fuzz` as `Isolate.kill()`'s behavior appears to be heavy handed, have side effects that are not fully understood, so use Jepsen to test kill/start.
+
+In Jepsen, use Jepsen's `control/util/grepkill!` and `start-daemon!` utilities
+```clj
+(control/util/grepkill! "powersync_http")
 ...
-// note: create db reusing existing SQLite3 files
-await Isolate.spawn(...);
-db = PowerSyncDatabase(...);
-await db.initialize()/connect()/waitForFirstSync();
+; start powersync_http CLI reusing existing SQLite3 files
+(control/util/start-daemon! "powersync_http")
 ```
 
-In Jepsen, use
-```bash
-$ grepkill kill powersync_http
-...
-$ ./powersync_http
-```
-
+Test choreography:
 - repeatedly
-  - wait a random interval
   - 1 to a majority of clients are randomly killed
-  - wait a random interval
-  - start clients that were killed reusing existing SQLite3 files
-- at the end of the test start any clients that are killed reusing existing SQLite3 files
+  - wait a random interval, 0-10s
+  - restart/reconnect clients that were killed reusing existing SQLite3 files
+  - wait a random interval, 0-10s
 
-TODO
+At the end of the test:
+- insure all clients are started/connected
+- quiesce for 3s, i.e. no further transactions
+- wait for `db.uploadQueueStats.count: 0` for all clients
+- wait for `db.SyncStatus.downloading: false` for all clients
+- do a final read on all clients and check for Strong Convergence
 
 ##### Impact on Consistency/Correctness
 
-TODO
+PowerSync is usually quite resilient with a full recovery after client is restarted and reconnects to the sync service:
+- quickly/fully downloads to catch up with the other clients
+- resumes uploading, including any pending pre-kill transactions
+  - even for transactions that were in progress, only partially uploaded, when client was killed
+- continues with normal operation as if nothing happened
+  
+Without killing, all test runs are successful.
+
+With process kills, occasionally, ~0.5%, the test will end with:
+- `db.currentStatus.downloading` staying indefinitely `true`
+- `db.currentStatus.progress` counting to #/# but never `null`ing
+
+and local transactions committed after the kill not being uploaded to the sync service.
+
+There's no obvious differences between the Dart and Rust sync implementations.
+
+There's a lot going on in the logs during a kill/restart/reconnect sequence, but here's a commented snippet from the end of a test that illustrates the issue:
+
+```log
+# last ~20s of test
+
+# local writes of 4461 to several keys in a transaction which are uploaded
+
+[2025-07-20 23:53:44.467176] [main] [FINE] SQL txn: response: {clientType: ps, f: txn, type: ok, value: [{f: readAll, k: null, v: {0: 4423, ...}}, {f: writeSome, k: null, v: {88: 4461, 0: 4461, 31: 4461, 93: 4461}}]}
+2025-07-20T23:53:44.464781  0:00:00.002482 POST    [200] /sql-txn
+[2025-07-20 23:53:44.468805] [main] [FINER] uploadData: call: 311 txn: 610 begin CrudTransaction<610, [CrudEntry<610/2437 PATCH mww/88 {v: 4461}>, CrudEntry<610/2438 PATCH mww/0 {v: 4461}>, CrudEntry<610/2439 PATCH mww/31 {v: 4461}>, CrudEntry<610/2440 PATCH mww/93 {v: 4461}>]>
+...
+[2025-07-20 23:53:44.474808] [main] [FINER] uploadData: call: 311 txn: 610 committed
+[2025-07-20 23:53:44.475026] [main] [FINER] uploadData: call: 311 end with UploadQueueStats.count: 0
+
+# upload queue is now empty
+
+# several sequences of normal downloading
+# downloads fully complete until progress is null
+
+[2025-07-20 23:53:44.480877] [main] [FINEST] SyncStatus<connected: true connecting: false downloading: true (progress: for total: 0 / 4) uploading: false lastSyncedAt: 2025-07-20 23:53:44.000, hasSynced: true, error: null>
+...
+[2025-07-20 23:53:44.555293] [main] [FINEST] SyncStatus<connected: true connecting: false downloading: true (progress: for total: 28 / 28) uploading: false lastSyncedAt: 2025-07-20 23:53:44.000, hasSynced: true, error: null>
+[2025-07-20 23:53:44.555937] [main] [FINEST] SyncStatus<connected: true connecting: false downloading: false (progress: null) uploading: false lastSyncedAt: 2025-07-20 23:53:44.000, hasSynced: true, error: null>
+...
+
+# local writes of 4472 to several keys in a transaction
+# client will be killed before they can be successfully uploaded
+
+[2025-07-20 23:53:44.674403] [main] [FINE] SQL txn: response: {clientType: ps, f: txn, type: ok, value: [{f: readAll, k: null, v: {0: 4461, ...}}, {f: writeSome, k: null, v: {12: 4472, 88: 4472, 87: 4472, 60: 4472}}]}
+
+# start upload of transaction that wrote 4472
+# client will be killed mid upload
+
+[2025-07-20 23:53:44.683554] [main] [FINER] uploadData: call: 312 begin with UploadQueueStats.count: 4
+[2025-07-20 23:53:44.683750] [main] [FINER] uploadData: call: 312 txn: 611 begin CrudTransaction<611, [CrudEntry<611/2441 PATCH mww/12 {v: 4472}>, CrudEntry<611/2442 PATCH mww/88 {v: 4472}>, CrudEntry<611/2443 PATCH mww/87 {v: 4472}>, CrudEntry<611/2444 PATCH mww/60 {v: 4472}>]>
+
+# local writes of 4473 to several keys in a transaction
+# client will be killed before the transaction is uploaded
+
+[2025-07-20 23:53:44.690599] [main] [FINE] SQL txn: response: {clientType: ps, f: txn, type: ok, value: [{f: readAll, k: null, v: {0: 4461, ...}}, {f: writeSome, k: null, v: {17: 4473, 24: 4473, 64: 4473, 8: 4473}}]}
+
+# still uploading transaction that wrote 4472
+# client will be killed before upload is committed 
+
+[2025-07-20 23:53:44.700366] [main] [FINER] uploadData: call: 312 txn: 611 patch: {12: 4472} 
+[2025-07-20 23:53:44.701982] [main] [FINER] uploadData: call: 312 txn: 611 patch: {88: 4472} 
+[2025-07-20 23:53:44.714241] [main] [FINER] uploadData: call: 312 txn: 611 patch: {87: 4472} 
+[2025-07-20 23:53:44.719150] [main] [FINER] uploadData: call: 312 txn: 611 patch: {60: 4472} 
+
+#
+# CLIENT PROCESS KILLED
+#
+
+# client remains killed for ~7s, other clients continue with their local transactions
+
+# client application is restarted
+
+2025-07-20 23:53:51 Jepsen starting  /jepsen/jepsen-powersync/powersync_endpoint/powersync_http --endpoint powersync --clientImpl rust
+
+# existing SQLite3 file is preserved
+
+[2025-07-20 23:53:51.477284] [main] [INFO] db: init: preexisting SQLite3 file: /jepsen/jepsen-powersync/powersync_endpoint/http.sqlite3
+[2025-07-20 23:53:51.477302] [main] [INFO] 	preexisting file preserved
+
+# normal API calls for db creation, initialization, connect, etc.
+
+# auth token is requested/created/etc
+
+[2025-07-20 23:53:51.992961] [main] [FINER] auth: created token w/payload: {iss: https://github.com/nurturenature/jepsen-powersync, sub: userId, aud: [powersync-dev, powersync], iat: 1753055631.977, exp: 1753055931.977, parameters: {sync_filter: *}}
+
+# upload data is called to upload the 2 transactions in the upload queue, i.e. not uploaded before the process kill
+# note: BackendConnector is max write wins so greater values were written during the time client was killed
+
+[2025-07-20 23:53:51.998536] [main] [FINER] uploadData: call: 1 begin with UploadQueueStats.count: 8
+[2025-07-20 23:53:52.000342] [main] [FINER] uploadData: call: 1 txn: 611 begin CrudTransaction<611, [CrudEntry<611/2441 PATCH mww/12 {v: 4472}>, CrudEntry<611/2442 PATCH mww/88 {v: 4472}>, CrudEntry<611/2443 PATCH mww/87 {v: 4472}>, CrudEntry<611/2444 PATCH mww/60 {v: 4472}>]>
+...
+[2025-07-20 23:53:52.052889] [main] [FINER] uploadData: call: 1 txn: 611 committed
+[2025-07-20 23:53:52.053189] [main] [FINER] uploadData: call: 1 txn: 612 begin CrudTransaction<612, [CrudEntry<612/2445 PATCH mww/17 {v: 4473}>, CrudEntry<612/2446 PATCH mww/24 {v: 4473}>, CrudEntry<612/2447 PATCH mww/64 {v: 4473}>, CrudEntry<612/2448 PATCH mww/8 {v: 4473}>]>
+...
+[2025-07-20 23:53:52.065657] [main] [FINER] uploadData: call: 1 txn: 612 committed
+[2025-07-20 23:53:52.066858] [main] [FINER] uploadData: call: 1 end with UploadQueueStats.count: 0
+
+# transactions writing 4472 and 4473, the transactions in the upload queue at the time of the kill
+# have been upload and the queue is empty
+
+# the following 2 new transactions, after the kill and before the end of the test, with local writes will never be uploaded
+
+[2025-07-20 23:53:52.115743] [main] [FINE] SQL txn: response: {clientType: ps, f: txn, type: ok, value: [{f: readAll, k: null, v: {0: 4461, }}, {f: writeSome, k: null, v: {90: 4842, 80: 4842, 5: 4842, 7: 4842}}]}
+[2025-07-20 23:53:52.143933] [main] [FINE] SQL txn: response: {clientType: ps, f: txn, type: ok, value: [{f: readAll, k: null, v: {0: 4461, }}, {f: writeSome, k: null, v: {65: 4843, 94: 4843, 43: 4843, 49: 4843}}]}
+
+# client is still downloading all of the transactions from the other clients that happened while it was killed
+
+[2025-07-20 23:53:52.160452] [main] [FINEST] SyncStatus<connected: true connecting: false downloading: true (progress: for total: 592 / 592) uploading: false lastSyncedAt: 2025-07-20 23:53:44.000, hasSynced: true, error: null>
+...
+[2025-07-20 23:53:52.341508] [main] [FINEST] SyncStatus<connected: true connecting: false downloading: true (progress: for total: 644 / 644) uploading: false lastSyncedAt: 2025-07-20 23:53:44.000, hasSynced: true, error: null>
+
+# it's the end of the test
+# test begins waiting for the upload queue to be empty
+
+[2025-07-20 23:53:52.372307] [main] [FINE] database api: uploadQueueWait: waiting on UploadQueueStats.count: 8 ...
+[2025-07-20 23:53:52.372329] [main] [FINE] 	db.currentStatus: SyncStatus<connected: true connecting: false downloading: true (progress: for total: 644 / 644) uploading: false lastSyncedAt: 2025-07-20 23:53:44.000, hasSynced: true, error: null>
+
+# these will be the last SyncStatus messages received
+
+[2025-07-20 23:53:52.380560] [main] [FINEST] SyncStatus<connected: true connecting: false downloading: true (progress: for total: 644 / 656) uploading: false lastSyncedAt: 2025-07-20 23:53:44.000, hasSynced: true, error: null>
+[2025-07-20 23:53:52.384780] [main] [FINEST] SyncStatus<connected: true connecting: false downloading: true (progress: for total: 656 / 656) uploading: false lastSyncedAt: 2025-07-20 23:53:44.000, hasSynced: true, error: null>
+
+# test continues to wait for the upload queue to be empty, which never happens
+# test will wait for 11 seconds before failing although it can wait indefinitely
+# note that downloading will stay true and progress stays 656/656 and never nulls
+
+[2025-07-20 23:53:53.373404] [main] [FINE] database api: uploadQueueWait: waiting on UploadQueueStats.count: 8 ...
+[2025-07-20 23:53:53.373433] [main] [FINE] 	db.currentStatus: SyncStatus<connected: true connecting: false downloading: true (progress: for total: 656 / 656) uploading: false lastSyncedAt: 2025-07-20 23:53:44.000, hasSynced: true, error: null>
+[2025-07-20 23:53:54.374406] [main] [FINE] database api: uploadQueueWait: waiting on UploadQueueStats.count: 8 ...
+[2025-07-20 23:53:54.374436] [main] [FINE] 	db.currentStatus: SyncStatus<connected: true connecting: false downloading: true (progress: for total: 656 / 656) uploading: false lastSyncedAt: 2025-07-20 23:53:44.000, hasSynced: true, error: null>
+[2025-07-20 23:53:55.375396] [main] [FINE] database api: uploadQueueWait: waiting on UploadQueueStats.count: 8 ...
+[2025-07-20 23:53:55.375433] [main] [FINE] 	db.currentStatus: SyncStatus<connected: true connecting: false downloading: true (progress: for total: 656 / 656) uploading: false lastSyncedAt: 2025-07-20 23:53:44.000, hasSynced: true, error: null>
+[2025-07-20 23:53:56.376429] [main] [FINE] database api: uploadQueueWait: waiting on UploadQueueStats.count: 8 ...
+[2025-07-20 23:53:56.376482] [main] [FINE] 	db.currentStatus: SyncStatus<connected: true connecting: false downloading: true (progress: for total: 656 / 656) uploading: false lastSyncedAt: 2025-07-20 23:53:44.000, hasSynced: true, error: null>
+[2025-07-20 23:53:57.377454] [main] [FINE] database api: uploadQueueWait: waiting on UploadQueueStats.count: 8 ...
+[2025-07-20 23:53:57.377504] [main] [FINE] 	db.currentStatus: SyncStatus<connected: true connecting: false downloading: true (progress: for total: 656 / 656) uploading: false lastSyncedAt: 2025-07-20 23:53:44.000, hasSynced: true, error: null>
+[2025-07-20 23:53:58.378385] [main] [FINE] database api: uploadQueueWait: waiting on UploadQueueStats.count: 8 ...
+[2025-07-20 23:53:58.378416] [main] [FINE] 	db.currentStatus: SyncStatus<connected: true connecting: false downloading: true (progress: for total: 656 / 656) uploading: false lastSyncedAt: 2025-07-20 23:53:44.000, hasSynced: true, error: null>
+[2025-07-20 23:53:59.379378] [main] [FINE] database api: uploadQueueWait: waiting on UploadQueueStats.count: 8 ...
+[2025-07-20 23:53:59.379412] [main] [FINE] 	db.currentStatus: SyncStatus<connected: true connecting: false downloading: true (progress: for total: 656 / 656) uploading: false lastSyncedAt: 2025-07-20 23:53:44.000, hasSynced: true, error: null>
+[2025-07-20 23:54:00.380425] [main] [FINE] database api: uploadQueueWait: waiting on UploadQueueStats.count: 8 ...
+[2025-07-20 23:54:00.380460] [main] [FINE] 	db.currentStatus: SyncStatus<connected: true connecting: false downloading: true (progress: for total: 656 / 656) uploading: false lastSyncedAt: 2025-07-20 23:53:44.000, hasSynced: true, error: null>
+[2025-07-20 23:54:01.381362] [main] [FINE] database api: uploadQueueWait: waiting on UploadQueueStats.count: 8 ...
+[2025-07-20 23:54:01.381392] [main] [FINE] 	db.currentStatus: SyncStatus<connected: true connecting: false downloading: true (progress: for total: 656 / 656) uploading: false lastSyncedAt: 2025-07-20 23:53:44.000, hasSynced: true, error: null>
+[2025-07-20 23:54:02.382556] [main] [FINE] database api: uploadQueueWait: waiting on UploadQueueStats.count: 8 ...
+[2025-07-20 23:54:02.382598] [main] [FINE] 	db.currentStatus: SyncStatus<connected: true connecting: false downloading: true (progress: for total: 656 / 656) uploading: false lastSyncedAt: 2025-07-20 23:53:44.000, hasSynced: true, error: null>
+[2025-07-20 23:54:03.383374] [main] [SEVERE] UploadQueueStats.count appears to be stuck at 8 after waiting for 11s
+[2025-07-20 23:54:03.383401] [main] [SEVERE] 	db.closed: false
+[2025-07-20 23:54:03.383408] [main] [SEVERE] 	db.connected: true
+[2025-07-20 23:54:03.383417] [main] [SEVERE] 	db.currentStatus: SyncStatus<connected: true connecting: false downloading: true (progress: for total: 656 / 656) uploading: false lastSyncedAt: 2025-07-20 23:53:44.000, hasSynced: true, error: null>
+[2025-07-20 23:54:03.383544] [main] [SEVERE] 	db.getUploadQueueStats(): UploadQueueStats<count: 8 size: 0.15625kB>
+[2025-07-20 23:54:03.383566] [main] [SEVERE] Error exit: reason: uploadQueueStatsCount, code: 12
+```
+
+As expected, network errors exist in sync service logs:
+```bash
+$ find . -name 'client.log' -exec grep -H -P 'error: (?!null)' {} \;
+$ grep -i 'err' powersync.log 
+{"cause":{"code":"ECONNREFUSED","message":"request to http://localhost:8089/api/auth/keys failed, reason: connect ECONNREFUSED 127.0.0.1:8089","name":"FetchError"},...}
+```
 
 ----
 
