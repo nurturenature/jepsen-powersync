@@ -1,3 +1,5 @@
+# powersync_fuzz
+
 ## A Dart CLI fuzzer for PowerSync
 
 Jepsen has been able to find and exhibit non Causally Consistent behavior when testing PowerSync.
@@ -59,39 +61,6 @@ _partitionSubscription = _partitionStream().listen((
    });
  });
 ```
-
-----
-
-### Max Write Wins Data Model
-
-Database is a Max Write Wins key/value register of integer/integer:
-```SQL
-CREATE TABLE IF NOT EXISTS public.mww (
-    id TEXT NOT NULL,
-    k INTEGER NOT NULL UNIQUE,
-    v INTEGER NOT NULL,
-    CONSTRAINT mww_pkey PRIMARY KEY (id)
-);
-```
-
-On writes the maximum, transaction or row, value wins.
-The `BackendConnector` updates PostgreSQL:
-```dart
-// max write wins, so GREATEST() value of v
-final v = crudEntry.opData!['v'] as int;
-patch = await tx.execute(
-  'UPDATE ${table.name} SET v = GREATEST($v, ${table.name}.v) WHERE id = \'${crudEntry.id}\' RETURNING *',
-);
-```
-
-Values written in a transaction are monotonic per key.
-
-Values read in a transaction are monotonic per key.
-
-Transactions are atomic.
-
-Each client will read values in Causally Consistent way.
-
 ----
 
 ### Causal Consistency
@@ -116,7 +85,6 @@ enum _Reasons {
 ```log
 [main] [SEVERE] read of {0: 387} is less than expected read of {0: 548}, expected because myPreviousRead, in op: {clientNum: 2, clientType: ps, id: 61, table: mww, type: ok, value: [{f: readAll, v: {0: 387, ...}}, {f: writeSome, v: {9: 694, ...}}]}
 ```
-
 ----
 
 ### CLI
@@ -208,90 +176,6 @@ Usage: dart powersync_(http|fuzz).dart <flags> [arguments]
 
 ----
 
-### Nemesis Implementation
-
-#### --disconnect orderly | random
-
-- orderly: disconnect then reconnect only the disconnected clients
-- random:  randomly disconnect or connect clients regardless of their state
-
-```dart
-await db.disconnect();
-
-await db.connect(connector: connector);
-```
-
-#### --partition
-
-```dart
-// Partition inbound traffic.
-await Process.run('/usr/sbin/iptables', [
-  '-A',
-  'INPUT',
-  '-s',
-  host,
-  '-j',
-  'DROP',
-  '-w',
-]);
-  
-// Partition outbound traffic.
-await Process.run('/usr/sbin/iptables', [
-  '-A',
-  'OUTPUT',
-  '-d',
-  host,
-  '-j',
-  'DROP',
-  '-w',
-]);
-  
-// Partition no traffic
-await Process.run('/usr/sbin/iptables', ['-F', '-w']);
-await Process.run('/usr/sbin/iptables', ['-X', '-w']);
-```
-
-#### --pause
-
-```dart
-// Pause.
-_resumeCapability = _isolate.pause();
-
-// Resume.
-_isolate.resume(_resumeCapability!);
-```
-
-#### --stop
-
-```dart
-// Stop.
-// Database in Isolate client is closed, which disconnects, frees resources
-await db.close();
-// Isolate is killed immediately, do not wait for next event loop opportunity
-Isolate.kill(priority: Isolate.immediate);
-
-// Start.
-//  - newly spawned Isolate client
-//  - SQLite3 data files are preserved
-//  - new PowerSync db connection initialized in client
-```
-
-#### --kill
-
-```dart
-// Kill.
-// no warning, interaction, e.g. disconnect, close, etc, with PowerSync database
-// Isolate is killed immediately, do not wait for next event loop opportunity
-Isolate.kill(priority: Isolate.immediate);
-
-// Start.
-//  - newly spawned Isolate client
-//  - SQLite3 data files are preserved
-//  - new PowerSync db connection initialized in client
-```
-
-----
-
 ### Docker Environment
 
 The `docker` directory has helper scripts to build, bring up a PowerSync cluster and fuzzing node, and run a fuzzing command:
@@ -328,14 +212,11 @@ The test artifacts can be large. They contain:
 
 In the `docker` directory there's a script that builds a fuzzing environment and just loops until it finds:
 - exit code > $SUSPECT_EXIT_CODE
-- most common errors in order
-  - exit code 30: `BackendConnector.uploadData()` or `getNextCrudTransaction()` duplicate transaction id
-  - exit code 10: `SyncStatus.lastSyncedAt` goes backwards in time
-  - exit code 12: `UploadQueueStats.count` stuck
+
 ```bash
 cd jepsen-powersync/docker
 
 # simplest CLI args most likely to produce an error
-export SUSPECT_EXIT_CODE=1
-./powersync-fuzz-loop.sh ./powersync_fuzz --clients 10 --rate 10 --time 100 --postgresql --disconnect orderly --no-stop --no-kill --partition --no-pause --interval 5
+export SUSPECT_EXIT_CODE=0
+./powersync-fuzz-loop.sh ./powersync_fuzz --clients 10 --rate 10 --time 100 --postgresql --disconnect orderly --no-stop --no-kill --partition sync --no-pause --interval 5
 ```
