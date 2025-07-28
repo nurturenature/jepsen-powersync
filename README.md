@@ -24,7 +24,7 @@ Operating under:
 
 ----
 
-## TLDR;
+## TL;DR
 
 PowerSync is to be commended for sponsoring the development of a Jepsen test:
 
@@ -50,12 +50,12 @@ The development team is responsive on the Discord chat and responding to issues.
 
 PowerSync would benefit from attention to:
 
-- heavy network partitioning and timely sync recovery and resumption
-- the remaining corner cases where heavy environmental faulting can lead to occasional sync pauses
+- network partitioning and timely sync recovery and resumption
+- the remaining corner cases where more frequent, longer duration, environmental faulting can lead to occasional sync pauses
 
 The tests would benefit from:
 
-- adding a post fault/quiescence option to resume heavy user activity to further understand/confirm sync resumption
+- adding a post fault/quiescence option to resume user activity to further understand/confirm sync resumption
 - adding options to configure the backing databases, e.g. MySQL
 - adding options to test raw tables, schema migrations, and the other new features added during test development
 - improving usability for new users, Jepsen is a heavy lift
