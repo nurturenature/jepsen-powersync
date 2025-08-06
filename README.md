@@ -157,25 +157,25 @@ Each step is extensively tested and must reliably pass, ✔️, before continuin
 
 - tests the tests
 - demonstrates test fidelity, i.e. accurately represent the database
-- 🗸 as expected, tests show totally availability with strict serializability
+- as expected, tests show totally availability with strict serializability
 
 ✔️ Multi user, generic SQLite3 shared db, no PowerSync:
 
 - tests the tests
 - demonstrates test fidelity, i.e. accurately represent the database
-- 🗸 as expected, tests show totally availability with strict serializability
+- as expected, tests show totally availability with strict serializability
 
 ✔️ Single user, PowerSync db, local only:
 
 - expectation is total availability and strict serializability
 - SQLite3 is tight and using PowerSync APIs should reflect that
-- 🗸 as expected, tests show totally availability with strict serializability
+- as expected, tests show totally availability with strict serializability
 
 ✔️ Single user, PowerSync db, with replication:
 
 - expectation is total availability and strict serializability
 - SQLite3 is tight and using PowerSync APIs should reflect that
-- 🗸 as expected, tests show total availability with strict serializability
+- as expected, tests show total availability with strict serializability
 
 ✔️ Multi user, PowerSync db, with replication, using `getCrudBatch()` backend connector:
 
@@ -183,7 +183,7 @@ Each step is extensively tested and must reliably pass, ✔️, before continuin
   - read committed vs Causal
   - non-atomic transactions with intermediate reads
   - strong convergence
-- 🗸 as expected, tests show read committed, non-atomic with intermediate reads transactions, and all replicated databases strongly converge
+- as expected, tests show read committed, non-atomic with intermediate reads transactions, and all replicated databases strongly converge
 
 ✔️ Multi user, PowerSync db, with replication, using newly developed Causal `getNextCrudTransaction()` backend connector:
 
@@ -191,7 +191,7 @@ Each step is extensively tested and must reliably pass, ✔️, before continuin
   - Atomic transactions
   - Causal Consistency
   - Strong Convergence
-- 🗸 as expected, tests show Atomic transactions with Causal Consistency, and all replicated databases strongly converge
+- as expected, tests show Atomic transactions with Causal Consistency, and all replicated databases strongly converge
 
 ✔️ Multi user, Active/Active PostgreSQL/SQLite3, with replication, using newly developed Causal `getNextCrudTransaction()` backend connector:
 
@@ -200,7 +200,7 @@ Each step is extensively tested and must reliably pass, ✔️, before continuin
   - Atomic transactions
   - Causal Consistency
   - Strong Convergence
-- 🗸 as expected, tests show Atomic transactions with Causal Consistency, and all replicated databases strongly converge
+- as expected, tests show Atomic transactions with Causal Consistency, and all replicated databases strongly converge
 
 ----
 
