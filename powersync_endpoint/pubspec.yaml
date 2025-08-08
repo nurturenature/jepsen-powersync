@@ -8,7 +8,7 @@ environment:
 
 dependencies:
   args: ^2.7.0
-  http: ^1.4.0
+  http: ^1.5.0
   jose: ^0.3.4
   list_utilities: ^1.0.3
   logging: ^1.2.0
