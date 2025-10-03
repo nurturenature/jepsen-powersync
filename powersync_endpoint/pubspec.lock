@@ -362,34 +362,34 @@ packages:
     dependency: "direct main"
     description:
       name: postgres
-      sha256: "9aaa6f4872956adef653535a4e2133b167465c1a68c22b9bd0744ef1244e9393"
+      sha256: "013c6dc668eaab9771c4d3f5fc3e87ed4b3cd4ab3587ac6943cc1f38509ff723"
       url: "https://pub.dev"
     source: hosted
-    version: "3.5.6"
+    version: "3.5.7"
   powersync:
     dependency: "direct main"
     description:
       name: powersync
-      sha256: "52dcc8cb63cf69bb11b48fdc73fd5af71a2012895844d43f198f5c2c0eccd93c"
+      sha256: "0fe61188ecc6c80ec36c02f7480d11c4ecd2f1ef23a226b68a633a529460ad1b"
       url: "https://pub.dev"
     source: hosted
-    version: "1.15.2"
+    version: "1.16.0"
   powersync_core:
     dependency: transitive
     description:
       name: powersync_core
-      sha256: "3519edeacb2e3b82632c7b4cf82d444fc3548cd417cfcc667cf1f0da694b992e"
+      sha256: a6bb87aebdc15a853d9423695aea0b64c3ed906068dfbd9daee94d230253bce9
       url: "https://pub.dev"
     source: hosted
-    version: "1.5.2"
+    version: "1.6.0"
   powersync_flutter_libs:
     dependency: transitive
     description:
       name: powersync_flutter_libs
-      sha256: dfce13edb134d4e92a99bbc41b9e397756af6d5be27f77b38dfe2c72817c089c
+      sha256: "6385c74c3537b72086f62becd038e1f4a50bff57783e260de95f89f1c2a16aa2"
       url: "https://pub.dev"
     source: hosted
-    version: "0.4.11"
+    version: "0.4.12"
   pub_semver:
     dependency: transitive
     description:
@@ -511,18 +511,18 @@ packages:
     dependency: transitive
     description:
       name: sqlite3
-      sha256: f393d92c71bdcc118d6203d07c991b9be0f84b1a6f89dd4f7eed348131329924
+      sha256: "5c225083e72ea56c96d94ba1dd14fb89c8bb7731c8496ee840ab77be9bb67ae2"
       url: "https://pub.dev"
     source: hosted
-    version: "2.9.0"
+    version: "2.9.1"
   sqlite3_flutter_libs:
     dependency: transitive
     description:
       name: sqlite3_flutter_libs
-      sha256: "2b03273e71867a8a4d030861fc21706200debe5c5858a4b9e58f4a1c129586a4"
+      sha256: "69c80d812ef2500202ebd22002cbfc1b6565e9ff56b2f971e757fac5d42294df"
       url: "https://pub.dev"
     source: hosted
-    version: "0.5.39"
+    version: "0.5.40"
   sqlite3_web:
     dependency: transitive
     description:
@@ -611,22 +611,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.0"
-  universal_io:
-    dependency: transitive
-    description:
-      name: universal_io
-      sha256: "1722b2dcc462b4b2f3ee7d188dad008b6eb4c40bbd03a3de451d82c78bba9aad"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.2.2"
   unorm_dart:
     dependency: transitive
     description:
       name: unorm_dart
-      sha256: "8e3870a1caa60bde8352f9597dd3535d8068613269444f8e35ea8925ec84c1f5"
+      sha256: "0c69186b03ca6addab0774bcc0f4f17b88d4ce78d9d4d8f0619e30a99ead58e7"
       url: "https://pub.dev"
     source: hosted
-    version: "0.3.1+1"
+    version: "0.3.2"
   uuid:
     dependency: transitive
     description:
@@ -655,10 +647,10 @@ packages:
     dependency: transitive
     description:
       name: watcher
-      sha256: "5bf046f41320ac97a469d506261797f35254fa61c641741ef32dacda98b7d39c"
+      sha256: "592ab6e2892f67760543fb712ff0177f4ec76c031f02f5b4ff8d3fc5eb9fb61a"
       url: "https://pub.dev"
     source: hosted
-    version: "1.1.3"
+    version: "1.1.4"
   web:
     dependency: transitive
     description:

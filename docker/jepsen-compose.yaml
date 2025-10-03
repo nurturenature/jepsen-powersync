@@ -25,7 +25,7 @@ x-defaults: &defaults
 
 x-node: &default-node
   <<: *defaults
-  image: ${JEPSEN_REGISTRY:-}jepsen-node
+  image: ${JEPSEN_REGISTRY:-}jepsen-node:bookworm
   depends_on:
     setup:
       condition: service_completed_successfully
@@ -39,14 +39,14 @@ networks:
 services:
   setup:
     <<: *defaults
-    image: ${JEPSEN_REGISTRY:-}jepsen-setup
+    image: ${JEPSEN_REGISTRY:-}jepsen-setup:bookworm
     container_name: jepsen-setup
     hostname: setup
     entrypoint: ["/usr/local/bin/jepsen-setup.sh"]
 
   control:
     <<: *defaults
-    image: ${JEPSEN_REGISTRY:-}jepsen-control
+    image: ${JEPSEN_REGISTRY:-}jepsen-control:bookworm
     container_name: jepsen-control
     hostname: control
     ports:

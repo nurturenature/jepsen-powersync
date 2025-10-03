@@ -3,7 +3,7 @@
 #
 ARG JEPSEN_REGISTRY
 
-FROM ${JEPSEN_REGISTRY:-}jepsen-control AS jepsen-control
+FROM ${JEPSEN_REGISTRY:-}jepsen-control:bookworm AS jepsen-control
 
 # install latest Jepsen
 WORKDIR /jepsen
