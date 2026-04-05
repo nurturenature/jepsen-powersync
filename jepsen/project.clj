@@ -4,11 +4,11 @@
   :license {:name "Apache License Version 2.0, January 2004"
             :url "http://www.apache.org/licenses/"}
   :dependencies [[org.clojure/clojure "1.12.4"]
-                 [jepsen "0.3.10"]
+                 [jepsen "0.3.12-SNAPSHOT"]
                  [causal "0.1.0-SNAPSHOT"]
-                 [cheshire "6.1.0"]
+                 [cheshire "6.2.0"]
                  [clj-http "3.13.1"]
-                 [com.github.seancorfield/next.jdbc "1.3.1086"]
+                 [com.github.seancorfield/next.jdbc "1.3.1093"]
                  [org.postgresql/postgresql "42.7.10"]]
   :jvm-opts ["-Xmx8g"
              "-Djava.awt.headless=true"
