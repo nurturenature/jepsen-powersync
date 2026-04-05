@@ -890,7 +890,7 @@ There's a lot going on in the logs during a kill/restart/reconnect sequence, but
 
 # client application is restarted
 
-2025-07-20 23:53:51 Jepsen starting  /jepsen/jepsen-powersync/powersync_endpoint/powersync_http --endpoint powersync --clientImpl rust
+2025-07-20 23:53:51 Jepsen starting  /jepsen/jepsen-powersync/powersync_endpoint/powersync_http --endpoint powersync
 
 # existing SQLite3 file is preserved
 

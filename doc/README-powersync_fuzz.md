@@ -102,11 +102,6 @@ $ ./powersync_fuzz --help
 Usage: dart powersync_(http|fuzz).dart <flags> [arguments]
     --endpoint                endpoint database
                               [powersync (default), postgresql]
-    --clientImpl              
-          [dflt]              default client implementation, currently dart
-          [dart]              dart client
-          [rust] (default)    rust client
-
 -c, --clients                 number of PowerSync clients
                               (defaults to "5")
     --[no-]postgresql         include a postgresql client

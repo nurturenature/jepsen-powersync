@@ -52,11 +52,6 @@ class PSEndpoint extends Endpoint {
     _connector = await CrudTransactionConnector.connector();
 
     _syncOptions = SyncOptions(
-      syncImplementation: switch (args['clientImpl'] as ClientImpls) {
-        ClientImpls.dflt => SyncClientImplementation.defaultClient,
-        ClientImpls.dart => SyncClientImplementation.defaultClient,
-        ClientImpls.rust => SyncClientImplementation.rust,
-      },
       // retry significantly faster than default of 5s, designed to leverage a Transaction oriented BackendConnector
       retryDelay: Duration(milliseconds: 1000),
     );

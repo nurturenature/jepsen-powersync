@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:args/args.dart';
-import 'endpoint.dart';
 import 'nemesis/disconnect.dart';
 import 'nemesis/partition.dart';
 
@@ -21,7 +20,6 @@ void parseArgs(List<String> arguments) {
 
     // set args based on CLI or defaults
     args['endpoint'] = results.option('endpoint')!;
-    args['clientImpl'] = clientImplLookup[results.option('clientImpl')]!;
     args['clients'] = int.parse(results.option('clients')!);
     args['postgresql'] = results.flag('postgresql');
     // txn values
@@ -70,16 +68,6 @@ ArgParser _buildParser() {
       allowed: ['powersync', 'postgresql'],
       defaultsTo: 'powersync',
       help: 'endpoint database',
-    )
-    ..addOption(
-      'clientImpl',
-      defaultsTo: 'rust',
-      allowed: ['dflt', 'dart', 'rust'],
-      allowedHelp: {
-        'dflt': 'default client implementation, currently dart',
-        'dart': 'dart client',
-        'rust': 'rust client',
-      },
     )
     ..addOption(
       'clients',
