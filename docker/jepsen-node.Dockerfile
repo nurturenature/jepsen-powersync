@@ -3,7 +3,7 @@
 #
 ARG JEPSEN_REGISTRY
 
-FROM ${JEPSEN_REGISTRY:-}jepsen-node:bookworm AS jepsen-setup
+FROM ${JEPSEN_REGISTRY:-}jepsen-node AS jepsen-setup
 
 # PowerSync deps
 RUN apt-get -qy update && \
@@ -11,7 +11,7 @@ RUN apt-get -qy update && \
     libsqlite3-dev sqlite3 sqlite3-tools
 
 # build on a working image
-FROM debian:bookworm AS dart-build
+FROM debian AS dart-build
 
 # install flutter
 # deps
@@ -19,8 +19,8 @@ RUN apt-get -qy update && \
     apt-get -qy install \
     git wget xz-utils
 
-RUN wget --no-verbose https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.41.2-stable.tar.xz
-RUN tar -xf ./flutter_linux_3.41.2-stable.tar.xz -C /usr/bin/
+RUN wget --no-verbose https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.41.6-stable.tar.xz
+RUN tar -xf ./flutter_linux_3.41.6-stable.tar.xz -C /usr/bin/
 ENV PATH=/usr/bin/flutter/bin:$PATH
 
 # required by how flutter uses git

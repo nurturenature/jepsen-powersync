@@ -54,7 +54,7 @@ services:
 
   setup:
     <<: *defaults
-    image: ${JEPSEN_REGISTRY:-}jepsen-setup:bookworm
+    image: ${JEPSEN_REGISTRY:-}jepsen-setup
     container_name: jepsen-setup
     hostname: setup
     entrypoint: ["/usr/local/bin/jepsen-setup.sh"]
