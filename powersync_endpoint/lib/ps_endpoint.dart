@@ -54,6 +54,7 @@ class PSEndpoint extends Endpoint {
     _syncOptions = SyncOptions(
       // retry significantly faster than default of 5s, designed to leverage a Transaction oriented BackendConnector
       retryDelay: Duration(milliseconds: 1000),
+      appMetadata: {'client-host': Platform.localHostname},
     );
 
     await _db.connect(connector: _connector, options: _syncOptions);
