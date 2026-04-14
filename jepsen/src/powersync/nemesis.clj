@@ -517,7 +517,7 @@
                           repeat
                           (gen/stagger (or interval nc/default-interval)))
           lazyfs-map (->> db
-                          :db
+                          :lazyfs-db
                           :lazyfs)
           _          (assert lazyfs-map)]
       {:generator    gen
