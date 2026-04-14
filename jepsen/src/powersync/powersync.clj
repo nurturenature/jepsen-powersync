@@ -52,6 +52,10 @@
     [this test node]
     (info "Setting up powersync_endpoint db " node)
 
+    ; insure data dir exists, else SQLite will fail creating db file
+    (c/su
+     (c/exec :mkdir :--parents data-dir))
+
     ; setup lazyfs first
     (when lazyfs-db
       (db/setup! lazyfs-db test node))
