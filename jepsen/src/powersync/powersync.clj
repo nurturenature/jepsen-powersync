@@ -3,6 +3,7 @@
             [jepsen
              [db :as db]
              [control :as c]
+             [lazyfs :as lazyfs]
              [util :as u]]
             [jepsen.control
              [util :as cu]]))
@@ -15,15 +16,20 @@
   "Application directory."
   (str install-dir "/powersync_endpoint"))
 
-(def database-file
-  "SQLite3 database file."
-  (str app-dir "/http.sqlite3"))
+(def data-dir
+  "Where to store SQLite3 database files"
+  (str app-dir "/data"))
 
-(def database-files
-  "A collection of all SQLite3 database files."
-  [database-file
-   (str database-file "-shm")
-   (str database-file "-wal")])
+(comment
+  (def database-file
+    "SQLite3 database file."
+    (str data-dir "/http.sqlite3"))
+
+  (def database-files
+    "A collection of all SQLite3 database files."
+    [database-file
+     (str database-file "-shm")
+     (str database-file "-wal")]))
 
 (def pid-file (str app-dir "/client.pid"))
 
@@ -35,77 +41,116 @@
 (def bin-path (str app-dir "/" app-ps-name))
 
 (defn wipe
-  "Wipes local SQLite3 db files.
+  "Wipes local SQLite3 db data dir.
    Assumes on node and privs for file deletion."
   []
-  (c/exec :rm :-rf database-files))
+  (c/exec :rm :-rf data-dir))
 
-(defn db
-  "PowerSync or PostgreSQL endpoint database."
-  []
-  (reify db/DB
-    (setup!
-      [this test node]
-      (info "Setting up powersync_endpoint db " node)
+(defrecord PSDB [lazyfs-db]
+  db/DB
+  (setup!
+    [this test node]
+    (info "Setting up powersync_endpoint db " node)
 
-      (db/start! this test node)
-      (u/sleep 1000)) ; TODO: sleep for 1s to allow endpoint to come up, should be retry http connection
+    ; setup lazyfs first
+    (when lazyfs-db
+      (db/setup! lazyfs-db test node))
 
-    (teardown!
-      [this test node]
-      (info "Tearing down powersync_endpoint db")
-      (db/kill! this test node)
-      (c/su
-       (wipe)
-       (c/exec :rm :-rf log-file)))
+    (db/start! this test node)
+    (u/sleep 1000)) ; TODO: sleep for 1s to allow endpoint to come up, should be retry http connection
 
-    ; PowerSync doesn't have `primaries`.
-    ; db/Primary
+  (teardown!
+    [this test node]
+    (info "Tearing down powersync_endpoint db")
+    (db/kill! this test node)
 
-    db/LogFiles
-    (log-files
-      [_db _test _node]
-      {log-file log-file-short})
+    ; teardown lazyfs before wiping files
+    (when lazyfs-db
+      (db/teardown! lazyfs-db test node))
 
-    db/Kill
-    (start!
-      [_this {:keys [postgres-nodes] :as _test} node]
-      (if (cu/daemon-running? pid-file)
-        :already-running
-        (let [endpoint (if (contains? postgres-nodes node)
-                         :postgresql
-                         :powersync)]
-          (c/su
-           (cu/start-daemon!
-            {:chdir   app-dir
-             :logfile log-file
-             :pidfile pid-file}
-            bin-path
-            :--endpoint   endpoint))
-          :started)))
+    (c/su
+     (wipe)
+     (c/exec :rm :-rf log-file)))
 
-    (kill!
-      [_this _test _node]
-      ; TODO: understand why sporadic Exception with exit code of 137 when using Docker,
-      ;       for now, retrying is effective and safe 
-      (c/su
-       (u/retry 1 (cu/grepkill! app-ps-name)))
-      :killed)
+  ; PowerSync doesn't have `primaries`.
+  db/Primary
+  (primaries
+    [_db _test]
+    nil)
 
-    db/Pause
-    (pause!
-      [_this _test _node]
-      ; TODO: timeout is an attempt to workaround GitHub Action timeout
-      (u/timeout 1000 :grepkill-timeout
+  (setup-primary!
+    [_db _test _node]
+    nil)
+
+  db/LogFiles
+  (log-files
+    [_db test node]
+    (merge
+     {log-file log-file-short}
+     (when lazyfs-db
+       (db/log-files lazyfs-db test node))))
+
+  db/Kill
+  (start!
+    [_this {:keys [postgres-nodes] :as _test} node]
+    (if (cu/daemon-running? pid-file)
+      :already-running
+      (let [endpoint (if (contains? postgres-nodes node)
+                       :postgresql
+                       :powersync)]
+        (c/su
+         (cu/start-daemon!
+          {:chdir   app-dir
+           :logfile log-file
+           :pidfile pid-file}
+          bin-path
+          :--endpoint endpoint))
+        :started)))
+
+  (kill!
+    [_this _test _node]
+    ; TODO: understand why sporadic Exception with exit code of 137 when using Docker,
+    ;       for now, retrying is effective and safe 
+    (u/timeout 10000
+               :timed-out
+               (do
                  (c/su
-                  (cu/grepkill! :stop app-ps-name))
-                 :paused))
+                  (u/retry 1 (cu/grepkill! app-ps-name)))
+                 :killed)))
 
-    (resume!
-      [_this _test _node]
-      ; TODO: timeout is an attempt to workaround GitHub Action timeout
-      (u/timeout 1000 :grepkill-timeout
+  db/Pause
+  (pause!
+    [_this _test _node]
+    ; TODO: understand why sporadic Exception with exit code of 137 when using Docker,
+    ;       for now, retrying is effective and safe 
+    (u/timeout 10000
+               :timed-out
+               (do
                  (c/su
-                  (cu/grepkill! :cont app-ps-name))
+                  (u/retry 1 (cu/grepkill! :stop app-ps-name)))
+                 :paused)))
+
+  (resume!
+    [_this _test _node]
+    ; TODO: understand why sporadic Exception with exit code of 137 when using Docker,
+    ;       for now, retrying is effective and safe 
+    (u/timeout 10000
+               :timed-out
+               (do
+                 (c/su
+                  (u/retry 1 (cu/grepkill! :cont app-ps-name)))
                  :resumed))))
 
+(defn psdb
+  "Installs and uses PowerSync."
+  []
+  (PSDB. nil))
+
+(defn lazyfs-psdb
+  "Installs and uses PowerSync.
+   Data directory is mounted on a lazyfs."
+  []
+  (let [lazyfs-db (->> data-dir
+                       lazyfs/lazyfs
+                       lazyfs/db)]
+    (PSDB. lazyfs-db)))

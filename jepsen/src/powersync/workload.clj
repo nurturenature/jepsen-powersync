@@ -59,14 +59,17 @@
 
 (defn ps-rw-pg-rw
   "A PowerSync read/write, PostgreSQL read/write workload."
-  [opts]
-  {:db              (ps/db)
-   :client          (client/->PowerSyncClient nil)
-   :generator       (readAll-writeSome-generator opts)
-   :final-generator (readAll-final-generator opts)
-   :checker         (checker/compose
-                     {:causal-consistency (causal-consistency opts)
-                      :strong-convergence (strong-convergence opts)})})
+  [{:keys [lazyfs?] :as opts}]
+  (let [db (if lazyfs?
+             (ps/lazyfs-psdb)
+             (ps/psdb))]
+    {:db              db
+     :client          (client/->PowerSyncClient nil)
+     :generator       (readAll-writeSome-generator opts)
+     :final-generator (readAll-final-generator opts)
+     :checker         (checker/compose
+                       {:causal-consistency (causal-consistency opts)
+                        :strong-convergence (strong-convergence opts)})}))
 
 (defn convergence
   "A ps-rw-pg-rw workload that only checks for strong convergence."

@@ -6,6 +6,7 @@
              [control :as c]
              [db :as db]
              [generator :as gen]
+             [lazyfs :as lazyfs]
              [nemesis :as nemesis]]
             [jepsen.nemesis.combined :as nc]))
 
@@ -396,7 +397,9 @@
     (catch java.net.SocketTimeoutException ex
       (if (= (.getMessage ex) "Read timed out")
         :connection-timeout
-        (throw ex)))))
+        (throw ex)))
+    (catch Exception {}
+      :unexpected-exception)))
 
 (defn upload-queue-wait
   "Wait until the count of transactions in the PowerSync db upload queue for the PowerSync node is 0."
@@ -492,6 +495,39 @@
                            :stop  #{}
                            :color "#d3d3d3"}}}))) ; light grey
 
+(defn lazyfs-package
+  "A nemesis and generator package for injecting storage faults using lazyfs.
+   
+   Opts:
+   ```clj
+   {:lazyfs
+    {:target   node              ; The node to target
+     :behavior lazyfs-command}}  ; lose-unfsynced-writes
+   ```
+   Additional options as for [[jepsen.nemesis.combined/nemesis-package]]."
+  [{:keys [db faults interval lazyfs] :as _opts}]
+  (when (contains? faults :lazyfs)
+    (let [target     (:target   lazyfs)
+          behavior   (:behavior lazyfs)
+          _          (assert (seq target))
+          _          (assert (lazyfs/all-commands behavior))
+          gen        (->> {:type  :info
+                           :f     behavior
+                           :value target}
+                          repeat
+                          (gen/stagger (or interval nc/default-interval)))
+          lazyfs-map (->> db
+                          :db
+                          :lazyfs)
+          _          (assert lazyfs-map)]
+      {:generator    gen
+       :nemesis      (lazyfs/nemesis lazyfs-map)
+       :perf         #{{:name  "lazyfs"
+                        :fs    lazyfs/all-commands
+                        :start #{}
+                        :stop  #{}
+                        :color "#FFCCCC"}}})))
+
 (defn nemesis-package
   "Constructs combined nemeses and generators into a nemesis package."
   [opts]
@@ -500,6 +536,7 @@
           (disconnect-random-package opts)
           (stop-start-package opts)
           (partition-package opts)
+          (lazyfs-package opts)
           (upload-queue-package opts)]
          (concat (nc/nemesis-packages opts))
          (filter :generator)

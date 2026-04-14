@@ -9,6 +9,7 @@
              [checker :as checker]
              [cli :as cli]
              [generator :as gen]
+             [lazyfs :as lazyfs]
              [tests :as tests]]
             [jepsen.checker.timeline :as timeline]
             [jepsen.os.debian :as debian]
@@ -36,6 +37,7 @@
     :stop-start
     :partition-sync :partition-postgres :partition-both
     :pause :kill
+    :lazyfs
     :upload-queue})
 
 (def all-nemeses
@@ -97,6 +99,8 @@
                    :partition-both     {:targets [nil]}
                    :pause              {:targets [nil]}
                    :kill               {:targets [:majority]}
+                   :lazyfs             {:target   ["n1"]
+                                        :behavior :lose-unfsynced-writes}
                    :upload-queue       nil
                    :interval           (:nemesis-interval opts)})]
     (merge tests/noop-test
@@ -146,6 +150,19 @@
     :parse-fn parse-long
     :validate [pos? "Must be a positive integer"]]
 
+   [nil "--lazyfs? BOOLEAN" "Mount data dir in a lazy filesystem that can lose non fsync'd writes?"
+    :default  false
+    :parse-fn parse-boolean
+    :validate [boolean? "Must be a boolean."]]
+
+   [nil "--lazyfs-behavior BEHAVIOR" "A lazyfs behavior."
+    :parse-fn keyword
+    :validate [lazyfs/all-commands (str "Must be one of: " (cli/one-of lazyfs/all-commands))]]
+
+   [nil "--lazyfs-target NODES" "A list of nodes to target."
+    :parse-fn parse-nodes-spec
+    :validate [(constantly true) ""]]
+
    [nil "--nemesis FAULTS" "A comma-separated list of nemesis faults to enable"
     :parse-fn parse-nemesis-spec
     :validate [(partial every? nemeses)
@@ -153,7 +170,7 @@
 
    [nil "--nemesis-interval SECS" "Roughly how long between nemesis operations."
     :default 5
-    :parse-fn read-string
+    :parse-fn parse-long
     :validate [pos? "Must be a positive number."]]
 
    [nil "--postgres-nodes NODES" "List of nodes that should be PostgreSQL clients"
@@ -161,7 +178,7 @@
 
    ["-r" "--rate HZ" "Approximate request rate, in hz"
     :default 100
-    :parse-fn read-string
+    :parse-fn parse-long
     :validate [pos? "Must be a positive number."]]
 
    ["-w" "--workload NAME" "What workload should we run?"

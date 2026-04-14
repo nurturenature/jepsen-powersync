@@ -23,7 +23,9 @@ Future<void> main(List<String> arguments) async {
     Endpoints.powersync => PSEndpoint(),
     Endpoints.postgresql => PGEndpoint(),
   };
-  await endpointDb.init(filePath: '${Directory.current.path}/http.sqlite3');
+  await endpointDb.init(
+    filePath: '${Directory.current.path}/data/http.sqlite3',
+  );
 
   // wrap Endpoint.sqlTxn with HTTP Request/Response, JSON decode/encode
   Future<Response> sqlTxn(Request req) async {
