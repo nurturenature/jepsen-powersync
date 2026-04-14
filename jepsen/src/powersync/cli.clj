@@ -73,7 +73,8 @@
 (defn test-name
   "Given opts, returns a meaningful test name."
   [{:keys [lazyfs-behavior nemesis nodes postgres-nodes rate time-limit workload] :as _opts}]
-  (let [nodes (into #{} nodes)]
+  (let [nodes   (into #{} nodes)
+        nemesis (into #{} nemesis)]
     (str (name workload)
          "-" (str/join "," (map name nemesis))
          (when (contains? nemesis :lazyfs)
