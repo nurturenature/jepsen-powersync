@@ -72,18 +72,20 @@
 
 (defn test-name
   "Given opts, returns a meaningful test name."
-  [{:keys [nemesis nodes postgres-nodes rate time-limit workload] :as _opts}]
+  [{:keys [lazyfs-behavior nemesis nodes postgres-nodes rate time-limit workload] :as _opts}]
   (let [nodes (into #{} nodes)]
     (str (name workload)
-         " " (str/join "," (map name nemesis))
-         " " (count postgres-nodes) "pg"
+         "-" (str/join "," (map name nemesis))
+         (when (contains? nemesis :lazyfs)
+           (str "-" lazyfs-behavior))
          "-" (count (set/difference nodes postgres-nodes)) "ps"
+         "-" (count postgres-nodes) "pg"
          "-" rate "tps"
          "-" time-limit "s")))
 
 (defn powersync-test
   "Given options from the CLI, constructs a test map."
-  [opts]
+  [{:keys [lazyfs-behavior lazyfs-target] :as opts}]
   (let [workload-name (:workload opts)
         workload ((workloads workload-name) opts)
         db       (:db workload)
@@ -99,8 +101,8 @@
                    :partition-both     {:targets [nil]}
                    :pause              {:targets [nil]}
                    :kill               {:targets [:majority]}
-                   :lazyfs             {:target   ["n1"]
-                                        :behavior :lose-unfsynced-writes}
+                   :lazyfs             {:target   lazyfs-target
+                                        :behavior lazyfs-behavior}
                    :upload-queue       nil
                    :interval           (:nemesis-interval opts)})]
     (merge tests/noop-test
@@ -156,10 +158,12 @@
     :validate [boolean? "Must be a boolean."]]
 
    [nil "--lazyfs-behavior BEHAVIOR" "A lazyfs behavior."
+    :default  :lose-unfsynced-writes
     :parse-fn keyword
     :validate [lazyfs/all-commands (str "Must be one of: " (cli/one-of lazyfs/all-commands))]]
 
    [nil "--lazyfs-target NODES" "A list of nodes to target."
+    :default  ["n1"]
     :parse-fn parse-nodes-spec
     :validate [(constantly true) ""]]
 

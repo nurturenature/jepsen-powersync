@@ -505,10 +505,10 @@
      :behavior lazyfs-command}}  ; lose-unfsynced-writes
    ```
    Additional options as for [[jepsen.nemesis.combined/nemesis-package]]."
-  [{:keys [db faults interval lazyfs lazyfs-behavior lazyfs-target] :as _opts}]
+  [{:keys [db faults interval lazyfs] :as _opts}]
   (when (contains? faults :lazyfs)
-    (let [target     (or lazyfs-target   (:target   lazyfs))
-          behavior   (or lazyfs-behavior (:behavior lazyfs))
+    (let [target     (:target   lazyfs)
+          behavior   (:behavior lazyfs)
           _          (assert (seq target))
           _          (assert (lazyfs/all-commands behavior))
           gen        (->> {:type  :info
