@@ -390,15 +390,11 @@
         :body
         (json/decode true)
         :db.uploadQueueStats.count)
-    (catch java.net.ConnectException ex
-      (if (= (.getMessage ex) "Connection refused")
-        :connection-refused
-        (throw ex)))
-    (catch java.net.SocketTimeoutException ex
-      (if (= (.getMessage ex) "Read timed out")
-        :connection-timeout
-        (throw ex)))
-    (catch Exception ex
+    (catch java.net.ConnectException _ex
+      :connection-refused)
+    (catch java.net.SocketTimeoutException _ex
+      :connection-timeout)
+    (catch Exception _ex
       :unexpected-exception)))
 
 (defn upload-queue-wait
@@ -410,10 +406,12 @@
         :body
         (json/decode true)
         :db.uploadQueueStats.count)
-    (catch java.net.ConnectException ex
-      (if (= (.getMessage ex) "Connection refused")
-        :connection-refused
-        (throw ex)))))
+    (catch java.net.ConnectException _ex
+      :connection-refused)
+    (catch java.net.SocketTimeoutException _ex
+      :connection-timeout)
+    (catch Exception _ex
+      :unexpected-exception)))
 
 (defn downloading-wait
   "Wait until db.currentStatus.downloading is false."
@@ -424,10 +422,12 @@
         :body
         (json/decode true)
         :db.currentStatus.downloading)
-    (catch java.net.ConnectException ex
-      (if (= (.getMessage ex) "Connection refused")
-        :connection-refused
-        (throw ex)))))
+    (catch java.net.ConnectException _ex
+      :connection-refused)
+    (catch java.net.SocketTimeoutException _ex
+      :connection-timeout)
+    (catch Exception _ex
+      :unexpected-exception)))
 
 (defn upload-queue-nemesis
   "A nemesis that gets the count of transactions in the PowerSync db upload queue for all PowerSync nodes,
