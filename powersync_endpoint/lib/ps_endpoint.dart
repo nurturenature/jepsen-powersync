@@ -1,6 +1,7 @@
 import 'dart:collection';
 import 'dart:io';
 import 'package:powersync/powersync.dart';
+import 'package:powersync/sqlite_async.dart';
 import 'args.dart';
 import 'backend_connector.dart';
 import 'endpoint.dart';
@@ -31,7 +32,15 @@ class PSEndpoint extends Endpoint {
       log.info('db: init: no preexisting SQLite3 file: $filePath');
     }
 
-    _db = PowerSyncDatabase(schema: schemaMWW, path: filePath);
+    const durableSqliteOptions = SqliteOptions(
+      journalMode: SqliteJournalMode.wal,
+      synchronous: SqliteSynchronous.full,
+    );
+    _db = PowerSyncDatabase(
+      schema: schemaMWW,
+      path: filePath,
+      sqliteOptions: durableSqliteOptions,
+    );
     log.info(
       "db: init: created db with schemas: ${_db.schema.tables.map((table) => {table.name: table.columns.map((column) => '${column.name} ${column.type.name}')})}, path: $filePath",
     );

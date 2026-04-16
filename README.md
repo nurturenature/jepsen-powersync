@@ -982,6 +982,31 @@ $ grep -i 'err' powersync.log
 
 ----
 
+## Durability - fsync
+
+PowerSync supports configuring the local client SQLite database for durability
+
+```dart
+const durableSqliteOptions = SqliteOptions(
+      journalMode: SqliteJournalMode.wal,
+      synchronous: SqliteSynchronous.full,
+    );
+```
+
+This allows SQLite databases to be durable across power failures, etc.
+
+- [PRAGMA journal_mode=WAL](https://sqlite.org/wal.html)
+- [PRAGMA synchronous=FULL](https://sqlite.org/pragma.html#pragma_synchronous)
+
+So using
+
+- [lazyfs](https://github.com/dsrhaslab/lazyfs)
+- [When Amnesia Strikes: Understanding and Reproducing Data Loss Bugs with Fault Injection](https://dsr-haslab.github.io/assets/files/2024/lazyfs-vldb24-mariaramos.pdf)
+
+in a Jepsen Nemesis that loses un-fsync'd writes has no observable effect on PowerSync.
+
+----
+
 ## GitHub Actions
 
 There's a suite of [GitHub Actions](https://github.com/nurturenature/jepsen-powersync/actions) with an action for every type of fault.
