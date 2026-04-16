@@ -16,8 +16,5 @@ pom.xml.asc
 .clj-kondo
 .lsp
 .calva
-powersync_endpoint/libpowersync_x64.so
-powersync_endpoint/powersync.sqlite3*
-powersync_endpoint/powersync_endpoint
 jepsen/store
 jepsen/target

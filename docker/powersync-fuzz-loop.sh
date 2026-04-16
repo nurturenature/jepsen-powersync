@@ -3,7 +3,7 @@ set -o pipefail
 
 # Example: find a Causal Consistency violation
 # export SUSPECT_EXIT_CODE=2
-# ./powersync-fuzz-loop.sh ./powersync_fuzz --clients 10 --rate 10 --time 100 --postgresql --disconnect orderly --no-stop --no-kill --partition --no-pause --interval 5
+# ./powersync-fuzz-loop.sh ./powersync_fuzz/bundle/bin/powersync_fuzz --clients 10 --rate 10 --time 100 --postgresql --disconnect orderly --no-stop --no-kill --partition --no-pause --interval 5
 
 # set SUSPECT_EXIT_CODE to exit code to stop looping, or defaults to 1
 SUSPECT_EXIT_CODE=${SUSPECT_EXIT_CODE:-1}
@@ -36,7 +36,7 @@ do
         echo "found suspect, exit code $ec >= $SUSPECT_EXIT_CODE, database state!"
         echo "leaving docker PowerSync custer up"
         echo "copying powersync_fuzz.log from powersync-fuzz-node container to this host"
-        docker cp powersync-fuzz-node:/jepsen/jepsen-powersync/powersync_endpoint/powersync_fuzz.log .
+        docker cp powersync-fuzz-node:/jepsen/jepsen-powersync/powersync_endpoint/powersync_fuzz/powersync_fuzz.log .
 
         # leave environment up
         break

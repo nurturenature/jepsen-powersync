@@ -93,12 +93,10 @@ CLI entrypoint is `bin/powersync_fuzz.dart`.
 
 Library code is in `lib/`.
 
-Can manually compile with `./compile-fuzz.sh`.
-
-Runtime requires manual download of PowerSync's SQLite core `./download-powersync-sqlite-core.sh`.
+Can manually build with `./build-fuzz.sh`.
 
 ```bash
-$ ./powersync_fuzz --help
+$ ./powersync_fuzz/bundle/bin/powersync_fuzz --help
 Usage: dart powersync_(http|fuzz).dart <flags> [arguments]
     --endpoint                endpoint database
                               [powersync (default), postgresql]
@@ -181,7 +179,7 @@ cd jepsen-powersync/docker
 ./powersync-fuzz-down.sh && ./powersync-fuzz-build.sh && ./powersync-fuzz-up.sh
 
 # run a fuzz test on the fuzzing node
-./powersync-fuzz-run.sh ./powersync_fuzz --clients 10 --rate 10 --time 100 --postgresql --disconnect orderly --no-stop --no-kill --partition --no-pause --interval 5
+./powersync-fuzz-run.sh ./powersync_fuzz/bundle/bin/powersync_fuzz --clients 10 --rate 10 --time 100 --postgresql --disconnect orderly --no-stop --no-kill --partition --no-pause --interval 5
 
 # download the test run's output from the container to the local host for local analysis
 docker cp powersync-fuzz-node:/jepsen/jepsen-powersync/powersync_endpoint/powersync_fuzz.log .
@@ -213,5 +211,5 @@ cd jepsen-powersync/docker
 
 # simplest CLI args most likely to produce an error
 export SUSPECT_EXIT_CODE=0
-./powersync-fuzz-loop.sh ./powersync_fuzz --clients 10 --rate 10 --time 100 --postgresql --disconnect orderly --no-stop --no-kill --partition sync --no-pause --interval 5
+./powersync-fuzz-loop.sh ./powersync_fuzz/bundle/bin/powersync_fuzz --clients 10 --rate 10 --time 100 --postgresql --disconnect orderly --no-stop --no-kill --partition sync --no-pause --interval 5
 ```

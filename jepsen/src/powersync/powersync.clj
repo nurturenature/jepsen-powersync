@@ -38,7 +38,7 @@
 
 (def app-ps-name "powersync_http")
 
-(def bin-path (str app-dir "/" app-ps-name))
+(def bin-path (str app-dir "/powersync_http/bundle/bin/" app-ps-name))
 
 (defn wipe
   "Wipes local SQLite3 db data dir.

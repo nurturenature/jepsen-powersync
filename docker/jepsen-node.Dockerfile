@@ -5,11 +5,6 @@ ARG JEPSEN_REGISTRY
 
 FROM ${JEPSEN_REGISTRY:-}jepsen-node AS jepsen-setup
 
-# PowerSync deps
-RUN apt-get -qy update && \
-    apt-get -qy install \
-    libsqlite3-dev sqlite3 sqlite3-tools
-
 # build on a working image
 FROM debian AS dart-build
 
@@ -33,26 +28,26 @@ WORKDIR /app
 COPY pubspec.* ./
 RUN dart pub get
 
-# app is responsible for getting native lib
-COPY download-powersync-sqlite-core.sh ./
-RUN ./download-powersync-sqlite-core.sh
-
 # copy app source code
 COPY ./ ./
 
 # compile apps to standalone binaries
-RUN ./compile-http.sh
-RUN ./compile-fuzz.sh
+RUN ./build-http.sh
+RUN ./build-fuzz.sh
 
 # copy env, library, and executables to final image
 FROM jepsen-setup AS jepsen-final
 WORKDIR /jepsen/jepsen-powersync/powersync_endpoint
 COPY --from=dart-build /app/.env .env
-COPY --from=dart-build /app/libpowersync_x64.so libpowersync_x64.so
 
 # need current version of SQLite3, use pre-built from app source dir
-COPY --from=dart-build /app/libsqlite3.so       libsqlite3.so
-COPY --from=dart-build /app/sqlite3             sqlite3
+COPY --from=dart-build /app/powersync_http/bundle/lib/libpowersync_core.so          ./powersync_http/bundle/lib/libpowersync_core.so
+COPY --from=dart-build /app/powersync_http/bundle/lib/libsqlite3_connection_pool.so ./powersync_http/bundle/lib/libsqlite3_connection_pool.so
+COPY --from=dart-build /app/powersync_http/bundle/lib/libsqlite3.so                 ./powersync_http/bundle/lib/libsqlite3.so
+COPY --from=dart-build /app/powersync_http/bundle/bin/powersync_http                ./powersync_http/bundle/bin/powersync_http
 
-COPY --from=dart-build /app/powersync_http powersync_http
-COPY --from=dart-build /app/powersync_fuzz powersync_fuzz
+COPY --from=dart-build /app/powersync_fuzz/bundle/lib/libpowersync_core.so          ./powersync_fuzz/bundle/lib/libpowersync_core.so
+COPY --from=dart-build /app/powersync_fuzz/bundle/lib/libsqlite3_connection_pool.so ./powersync_fuzz/bundle/lib/libsqlite3_connection_pool.so
+COPY --from=dart-build /app/powersync_fuzz/bundle/lib/libsqlite3.so                 ./powersync_fuzz/bundle/lib/libsqlite3.so
+COPY --from=dart-build /app/powersync_fuzz/bundle/bin/powersync_fuzz                ./powersync_fuzz/bundle/bin/powersync_fuzz
+

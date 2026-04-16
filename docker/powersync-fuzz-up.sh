@@ -15,4 +15,4 @@ docker ps --format="table {{.Names}}\t{{.Image}}\t{{.Status}}"
 
 echo
 echo "A full PowerSync cluster with a fuzzing node, powersync-fuzz-node, is up and available."
-echo "Run a PowerSync fuzz test with ./powersync-fuzz-run.sh ./powersync_fuzz --help"
+echo "Run a PowerSync fuzz test with ./powersync-fuzz-run.sh ./powersync_fuzz/bundle/bin/powersync_fuzz --help"

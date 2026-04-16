@@ -37,7 +37,7 @@ cd jepsen-powersync/docker
 ./powersync-fuzz-down.sh && ./powersync-fuzz-build.sh && ./powersync-fuzz-up.sh
 
 # run a fuzz test on the fuzzing node
-./powersync-fuzz-run.sh ./powersync_fuzz --clients 10 --rate 10 --time 100 --postgresql --disconnect orderly --no-stop --no-kill --partition --no-pause --interval 5
+./powersync-fuzz-run.sh ./powersync_fuzz/bundle/bin/powersync_fuzz --clients 10 --rate 10 --time 100 --postgresql --disconnect orderly --no-stop --no-kill --partition --no-pause --interval 5
 
 # download the test run's output from the container to the local host for local analysis
 docker cp powersync-fuzz-node:/jepsen/jepsen-powersync/powersync_endpoint/powersync_fuzz.log .

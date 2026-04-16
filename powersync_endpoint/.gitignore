@@ -3,7 +3,6 @@
 # dart binaries
 powersync_http
 powersync_fuzz
-libpowersync_x64.so
 
 # sqlite3 files
 powersync_http.sqlite3*

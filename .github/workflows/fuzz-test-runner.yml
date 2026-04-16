@@ -4,42 +4,42 @@ on:
   workflow_dispatch:
     inputs:
       clients:
-        description: 'Clients (as JSON)'
+        description: "Clients (as JSON)"
         type: string
         required: true
         default: "[ '5', '10' ]"
       rates:
-        description: 'Rates (as JSON)'
+        description: "Rates (as JSON)"
         type: string
         required: true
         default: "[ '10', '20', '30', '40' ]"
       times:
-        description: 'Time limits (as JSON)'
+        description: "Time limits (as JSON)"
         type: string
         required: true
         default: "[ '100', '200', '300' ]"
       postgresql:
-        description: '--[no-]postgresql (as JSON)'
+        description: "--[no-]postgresql (as JSON)"
         type: string
         required: true
         default: "[ '--no-postgresql', '--postgresql' ]"
       disconnect:
-        description: '--disconnect none|orderly|random (as JSON)'
+        description: "--disconnect none|orderly|random (as JSON)"
         type: string
         required: true
         default: "[ '--disconnect none', '--disconnect orderly' ]"
       stop-or-kill:
-        description: '--[no-]stop --[no-]kill (as JSON)'
+        description: "--[no-]stop --[no-]kill (as JSON)"
         type: string
         required: true
         default: "[ '--no-stop' ]"
       partition:
-        description: '--partition none|sync|postgres|both (as JSON)'
+        description: "--partition none|sync|postgres|both (as JSON)"
         type: string
         required: true
         default: "[ '--partition none', '--partition sync' ]"
       pause:
-        description: '--[no-]pause (as JSON)'
+        description: "--[no-]pause (as JSON)"
         type: string
         required: true
         default: "[ '--no-pause' ]"
@@ -49,50 +49,50 @@ on:
         required: true
         default: "[ '' ]"
       args:
-        description: 'A JSON Map of args (workaround GitHub max inputs)'
+        description: "A JSON Map of args (workaround GitHub max inputs)"
         type: string
         required: true
         default: "{'repeat': [ '1' ], 'timeout-minutes': 10, 'powersync-image-tag': 'latest'}"
-       
+
   workflow_call:
     inputs:
       clients:
-        description: 'Clients (as JSON)'
+        description: "Clients (as JSON)"
         type: string
         required: false
         default: "[ '5', '10' ]"
       rates:
-        description: 'Rates (as JSON)'
+        description: "Rates (as JSON)"
         type: string
         required: false
         default: "[ '10', '20', '30', '40' ]"
       times:
-        description: 'Time limits (as JSON)'
+        description: "Time limits (as JSON)"
         type: string
         required: false
         default: "[ '100', '200', '300' ]"
       postgresql:
-        description: '--[no-]postgresql (as JSON)'
+        description: "--[no-]postgresql (as JSON)"
         type: string
         required: false
         default: "[ '--no-postgresql', '--postgresql' ]"
       disconnect:
-        description: '--disconnect none|orderly|random (as JSON)'
+        description: "--disconnect none|orderly|random (as JSON)"
         type: string
         required: false
         default: "[ '--disconnect none', '--disconnect orderly' ]"
       stop-or-kill:
-        description: '--[no-]stop --[no-kill] (as JSON)'
+        description: "--[no-]stop --[no-kill] (as JSON)"
         type: string
         required: false
         default: "[ '--no-stop' ]"
       partition:
-        description: '--partition none|sync|postgres|both (as JSON)'
+        description: "--partition none|sync|postgres|both (as JSON)"
         type: string
         required: false
         default: "[ '--partition none', '--partition sync' ]"
       pause:
-        description: '--[no-]pause (as JSON)'
+        description: "--[no-]pause (as JSON)"
         type: string
         required: false
         default: "[ '--no-pause' ]"
@@ -102,7 +102,7 @@ on:
         required: false
         default: "[ '' ]"
       args:
-        description: 'A JSON Map of args (workaround GitHub max inputs)'
+        description: "A JSON Map of args (workaround GitHub max inputs)"
         type: string
         required: false
         default: "{'repeat': [ '1' ], 'timeout-minutes': 10, 'powersync-image-tag': 'latest'}"
@@ -114,16 +114,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        clients:      ${{ fromJSON(inputs.clients) }}
-        rate:         ${{ fromJSON(inputs.rates) }}
-        time:         ${{ fromJSON(inputs.times) }}
-        postgresql:   ${{ fromJSON(inputs.postgresql) }}
-        disconnect:   ${{ fromJSON(inputs.disconnect) }}
+        clients: ${{ fromJSON(inputs.clients) }}
+        rate: ${{ fromJSON(inputs.rates) }}
+        time: ${{ fromJSON(inputs.times) }}
+        postgresql: ${{ fromJSON(inputs.postgresql) }}
+        disconnect: ${{ fromJSON(inputs.disconnect) }}
         stop-or-kill: ${{ fromJSON(inputs.stop-or-kill) }}
-        partition:    ${{ fromJSON(inputs.partition) }}
-        pause:        ${{ fromJSON(inputs.pause) }}
-        cli-opts:     ${{ fromJson(inputs.cli-opts) }}
-        repeat:       ${{ fromJSON(inputs.args).repeat }}
+        partition: ${{ fromJSON(inputs.partition) }}
+        pause: ${{ fromJSON(inputs.pause) }}
+        cli-opts: ${{ fromJson(inputs.cli-opts) }}
+        repeat: ${{ fromJSON(inputs.args).repeat }}
 
     env:
       test-title: ${{ matrix.clients}}c-${{ matrix.rate }}tps-${{ matrix.time }}s-${{ matrix.postgresql }}-${{ matrix.disconnect }}-${{ matrix.stop-or-kill }}-${{ matrix.partition }}-${{ matrix.pause }}-${{ matrix.cli-opts }}-${{ matrix.repeat }}
@@ -132,7 +132,7 @@ jobs:
     steps:
       - name: Checkout jepsen-powersync
         uses: actions/checkout@v5
-      
+
       - name: Bring Up Docker Environment
         run: |
           cd $GITHUB_WORKSPACE/docker
@@ -147,7 +147,7 @@ jobs:
         timeout-minutes: ${{ fromJSON(inputs.args).timeout-minutes }}
         run: |
           cd $GITHUB_WORKSPACE/docker
-          ./powersync-fuzz-run.sh ./powersync_fuzz                 \
+          ./powersync-fuzz-run.sh ./powersync_fuzz/bundle/bin/powersync_fuzz                 \
                                   --clients ${{ matrix.clients }}  \
                                   --rate ${{ matrix.rate }}        \
                                   --time ${{ matrix.time }}        \
@@ -169,18 +169,18 @@ jobs:
           docker cp powersync-fuzz-node:/jepsen/jepsen-powersync/powersync_endpoint/powersync_fuzz.log $GITHUB_WORKSPACE/artifacts \
             || echo "no powersync-fuzz-node log" > $GITHUB_WORKSPACE/artifacts/powersync_fuzz.log
 
-      - name: 'PowerSync Fuzz Test Artifacts: powersync_fuzz.log'
+      - name: "PowerSync Fuzz Test Artifacts: powersync_fuzz.log"
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: '${{ env.test-title }}-powersync_fuzz.log'
+          name: "${{ env.test-title }}-powersync_fuzz.log"
           path: |
             ${{ github.workspace }}/artifacts/powersync_fuzz.log
-            
-      - name: 'PowerSync Fuzz Test Artifacts: full'
+
+      - name: "PowerSync Fuzz Test Artifacts: full"
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: '${{ env.test-title }}-${{ job.status }}'
+          name: "${{ env.test-title }}-${{ job.status }}"
           path: |
             ${{ github.workspace }}/artifacts
