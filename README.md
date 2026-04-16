@@ -990,7 +990,7 @@ PowerSync supports configuring the local client SQLite database for durability
 const durableSqliteOptions = SqliteOptions(
       journalMode: SqliteJournalMode.wal,
       synchronous: SqliteSynchronous.full,
-    );
+);
 ```
 
 This allows SQLite databases to be durable across power failures, etc.
