@@ -1,7 +1,7 @@
 import 'dart:collection';
 import 'dart:io';
 import 'package:powersync/powersync.dart';
-import 'package:powersync/sqlite_async.dart';
+import 'package:sqlite_async/sqlite_async.dart';
 import 'args.dart';
 import 'backend_connector.dart';
 import 'endpoint.dart';

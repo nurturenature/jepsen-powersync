@@ -16,7 +16,8 @@ dependencies:
   powersync: ^2.0.1
   shelf: ^1.4.1
   shelf_router: ^1.1.4
-  synchronized: ^3.4.0
+  sqlite_async: ^0.14.1
+  synchronized: ^3.4.0+1
 
 dev_dependencies:
   lints: ^6.1.0
