@@ -349,18 +349,18 @@ packages:
     dependency: "direct main"
     description:
       name: postgres
-      sha256: fefbbfe749c6130e5096588b9c4459173684c695952cd7636ab19be76f255469
+      sha256: "3af8a28b89fef68ee5b26b4fd27254d5a286389e9c7fb6293a5f46e30490f800"
       url: "https://pub.dev"
     source: hosted
-    version: "3.5.9"
+    version: "3.5.10"
   powersync:
     dependency: "direct main"
     description:
       name: powersync
-      sha256: "4110a0e248be0ef0535db7526e1d8dfe48f78e79446f6d66d20ae1074ea9064f"
+      sha256: bd1f1b2ee9b79b6f821f2cc77e7ae6ef1a7159d2a9779990e1b8dc791e97e91c
       url: "https://pub.dev"
     source: hosted
-    version: "2.0.2"
+    version: "2.1.0"
   powersync_flutter_libs:
     dependency: transitive
     description:
@@ -501,10 +501,10 @@ packages:
     dependency: transitive
     description:
       name: sqlite3_web
-      sha256: "857e913bd27ec7d1d9eb517c87ea43d1d851f5ad4c7334b7a4f6114b9929584b"
+      sha256: d876398a9f2cbf115d93fc34901f8fa129b58b13b5fa9377156ed3a9a05695e3
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.0"
+    version: "0.7.1"
   sqlite_async:
     dependency: "direct main"
     description:

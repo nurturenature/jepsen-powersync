@@ -12,8 +12,8 @@ dependencies:
   jose: ^0.3.5+2
   list_utilities: ^1.0.3
   logging: ^1.2.0
-  postgres: ^3.5.9
-  powersync: ^2.0.2
+  postgres: ^3.5.10
+  powersync: ^2.1.0
   shelf: ^1.4.1
   shelf_router: ^1.1.4
   sqlite_async: ^0.14.1
