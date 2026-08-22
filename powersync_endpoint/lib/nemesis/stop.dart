@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:math';
+
 import 'package:list_utilities/list_utilities.dart';
 import 'package:synchronized/synchronized.dart';
+
 import '../endpoint.dart';
 import '../errors.dart';
 import '../log.dart';

@@ -1,5 +1,7 @@
 import 'dart:convert';
+
 import 'package:jose/jose.dart';
+
 import 'log.dart';
 
 // values were generated with https://github.com/powersync-ja/self-host-demo/tree/main/key-generator

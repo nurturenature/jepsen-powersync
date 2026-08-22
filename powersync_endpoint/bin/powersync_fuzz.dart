@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
+
 import 'package:list_utilities/list_utilities.dart';
 import 'package:powersync_endpoint/args.dart';
 import 'package:powersync_endpoint/causal_checker.dart';
@@ -62,9 +63,9 @@ void main(List<String> arguments) async {
           return;
         }
 
-        final op =
-            await clients.random().executeTxn(sqlTxnMessage)
-                as SplayTreeMap<String, dynamic>;
+        final op = await clients.random().executeTxn(
+          sqlTxnMessage,
+        ) as SplayTreeMap<String, dynamic>;
 
         if (!await causalChecker.checkOp(op)) {
           log.severe('Causal Consistency check failed for op: $op');

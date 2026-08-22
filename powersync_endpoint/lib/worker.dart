@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
 import 'dart:isolate';
+
 import 'package:powersync_endpoint/args.dart';
 import 'package:powersync_endpoint/endpoint.dart';
 import 'package:powersync_endpoint/log.dart';

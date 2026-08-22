@@ -1,7 +1,9 @@
 import 'dart:collection';
 import 'dart:io';
+
 import 'package:powersync/powersync.dart';
 import 'package:sqlite_async/sqlite_async.dart';
+
 import 'args.dart';
 import 'backend_connector.dart';
 import 'endpoint.dart';
@@ -328,9 +330,8 @@ class PSEndpoint extends Endpoint {
   /// Select all rows from mww table and return {k: v}.
   Future<Map<int, int>> _selectAll() async {
     return Map.fromEntries(
-      (await _db.getAll(
-        'SELECT k,v FROM mww ORDER BY k;',
-      )).map((row) => MapEntry(row['k'], row['v'])),
+      (await _db.getAll('SELECT k,v FROM mww ORDER BY k;'))
+          .map((row) => MapEntry(row['k'], row['v'])),
     );
   }
 

@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:math';
+
 import 'package:list_utilities/list_utilities.dart';
 import 'package:synchronized/synchronized.dart';
+
 import '../endpoint.dart';
 import '../errors.dart';
 import '../log.dart';
@@ -27,11 +29,9 @@ class KillStartNemesis {
   KillStartNemesis(this._allClients, int interval) {
     // will always throw, coded this way to pass analyzer
     if (interval != 0) {
-      throw UnsupportedError(
-        '''Isolate.kill()'s behavior is not fully understood and inappropriately leads to test failures.
+      throw UnsupportedError('''Isolate.kill()'s behavior is not fully understood and inappropriately leads to test failures.
            Use Jepsen to test kill/start.
-        ''',
-      );
+        ''');
     }
 
     final maxInterval = interval * 1000 * 2;

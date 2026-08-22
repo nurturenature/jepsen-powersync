@@ -1,5 +1,6 @@
 import 'package:postgres/postgres.dart' as postgres;
 import 'package:powersync/powersync.dart';
+
 import 'args.dart';
 import 'auth.dart';
 import 'errors.dart';

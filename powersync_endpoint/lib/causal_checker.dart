@@ -1,5 +1,7 @@
 import 'dart:collection';
+
 import 'package:synchronized/synchronized.dart';
+
 import 'endpoint.dart';
 import 'errors.dart';
 import 'log.dart';
