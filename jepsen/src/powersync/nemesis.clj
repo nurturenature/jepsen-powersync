@@ -510,7 +510,6 @@
     (let [target     (:target   lazyfs)
           behavior   (:behavior lazyfs)
           _          (assert (seq target))
-          _          (assert (lazyfs/all-commands behavior))
           gen        (->> {:type  :info
                            :f     behavior
                            :value target}
@@ -523,7 +522,7 @@
       {:generator    gen
        :nemesis      (lazyfs/nemesis lazyfs-map)
        :perf         #{{:name  "lazyfs"
-                        :fs    lazyfs/all-commands
+                        :fs    #{:lose-unfsynced-writes}
                         :start #{}
                         :stop  #{}
                         :color "#FFCCCC"}}})))
