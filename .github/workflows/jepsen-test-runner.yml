@@ -9,60 +9,60 @@ on:
         required: true
         default: "[ 'ps-rw-pg-rw' ]"
       nemeses:
-        description: 'Nemeses (as JSON)'
+        description: "Nemeses (as JSON)"
         type: string
         required: true
         default: "[ 'upload-queue' ]"
       rates:
-        description: 'Rates (as JSON)'
+        description: "Rates (as JSON)"
         type: string
         required: true
         default: "[ '10', '20', '30', '40', '50' ]"
       time-limits:
-        description: 'Time limits (as JSON)'
+        description: "Time limits (as JSON)"
         type: string
         required: true
         default: "[ '100', '200', '300' ]"
       cli-opts:
-        description: 'CLI opts string'
+        description: "CLI opts string"
         type: string
         required: true
         default: --nodes n1,n2,n3,n4,n5,n6,n7,n8,n9,n10,n11 --postgres-nodes n11
       args:
-        description: 'A JSON Map of args (workaround GitHub max inputs)'
+        description: "A JSON Map of args (workaround GitHub max inputs)"
         type: string
         required: true
         default: "{'repeat': [ '1' ], 'timeout-minutes': 10, 'powersync-image-tag': 'latest'}"
-       
+
   workflow_call:
     inputs:
       workloads:
-        description: 'Workloads (as JSON)'
+        description: "Workloads (as JSON)"
         type: string
         required: false
         default: "[ 'ps-rw-pg-rw' ]"
       nemeses:
-        description: 'Nemeses (as JSON)'
+        description: "Nemeses (as JSON)"
         type: string
         required: false
         default: "[ 'upload-queue' ]"
       rates:
-        description: 'Rates (as JSON)'
+        description: "Rates (as JSON)"
         type: string
         required: false
         default: "[ '10', '20', '30', '40', '50' ]"
       time-limits:
-        description: 'Time limits (as JSON)'
+        description: "Time limits (as JSON)"
         type: string
         required: false
         default: "[ '100', '200', '300' ]"
       cli-opts:
-        description: 'CLI opts string'
+        description: "CLI opts string"
         type: string
         required: false
         default: --nodes n1,n2,n3,n4,n5,n6,n7,n8,n9,n10,n11 --postgres-nodes n11
       args:
-        description: 'A JSON Map of args (workaround GitHub max inputs)'
+        description: "A JSON Map of args (workaround GitHub max inputs)"
         type: string
         required: false
         default: "{'repeat': [ '1' ], 'timeout-minutes': 10, 'powersync-image-tag': 'latest'}"
@@ -74,20 +74,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        workload:   ${{ fromJSON(inputs.workloads) }}
-        nemesis:    ${{ fromJSON(inputs.nemeses) }}
-        rate:       ${{ fromJSON(inputs.rates) }}
+        workload: ${{ fromJSON(inputs.workloads) }}
+        nemesis: ${{ fromJSON(inputs.nemeses) }}
+        rate: ${{ fromJSON(inputs.rates) }}
         time-limit: ${{ fromJSON(inputs.time-limits) }}
-        repeat:     ${{ fromJSON(inputs.args).repeat }}
+        repeat: ${{ fromJSON(inputs.args).repeat }}
 
     env:
       test-title: ${{ matrix.rate }}tps-${{ matrix.time-limit }}s-${{ matrix.workload }}-${{ matrix.nemesis }}-${{ matrix.repeat }}
       POWERSYNC_IMAGE_TAG: ${{ fromJSON(inputs.args).powersync-image-tag }}
 
-    steps:  
+    steps:
       - name: Checkout jepsen-powersync
         uses: actions/checkout@v5
-      
+
       - name: Bring Up Docker Environment
         run: |
           cd $GITHUB_WORKSPACE/docker
@@ -97,7 +97,7 @@ jobs:
       - name: Confirm Docker Environment
         run: |
           docker logs jepsen-control &> /dev/null || $(exit 255)
-  
+
       - name: ${{ env.test-title }}
         timeout-minutes: ${{ fromJSON(inputs.args).timeout-minutes }}
         run: |
@@ -121,19 +121,19 @@ jobs:
           tail -n 100 $GITHUB_WORKSPACE/store/current/jepsen.log > $GITHUB_WORKSPACE/store/current/tail-jepsen.log \
             || echo "no jepsen.log" > $GITHUB_WORKSPACE/store/current/tail-jepsen.log
 
-      - name: 'Jepsen Test Artifacts: summary'
+      - name: "Jepsen Test Artifacts: summary"
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: '${{ env.test-title }}-summary'
+          name: "${{ env.test-title }}-summary"
           path: |
             ${{ github.workspace }}/store/current/results.edn
             ${{ github.workspace }}/store/current/tail-jepsen.log
-            
-      - name: 'Jepsen Test Artifacts: full'
+
+      - name: "Jepsen Test Artifacts: full"
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: '${{ env.test-title }}-${{ job.status }}'
+          name: "${{ env.test-title }}-${{ job.status }}"
           path: |
             ${{ github.workspace }}/store/current

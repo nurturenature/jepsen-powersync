@@ -171,7 +171,7 @@ jobs:
 
       - name: "PowerSync Fuzz Test Artifacts: powersync_fuzz.log"
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: "${{ env.test-title }}-powersync_fuzz.log"
           path: |
@@ -179,7 +179,7 @@ jobs:
 
       - name: "PowerSync Fuzz Test Artifacts: full"
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: "${{ env.test-title }}-${{ job.status }}"
           path: |
