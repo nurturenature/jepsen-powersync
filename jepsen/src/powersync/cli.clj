@@ -161,7 +161,7 @@
    [nil "--lazyfs-behavior BEHAVIOR" "A lazyfs behavior."
     :default  :lose-unfsynced-writes
     :parse-fn keyword
-    :validate [lazyfs/all-commands (str "Must be one of: " (cli/one-of lazyfs/all-commands))]]
+    :validate [#{:lose-unfsynced-writes} (str "Must be one of: " (cli/one-of #{:lose-unfsynced-writes}))]]
 
    [nil "--lazyfs-target NODES" "A list of nodes to target."
     :default  ["n1"]
