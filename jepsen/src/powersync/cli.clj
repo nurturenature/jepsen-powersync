@@ -9,7 +9,6 @@
              [checker :as checker]
              [cli :as cli]
              [generator :as gen]
-             [lazyfs :as lazyfs]
              [tests :as tests]]
             [jepsen.checker.timeline :as timeline]
             [jepsen.os.debian :as debian]
@@ -37,7 +36,7 @@
     :stop-start
     :partition-sync :partition-postgres :partition-both
     :pause :kill
-    :lazyfs
+    :unsynced-data-report
     :upload-queue})
 
 (def all-nemeses
@@ -72,13 +71,13 @@
 
 (defn test-name
   "Given opts, returns a meaningful test name."
-  [{:keys [lazyfs-behavior nemesis nodes postgres-nodes rate time-limit workload] :as _opts}]
+  [{:keys [lazyfs? nemesis nodes postgres-nodes rate time-limit workload] :as _opts}]
   (let [nodes   (into #{} nodes)
         nemesis (into #{} nemesis)]
     (str (name workload)
+         (when lazyfs?
+           "-lazyfs")
          "-" (str/join "," (map name nemesis))
-         (when (contains? nemesis :lazyfs)
-           (str "-" lazyfs-behavior))
          "-" (count (set/difference nodes postgres-nodes)) "ps"
          "-" (count postgres-nodes) "pg"
          "-" rate "tps"
@@ -86,8 +85,11 @@
 
 (defn powersync-test
   "Given options from the CLI, constructs a test map."
-  [{:keys [lazyfs-behavior lazyfs-target] :as opts}]
-  (let [workload-name (:workload opts)
+  [{:keys [nodes postgres-nodes] :as opts}]
+  (let [nodes          (set nodes)
+        postgres-nodes (set postgres-nodes)
+        client-nodes   (set/difference nodes postgres-nodes)
+        workload-name (:workload opts)
         workload ((workloads workload-name) opts)
         db       (:db workload)
         nemesis  (nemesis/nemesis-package
@@ -102,8 +104,7 @@
                    :partition-both     {:targets [nil]}
                    :pause              {:targets [nil]}
                    :kill               {:targets [:majority]}
-                   :lazyfs             {:target   lazyfs-target
-                                        :behavior lazyfs-behavior}
+                   :unsynced-data-report {:targets client-nodes}
                    :upload-queue       nil
                    :interval           (:nemesis-interval opts)})]
     (merge tests/noop-test
@@ -157,16 +158,6 @@
     :default  false
     :parse-fn parse-boolean
     :validate [boolean? "Must be a boolean."]]
-
-   [nil "--lazyfs-behavior BEHAVIOR" "A lazyfs behavior."
-    :default  :lose-unfsynced-writes
-    :parse-fn keyword
-    :validate [#{:lose-unfsynced-writes} (str "Must be one of: " (cli/one-of #{:lose-unfsynced-writes}))]]
-
-   [nil "--lazyfs-target NODES" "A list of nodes to target."
-    :default  ["n1"]
-    :parse-fn parse-nodes-spec
-    :validate [(constantly true) ""]]
 
    [nil "--nemesis FAULTS" "A comma-separated list of nemesis faults to enable"
     :parse-fn parse-nemesis-spec
