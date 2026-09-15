@@ -6,9 +6,10 @@
              [control :as c]
              [db :as db]
              [generator :as gen]
-             [lazyfs :as lazyfs]
+
              [nemesis :as nemesis]]
-            [jepsen.nemesis.combined :as nc]))
+            [jepsen.nemesis.combined :as nc]
+            [spacetimedb.lazyfs :as lazyfs]))
 
 (def nemesis-path
   "URI path for nemesis on HTTP server"
@@ -495,64 +496,6 @@
                            :stop  #{}
                            :color "#d3d3d3"}}}))) ; light grey
 
-(defn unsynced-data-report-nemesis
-  "A nemesis that uses LazyFS to report unsynced data for the given `lazyfs-map`.
-   
-   This nemesis responds to:
-   ```clj
-   {:f :unsynced-data-report :value sequence-of-nodes}
-   ```"
-  [lazyfs-map]
-  (reify
-    nemesis/Reflection
-    (fs [_this]
-      #{:unsynced-data-report})
-
-    nemesis/Nemesis
-    (setup! [this _test]
-      this)
-
-    (invoke! [_this test {:keys [f value] :as op}]
-      (assert (= f :unsynced-data-report))
-      (assert (seq value))
-      (let [result  (c/with-nodes test value
-                      (lazyfs/fifo! lazyfs-map "lazyfs::unsynced-data-report"))
-            result  (->> result
-                         (into (sorted-map)))]
-        (assoc op :value result)))
-
-    (teardown! [_this _test]
-      nil)))
-
-(defn unsynced-data-report-package
-  "A nemesis and generator package for reporting unsynced data using LazyFS.
-   
-   Opts:
-   ```clj
-   {:unsynced-data-report
-    {:targets sequence-of-nodes}} ; The nodes to target
-   ```"
-  [{:keys [db faults interval unsynced-data-report] :as _opts}]
-  (when (contains? faults :unsynced-data-report)
-    (let [targets    (:targets unsynced-data-report)
-          _          (assert (seq targets))
-          gen        (->> {:type  :info
-                           :f     :unsynced-data-report
-                           :value targets}
-                          repeat
-                          (gen/stagger (or interval nc/default-interval)))
-          lazyfs-map (->> db
-                          :lazyfs-db
-                          :lazyfs)
-          _          (assert lazyfs-map)]
-      {:generator    gen
-       :nemesis      (unsynced-data-report-nemesis lazyfs-map)
-       :perf         #{{:name  "unsynced-data-report"
-                        :fs    #{:unsynced-data-report}
-                        :start #{}
-                        :stop  #{}
-                        :color "#FFCCCC"}}})))
-
 (defn nemesis-package
   "Constructs combined nemeses and generators into a nemesis package."
   [opts]
@@ -561,7 +504,7 @@
           (disconnect-random-package opts)
           (stop-start-package opts)
           (partition-package opts)
-          (unsynced-data-report-package opts)
+          (lazyfs/lazyfs-package opts)
           (upload-queue-package opts)]
          (concat (nc/nemesis-packages opts))
          (filter :generator)
