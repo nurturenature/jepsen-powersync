@@ -36,7 +36,7 @@
     :stop-start
     :partition-sync :partition-postgres :partition-both
     :pause :kill
-    :unsynced-data-report
+    :lazyfs
     :upload-queue})
 
 (def all-nemeses

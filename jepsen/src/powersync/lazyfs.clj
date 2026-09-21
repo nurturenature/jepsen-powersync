@@ -68,8 +68,8 @@
                       {:type  :info
                        :f     behavior
                        :value targets})
-          lazyfs-map (:lazyfs db)
-          _          (assert lazyfs-map)]
+          lazyfs-map (-> db :lazyfs-db :lazyfs)
+          _          (assert lazyfs-map (str "DB is missing :lazyfs: " db))]
       {:generator       gen
        :final-generator final-gen
        :nemesis         (LazyFSNemesis. lazyfs-map)

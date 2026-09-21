@@ -20,11 +20,11 @@
   "Where to store SQLite3 database files"
   (str app-dir "/data"))
 
-(comment
-  (def database-file
-    "SQLite3 database file."
-    (str data-dir "/http.sqlite3"))
+(def database-file
+  "SQLite3 database file."
+  (str data-dir "/http.sqlite3"))
 
+(comment
   (def database-files
     "A collection of all SQLite3 database files."
     [database-file
