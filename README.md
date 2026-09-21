@@ -1,6 +1,6 @@
 # jepsen-powersync
 
-Testing [PowerSync](https://github.com/powersync-ja) with [Jepsen](https://github.com/powersync-ja) for [Causal Consistency](https://jepsen.io/consistency/models/causal), [Atomic transactions](https://jepsen.io/consistency/models/monotonic-atomic-view), and Strong Convergence.
+Testing [PowerSync](https://github.com/powersync-ja) with [Jepsen](https://github.com/jepsen-io/jepsen) for [Causal Consistency](https://jepsen.io/consistency/models/causal), [Atomic transactions](https://jepsen.io/consistency/models/monotonic-atomic-view), and Strong Convergence.
 
 PowerSync is a full featured active/active sync service for a backend PostgreSQL, MongoDB, or MySQL database and supports a diverse variety, language/platform, of local SQLite3 clients.
 It offers a rich API for developers to configure and define the sync behavior.

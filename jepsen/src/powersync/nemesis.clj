@@ -6,10 +6,9 @@
              [control :as c]
              [db :as db]
              [generator :as gen]
-
              [nemesis :as nemesis]]
             [jepsen.nemesis.combined :as nc]
-            [spacetimedb.lazyfs :as lazyfs]))
+            [powersync.lazyfs :as lazyfs]))
 
 (def nemesis-path
   "URI path for nemesis on HTTP server"

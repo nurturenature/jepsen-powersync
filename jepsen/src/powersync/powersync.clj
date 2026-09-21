@@ -69,6 +69,7 @@
     (db/kill! this test node)
 
     ; teardown lazyfs before wiping files
+    ; we want to wipe the underlying files if they exits
     (when lazyfs-db
       (db/teardown! lazyfs-db test node))
 

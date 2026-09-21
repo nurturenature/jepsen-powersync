@@ -71,12 +71,10 @@
 
 (defn test-name
   "Given opts, returns a meaningful test name."
-  [{:keys [lazyfs? nemesis nodes postgres-nodes rate time-limit workload] :as _opts}]
+  [{:keys [nemesis nodes postgres-nodes rate time-limit workload] :as _opts}]
   (let [nodes   (into #{} nodes)
         nemesis (into #{} nemesis)]
     (str (name workload)
-         (when lazyfs?
-           "-lazyfs")
          "-" (str/join "," (map name nemesis))
          "-" (count (set/difference nodes postgres-nodes)) "ps"
          "-" (count postgres-nodes) "pg"
@@ -104,7 +102,8 @@
                    :partition-both     {:targets [nil]}
                    :pause              {:targets [nil]}
                    :kill               {:targets [:majority]}
-                   :unsynced-data-report {:targets client-nodes}
+                   :lazyfs             {:targets  client-nodes
+                                        :behavior :unsynced-data-report}
                    :upload-queue       nil
                    :interval           (:nemesis-interval opts)})]
     (merge tests/noop-test
