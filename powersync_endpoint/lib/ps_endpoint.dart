@@ -358,10 +358,10 @@ class PSEndpoint extends Endpoint {
       if (_lastSyncedAt == null) {
         _lastSyncedAt = lastSyncedAt;
       } else if (lastSyncedAt == null) {
-        log.severe(
+        log.warning(
           'SyncStatus.lastSyncedAt reverted from $_lastSyncedAt to null',
         );
-        errorExit(ErrorReasons.syncStatusLastSyncedAt);
+        // FORNOW: it's ok to go backwards in time: errorExit(ErrorReasons.syncStatusLastSyncedAt);
       } else {
         switch (_lastSyncedAt!.compareTo(lastSyncedAt)) {
           case -1:
@@ -370,10 +370,10 @@ class PSEndpoint extends Endpoint {
           case 0:
             break;
           case 1:
-            log.severe(
+            log.warning(
               'SyncStatus.lastSyncedAt went back in time from $_lastSyncedAt to $lastSyncedAt',
             );
-            errorExit(ErrorReasons.syncStatusLastSyncedAt);
+          // FORNOW: it's ok to go backwards in time: errorExit(ErrorReasons.syncStatusLastSyncedAt);
         }
       }
     });
