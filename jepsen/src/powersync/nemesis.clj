@@ -504,6 +504,7 @@
           (stop-start-package opts)
           (partition-package opts)
           (lazyfs/lazyfs-package opts)
+          (lazyfs/power-glitch-package opts)
           (upload-queue-package opts)]
          (concat (nc/nemesis-packages opts))
          (filter :generator)

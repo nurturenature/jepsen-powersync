@@ -36,7 +36,7 @@
     :stop-start
     :partition-sync :partition-postgres :partition-both
     :pause :kill
-    :lazyfs
+    :lazyfs :power-glitch
     :upload-queue})
 
 (def all-nemeses
@@ -104,6 +104,7 @@
                    :kill               {:targets [:majority]}
                    :lazyfs             {:targets  client-nodes
                                         :behavior :unsynced-data-report}
+                   :power-glitch       {:targets client-nodes}
                    :upload-queue       nil
                    :interval           (:nemesis-interval opts)})]
     (merge tests/noop-test
