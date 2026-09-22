@@ -138,7 +138,12 @@
 
 (def cli-opts
   "Command line options"
-  [[nil "--client-timeout SECS" "The number of seconds to wait before timing out a client connection."
+  [[nil "--durable? BOOLEAN" "Configure PowerSync for durable writes?"
+    :default  true
+    :parse-fn parse-boolean
+    :validate [boolean? "Must be a boolean."]]
+
+   [nil "--client-timeout SECS" "The number of seconds to wait before timing out a client connection."
     :default  3
     :parse-fn parse-long
     :validate [pos? "Must be a positive integer"]]

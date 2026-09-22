@@ -60,11 +60,17 @@
 (defn ps-rw-pg-rw
   "A PowerSync read/write, PostgreSQL read/write workload."
   [{:keys [lazyfs?] :as opts}]
-  (let [db           (if lazyfs?
-                       (ps/lazyfs-psdb)
-                       (ps/psdb))
-        check-synced (when lazyfs?
-                       {:lazyfs-log (checker/log-file-pattern (str "file: \\'" ps/database-file "\\'") "lazyfs.log")})]
+  (let [db               (if lazyfs?
+                           (ps/lazyfs-psdb)
+                           (ps/psdb))
+        data-dir         (-> db :lazyfs-db :lazyfs :data-dir)
+        _                (assert data-dir)
+        checker-unsynced (when lazyfs?
+                           (let [db-file  (str "'" data-dir "/" ps/database-file "'")
+                                 wal-file (str "'" data-dir "/" ps/database-file "-wal'")]
+                             ; any mention of database, or WAL, file is suspect
+                             {:lazyfs-log-db  (checker/log-file-pattern db-file  "lazyfs.log")
+                              :lazyfs-log-wal (checker/log-file-pattern wal-file "lazyfs.log")}))]
     {:db              db
      :client          (client/->PowerSyncClient nil)
      :generator       (readAll-writeSome-generator opts)
@@ -73,7 +79,7 @@
                        (merge
                         {:causal-consistency (causal-consistency opts)
                          :strong-convergence (strong-convergence opts)}
-                        check-synced))}))
+                        checker-unsynced))}))
 
 (defn convergence
   "A ps-rw-pg-rw workload that only checks for strong convergence."

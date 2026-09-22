@@ -48,6 +48,8 @@ void parseArgs(List<String> arguments) {
     args['PG_DATABASE_PASSWORD'] = results.option('PG_DATABASE_PASSWORD')!;
     // PowerSync
     args['POWERSYNC_URL'] = results.option('POWERSYNC_URL')!;
+    // SQLite3
+    args['durable'] = results.flag('durable');
   } on FormatException catch (e) {
     // Print usage information if an invalid argument was provided.
     print(e.message);
@@ -178,6 +180,13 @@ ArgParser _buildParser() {
       abbr: 'h',
       negatable: false,
       help: 'Print this usage information.',
+    )
+    // SQLite3
+    ..addFlag(
+      'durable',
+      defaultsTo: true,
+      negatable: true,
+      help: 'configure SQLite3 with durable writes',
     );
 }
 

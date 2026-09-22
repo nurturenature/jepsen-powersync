@@ -22,14 +22,18 @@
 
 (def database-file
   "SQLite3 database file."
-  (str data-dir "/http.sqlite3"))
+  "http.sqlite3")
+
+(def database-path
+  "SQLite3 database path."
+  (str data-dir "/" database-file))
 
 (comment
   (def database-files
     "A collection of all SQLite3 database files."
-    [database-file
-     (str database-file "-shm")
-     (str database-file "-wal")]))
+    [database-path
+     (str database-path "-shm")
+     (str database-path "-wal")]))
 
 (def pid-file (str app-dir "/client.pid"))
 
@@ -97,19 +101,23 @@
 
   db/Kill
   (start!
-    [_this {:keys [postgres-nodes] :as _test} node]
+    [_this {:keys [durable? postgres-nodes] :as _test} node]
     (if (cu/daemon-running? pid-file)
       :already-running
       (let [endpoint (if (contains? postgres-nodes node)
                        :postgresql
-                       :powersync)]
+                       :powersync)
+            durable  (if durable?
+                       "--durable"
+                       "--no-durable")]
         (c/su
          (cu/start-daemon!
           {:chdir   app-dir
            :logfile log-file
            :pidfile pid-file}
           bin-path
-          :--endpoint endpoint))
+          :--endpoint endpoint
+          durable))
         :started)))
 
   (kill!

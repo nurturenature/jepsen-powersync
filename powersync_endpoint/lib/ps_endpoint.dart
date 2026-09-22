@@ -34,10 +34,12 @@ class PSEndpoint extends Endpoint {
       log.info('db: init: no preexisting SQLite3 file: $filePath');
     }
 
-    const durableSqliteOptions = SqliteOptions(
-      journalMode: SqliteJournalMode.wal,
-      synchronous: SqliteSynchronous.full,
-    );
+    final SqliteOptions durableSqliteOptions = args['durable']
+        ? SqliteOptions(
+            journalMode: SqliteJournalMode.wal,
+            synchronous: SqliteSynchronous.full,
+          )
+        : SqliteOptions();
     _db = PowerSyncDatabase(
       schema: schemaMWW,
       path: filePath,
