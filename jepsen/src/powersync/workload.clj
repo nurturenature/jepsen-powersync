@@ -63,10 +63,10 @@
   (let [db               (if lazyfs?
                            (ps/lazyfs-psdb)
                            (ps/psdb))
-        data-dir         (-> db :lazyfs-db :lazyfs :data-dir)
-        _                (assert data-dir)
         checker-unsynced (when lazyfs?
-                           (let [db-file  (str "'" data-dir "/" ps/database-file "'")
+                           (let [data-dir (-> db :lazyfs-db :lazyfs :data-dir)
+                                 _        (assert data-dir)
+                                 db-file  (str "'" data-dir "/" ps/database-file "'")
                                  wal-file (str "'" data-dir "/" ps/database-file "-wal'")]
                              ; any mention of database, or WAL, file is suspect
                              {:lazyfs-log-db  (checker/log-file-pattern db-file  "lazyfs.log")
