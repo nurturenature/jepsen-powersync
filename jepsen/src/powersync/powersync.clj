@@ -6,7 +6,8 @@
              [lazyfs :as lazyfs]
              [util :as u]]
             [jepsen.control
-             [util :as cu]]))
+             [util :as cu]]
+            [powersync.util :refer [killall]]))
 
 (def install-dir
   "Directory to install into."
@@ -122,37 +123,19 @@
 
   (kill!
     [_this _test _node]
-    ; TODO: understand why sporadic Exception with exit code of 137 when using Docker,
-    ;       for now, retrying is effective and safe 
-    (u/timeout 10000
-               :timed-out
-               (do
-                 (c/su
-                  (u/retry 1 (cu/grepkill! app-ps-name)))
-                 :killed)))
+    (killall app-ps-name)
+    :killed)
 
   db/Pause
   (pause!
     [_this _test _node]
-    ; TODO: understand why sporadic Exception with exit code of 137 when using Docker,
-    ;       for now, retrying is effective and safe 
-    (u/timeout 10000
-               :timed-out
-               (do
-                 (c/su
-                  (u/retry 1 (cu/grepkill! :stop app-ps-name)))
-                 :paused)))
+    (killall :STOP app-ps-name)
+    :paused)
 
   (resume!
     [_this _test _node]
-    ; TODO: understand why sporadic Exception with exit code of 137 when using Docker,
-    ;       for now, retrying is effective and safe 
-    (u/timeout 10000
-               :timed-out
-               (do
-                 (c/su
-                  (u/retry 1 (cu/grepkill! :cont app-ps-name)))
-                 :resumed))))
+    (killall :CONT app-ps-name)
+    :resumed))
 
 (defn psdb
   "Installs and uses PowerSync."
