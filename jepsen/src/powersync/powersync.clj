@@ -41,9 +41,10 @@
 (def log-file-short "client.log")
 (def log-file       (str app-dir "/" log-file-short))
 
-(def app-ps-name "powersync_http")
+(def app-bin-name "powersync_http")
+(def app-ps-name  "powersync")      ; killall can only match powersync, not powersync_http
 
-(def bin-path (str app-dir "/powersync_http/bundle/bin/" app-ps-name))
+(def bin-path (str app-dir "/powersync_http/bundle/bin/" app-bin-name))
 
 (defn wipe
   "Wipes local SQLite3 db data dir.
