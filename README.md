@@ -320,6 +320,8 @@ Even during faults, we still expect:
 
 ## Client Application Disconnect / Connect
 
+***UPDATE: as of `2.4.0` disconnect/connect issues have been resolved. [issue](https://github.com/powersync-ja/powersync.dart/issues/253#issuecomment-5944427352)***
+
 In both `powersync_fuzz` and `Jepsen` use `PowerSyncDatabase.disconnect()/connect()`.
 
 ```dart
@@ -778,6 +780,8 @@ PowerSync tests 100% successful when injecting client process pause/resumes for 
 ----
 
 ## Client Application Process Kill / Start
+
+***UPDATE: as of `2.4.0` kill/start issues have been resolved. [issue](https://github.com/powersync-ja/powersync.dart/issues/308#issuecomment-5962528089)***
 
 Client application process kills can happen when:
 
