@@ -170,6 +170,10 @@ class PGEndpoint extends Endpoint {
         op['value']['v'] = {'pg': 'no-downloading'};
         break;
 
+      case APICalls.requestCheckpoint:
+        op['value']['v'] = {'pg': 'no-request-checkpoint'};
+        break;
+
       case APICalls.selectAll:
         op['value']['v'] = await _selectAll();
         break;

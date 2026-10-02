@@ -104,6 +104,12 @@ Future<void> main(List<String> arguments) async {
         ))['value']['v'];
         break;
 
+      case APICalls.requestCheckpoint:
+        response = (await endpointDb.dbApi(
+          Endpoint.requestCheckpointMessage(),
+        ))['value']['v'];
+        break;
+
       case APICalls.selectAll:
         response = (await endpointDb.dbApi(
           Endpoint.selectAllMessage(),

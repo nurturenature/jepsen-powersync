@@ -320,6 +320,24 @@ class PSEndpoint extends Endpoint {
         }
         break;
 
+      case APICalls.requestCheckpoint:
+        if (_db.connected) {
+          final checkpointRequest = await _db.requestCheckpoint();
+          await checkpointRequest.waitForSync();
+          op['value']['v'] = {'db': 'checkpoint-requested'};
+        } else {
+          newType = 'error';
+          op['type'] = newType; // update op now for better error message
+          op['value']['v'] = {
+            'error': 'requestCheckpoint: db not connected, cannot request checkpoint',
+          };
+          log.severe(
+            'database api: ${APICalls.requestCheckpoint.name}: db not connected, cannot request checkpoint',
+          );
+          log.severe('\tdb.currentStatus: ${_db.currentStatus}');
+        }
+        break;
+
       case APICalls.selectAll:
         op['value']['v'] = await _selectAll();
         break;

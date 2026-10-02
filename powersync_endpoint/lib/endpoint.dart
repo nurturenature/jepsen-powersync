@@ -25,6 +25,7 @@ enum APICalls {
   uploadQueueCount,
   uploadQueueWait,
   downloadingWait,
+  requestCheckpoint,
 }
 
 /// lookup Map for API Calls
@@ -127,6 +128,14 @@ abstract class Endpoint {
       'type': 'invoke',
       'f': 'api',
       'value': {'f': APICalls.downloadingWait.name, 'v': {}},
+    });
+  }
+
+  static SplayTreeMap<String, dynamic> requestCheckpointMessage() {
+    return SplayTreeMap.of({
+      'type': 'invoke',
+      'f': 'api',
+      'value': {'f': APICalls.requestCheckpoint.name, 'v': {}},
     });
   }
 }
