@@ -60,7 +60,7 @@
        (merge op op'))
 
      (catch java.net.ConnectException ex
-       (if (= (.getMessage ex) "Connection refused")
+       (if (= (.getMessage ex) "Connection refused (connect failed)")
          (assoc op
                 :type  :fail
                 :error (.toString ex))
